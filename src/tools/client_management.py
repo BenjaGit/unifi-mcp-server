@@ -62,7 +62,9 @@ async def block_client(
             # Verify client exists (check both active and all users)
             response = await client.get(f"/ea/sites/{site_id}/stat/alluser")
             # Client now auto-unwraps the "data" field, so response is the actual data
-            clients_data: list[dict[str, Any]] = response if isinstance(response, list) else response.get("data", [])
+            clients_data: list[dict[str, Any]] = (
+                response if isinstance(response, list) else response.get("data", [])
+            )
 
             client_exists = any(
                 validate_mac_address(c.get("mac", "")) == client_mac for c in clients_data
@@ -220,7 +222,9 @@ async def reconnect_client(
             # Verify client is currently connected
             response = await client.get(f"/ea/sites/{site_id}/sta")
             # Client now auto-unwraps the "data" field, so response is the actual data
-            clients_data: list[dict[str, Any]] = response if isinstance(response, list) else response.get("data", [])
+            clients_data: list[dict[str, Any]] = (
+                response if isinstance(response, list) else response.get("data", [])
+            )
 
             client_exists = any(
                 validate_mac_address(c.get("mac", "")) == client_mac for c in clients_data

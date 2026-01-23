@@ -1,7 +1,5 @@
 """Unit tests for helper utility functions."""
 
-import pytest
-
 from src.utils.helpers import (
     build_uri,
     format_bytes,

@@ -28,7 +28,7 @@ async def get_site_details(site_id: str, settings: Settings) -> dict[str, Any]:
         await client.authenticate()
 
         response = await client.get("/ea/sites")
-        
+
         # Handle both local and cloud API response formats
         if isinstance(response, list):
             sites_data = response
@@ -69,11 +69,11 @@ async def list_sites(
                 endpoint = settings.get_integration_path("sites")
             else:
                 endpoint = "/ea/sites"
-            
+
             logger.debug(f"Fetching sites from endpoint: {endpoint}")
             response = await client.get(endpoint)
             logger.debug(f"Raw response: {response}")
-            
+
             # Handle both local and cloud API response formats
             if isinstance(response, list):
                 sites_data = response
@@ -125,9 +125,21 @@ async def get_site_statistics(site_id: str, settings: Settings) -> dict[str, Any
         clients_response = await client.get(f"/ea/sites/{site_id}/sta")
         networks_response = await client.get(f"/ea/sites/{site_id}/rest/networkconf")
 
-        devices_data = devices_response.get("data", []) if isinstance(devices_response, dict) else devices_response
-        clients_data = clients_response.get("data", []) if isinstance(clients_response, dict) else clients_response
-        networks_data = networks_response.get("data", []) if isinstance(networks_response, dict) else networks_response
+        devices_data = (
+            devices_response.get("data", [])
+            if isinstance(devices_response, dict)
+            else devices_response
+        )
+        clients_data = (
+            clients_response.get("data", [])
+            if isinstance(clients_response, dict)
+            else clients_response
+        )
+        networks_data = (
+            networks_response.get("data", [])
+            if isinstance(networks_response, dict)
+            else networks_response
+        )
 
         # Count device types
         ap_count = sum(1 for d in devices_data if d.get("type") == "uap")

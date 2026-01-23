@@ -7,7 +7,6 @@ from typing import Any
 
 from ..api import UniFiClient
 from ..config import Settings
-from ..models.backup import BackupMetadata, BackupType
 from ..utils import (
     ValidationError,
     get_logger,
@@ -72,15 +71,11 @@ async def trigger_backup(
     # Validate backup type
     valid_types = ["network", "system"]
     if backup_type.lower() not in valid_types:
-        raise ValidationError(
-            f"Invalid backup_type '{backup_type}'. Must be one of: {valid_types}"
-        )
+        raise ValidationError(f"Invalid backup_type '{backup_type}'. Must be one of: {valid_types}")
 
     # Validate retention days
     if retention_days < -1 or retention_days == 0:
-        raise ValidationError(
-            "retention_days must be -1 (indefinite) or positive integer"
-        )
+        raise ValidationError("retention_days must be -1 (indefinite) or positive integer")
 
     parameters = {
         "site_id": site_id,
@@ -126,7 +121,11 @@ async def trigger_backup(
             backup_id = backup_data.get("id", "")
 
             # Extract filename from URL
-            filename = download_url.split("/")[-1] if download_url else f"backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.unf"
+            filename = (
+                download_url.split("/")[-1]
+                if download_url
+                else f"backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.unf"
+            )
 
             result = {
                 "backup_id": backup_id or filename.replace(".unf", ""),
@@ -208,16 +207,20 @@ async def list_backups(
                 # Infer from filename: .unf = network, .unifi = system
                 backup_type_str = "SYSTEM" if filename.endswith(".unifi") else "NETWORK"
 
-            backups.append({
-                "backup_id": backup.get("id", filename.replace(".unf", "").replace(".unifi", "")),
-                "filename": filename,
-                "backup_type": backup_type_str,
-                "created_at": created_timestamp,
-                "size_bytes": size_bytes,
-                "version": backup.get("version", ""),
-                "is_valid": backup.get("valid", True),
-                "cloud_synced": backup.get("cloud_backup", False),
-            })
+            backups.append(
+                {
+                    "backup_id": backup.get(
+                        "id", filename.replace(".unf", "").replace(".unifi", "")
+                    ),
+                    "filename": filename,
+                    "backup_type": backup_type_str,
+                    "created_at": created_timestamp,
+                    "size_bytes": size_bytes,
+                    "version": backup.get("version", ""),
+                    "is_valid": backup.get("valid", True),
+                    "cloud_synced": backup.get("cloud_backup", False),
+                }
+            )
 
         logger.info(f"Retrieved {len(backups)} backups for site '{site_id}'")
         return backups
@@ -514,9 +517,7 @@ async def restore_backup(
     }
 
     if dry_run:
-        logger.info(
-            f"DRY RUN: Would restore from backup '{backup_filename}' for site '{site_id}'"
-        )
+        logger.info(f"DRY RUN: Would restore from backup '{backup_filename}' for site '{site_id}'")
         log_audit(
             operation="restore_backup",
             parameters=parameters,

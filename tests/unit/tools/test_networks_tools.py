@@ -1,15 +1,16 @@
 """Unit tests for src/tools/networks.py."""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from src.utils.exceptions import ResourceNotFoundError, ValidationError
+import pytest
+
 from src.tools.networks import (
     get_network_details,
-    list_vlans,
-    get_subnet_info,
     get_network_statistics,
+    get_subnet_info,
+    list_vlans,
 )
+from src.utils.exceptions import ResourceNotFoundError, ValidationError
 
 
 @pytest.fixture

@@ -7,7 +7,6 @@ from ..config import Settings
 from ..models.traffic_matching_list import (
     TrafficMatchingList,
     TrafficMatchingListCreate,
-    TrafficMatchingListUpdate,
 )
 from ..utils import (
     ResourceNotFoundError,

@@ -1,15 +1,16 @@
 """Unit tests for src/tools/clients.py."""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from src.utils.exceptions import ResourceNotFoundError, ValidationError
+import pytest
+
 from src.tools.clients import (
     get_client_details,
     get_client_statistics,
     list_active_clients,
     search_clients,
 )
+from src.utils.exceptions import ResourceNotFoundError, ValidationError
 
 
 @pytest.fixture

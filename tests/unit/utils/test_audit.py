@@ -1,7 +1,6 @@
 """Unit tests for src/utils/audit.py."""
 
 import json
-import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -156,7 +155,7 @@ class TestAuditLoggerLogOperation:
         log_path = tmp_path / "audit.log"
         logger = AuditLogger(log_file=log_path)
 
-        with patch("builtins.open", side_effect=IOError("Permission denied")):
+        with patch("builtins.open", side_effect=OSError("Permission denied")):
             with patch.object(logger.logger, "error") as mock_error:
                 # Should not raise, but log error
                 logger.log_operation(
@@ -325,7 +324,7 @@ class TestAuditLoggerGetRecentOperations:
         # Create the file
         log_path.touch()
 
-        with patch("builtins.open", side_effect=IOError("Read error")):
+        with patch("builtins.open", side_effect=OSError("Read error")):
             with patch.object(logger.logger, "error") as mock_error:
                 result = logger.get_recent_operations()
 

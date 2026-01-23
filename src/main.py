@@ -23,14 +23,14 @@ from .tools import firewall_zones as firewall_zones_tools
 from .tools import network_config as network_config_tools
 from .tools import networks as networks_tools
 from .tools import port_forwarding as port_fwd_tools
+from .tools import reference_data as ref_tools
 from .tools import site_manager as site_manager_tools
+from .tools import site_vpn as site_vpn_tools
 from .tools import sites as sites_tools
 from .tools import traffic_flows as traffic_flows_tools
 from .tools import traffic_matching_lists as tml_tools
 from .tools import vouchers as vouchers_tools
-from .tools import reference_data as ref_tools
 from .tools import vpn as vpn_tools
-from .tools import site_vpn as site_vpn_tools
 from .tools import wans as wans_tools
 from .tools import wifi as wifi_tools
 from .utils import get_logger
@@ -101,6 +101,7 @@ async def health_check() -> dict[str, str]:
 
 # Register debug tool only if DEBUG is enabled
 if os.getenv("DEBUG", "").lower() in ("true", "1", "yes"):
+
     @mcp.tool()
     async def debug_api_request(endpoint: str, method: str = "GET") -> dict:
         """Debug tool to query arbitrary UniFi API endpoints.
@@ -446,9 +447,7 @@ async def delete_backup(
     Warning:
         This operation permanently deletes the backup file.
     """
-    return await backups_tools.delete_backup(
-        site_id, backup_filename, settings, confirm, dry_run
-    )
+    return await backups_tools.delete_backup(site_id, backup_filename, settings, confirm, dry_run)
 
 
 @mcp.tool()
@@ -1360,7 +1359,9 @@ async def delete_traffic_matching_list(
     dry_run: bool = False,
 ) -> dict:
     """Delete a traffic matching list (requires confirm=True)."""
-    return await tml_tools.delete_traffic_matching_list(site_id, list_id, settings, confirm, dry_run)
+    return await tml_tools.delete_traffic_matching_list(
+        site_id, list_id, settings, confirm, dry_run
+    )
 
 
 # VPN Management Tools
@@ -1410,10 +1411,16 @@ async def update_site_to_site_vpn(
 ) -> dict:
     """Update a site-to-site VPN configuration (requires confirm=True)."""
     return await site_vpn_tools.update_site_to_site_vpn(
-        site_id, vpn_id, settings,
-        name=name, enabled=enabled, ipsec_peer_ip=ipsec_peer_ip,
-        remote_vpn_subnets=remote_vpn_subnets, x_ipsec_pre_shared_key=x_ipsec_pre_shared_key,
-        confirm=confirm, dry_run=dry_run,
+        site_id,
+        vpn_id,
+        settings,
+        name=name,
+        enabled=enabled,
+        ipsec_peer_ip=ipsec_peer_ip,
+        remote_vpn_subnets=remote_vpn_subnets,
+        x_ipsec_pre_shared_key=x_ipsec_pre_shared_key,
+        confirm=confirm,
+        dry_run=dry_run,
     )
 
 

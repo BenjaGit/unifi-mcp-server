@@ -1,18 +1,19 @@
 """Unit tests for src/tools/devices.py."""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from src.utils.exceptions import ResourceNotFoundError, ValidationError
+import pytest
+
 from src.tools.devices import (
+    adopt_device,
+    execute_port_action,
     get_device_details,
     get_device_statistics,
     list_devices_by_type,
-    search_devices,
     list_pending_devices,
-    adopt_device,
-    execute_port_action,
+    search_devices,
 )
+from src.utils.exceptions import ResourceNotFoundError, ValidationError
 
 
 @pytest.fixture

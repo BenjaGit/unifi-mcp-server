@@ -1,18 +1,12 @@
 """Unit tests for src/utils/audit.py."""
 
 import json
-import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.utils.audit import (
-    AuditLogger,
-    audit_action,
-    get_audit_logger,
-    log_audit,
-)
+from src.utils.audit import AuditLogger, audit_action, get_audit_logger, log_audit
 
 
 class TestAuditLoggerInit:
@@ -39,7 +33,7 @@ class TestAuditLoggerInit:
     def test_init_creates_parent_directory(self, tmp_path):
         """Test that AuditLogger creates parent directory if needed."""
         log_path = tmp_path / "nested" / "dir" / "audit.log"
-        logger = AuditLogger(log_file=log_path)
+        AuditLogger(log_file=log_path)
         assert log_path.parent.exists()
 
     def test_init_custom_log_level(self, tmp_path):
@@ -156,7 +150,7 @@ class TestAuditLoggerLogOperation:
         log_path = tmp_path / "audit.log"
         logger = AuditLogger(log_file=log_path)
 
-        with patch("builtins.open", side_effect=IOError("Permission denied")):
+        with patch("builtins.open", side_effect=OSError("Permission denied")):
             with patch.object(logger.logger, "error") as mock_error:
                 # Should not raise, but log error
                 logger.log_operation(
@@ -325,7 +319,7 @@ class TestAuditLoggerGetRecentOperations:
         # Create the file
         log_path.touch()
 
-        with patch("builtins.open", side_effect=IOError("Read error")):
+        with patch("builtins.open", side_effect=OSError("Read error")):
             with patch.object(logger.logger, "error") as mock_error:
                 result = logger.get_recent_operations()
 

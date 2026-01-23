@@ -1,7 +1,8 @@
 """Unit tests for src/resources/sites.py."""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 from src.resources.sites import SitesResource
 

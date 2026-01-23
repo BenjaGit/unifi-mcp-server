@@ -7,7 +7,6 @@ from ..config import Settings
 from ..models.traffic_matching_list import (
     TrafficMatchingList,
     TrafficMatchingListCreate,
-    TrafficMatchingListUpdate,
 )
 from ..utils import (
     ResourceNotFoundError,
@@ -349,12 +348,10 @@ async def delete_traffic_matching_list(
                 await client.get(
                     f"/integration/v1/sites/{site_id}/traffic-matching-lists/{list_id}"
                 )
-            except Exception:
-                raise ResourceNotFoundError("traffic_matching_list", list_id)
+            except Exception as err:
+                raise ResourceNotFoundError("traffic_matching_list", list_id) from err
 
-            response = await client.delete(
-                f"/integration/v1/sites/{site_id}/traffic-matching-lists/{list_id}"
-            )
+            await client.delete(f"/integration/v1/sites/{site_id}/traffic-matching-lists/{list_id}")
 
             logger.info(f"Deleted traffic matching list '{list_id}' from site '{site_id}'")
             log_audit(

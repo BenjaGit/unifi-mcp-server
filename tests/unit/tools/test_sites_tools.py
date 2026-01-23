@@ -1,10 +1,11 @@
 """Unit tests for src/tools/sites.py."""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from src.utils.exceptions import ResourceNotFoundError
+import pytest
+
 from src.tools.sites import get_site_details, get_site_statistics, list_sites
+from src.utils.exceptions import ResourceNotFoundError
 
 
 @pytest.fixture
@@ -208,7 +209,7 @@ class TestListSites:
         with patch("src.tools.sites.UniFiClient") as mock_client_class:
             mock_client_class.return_value = create_mock_client(mock_response)
 
-            with pytest.raises(Exception):
+            with pytest.raises((Exception, ValueError, KeyError)):  # noqa: B017
                 await list_sites(mock_settings)
 
 

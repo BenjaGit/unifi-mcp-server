@@ -237,16 +237,16 @@ async def run_tests():
     for tool_name, func, params in tools:
         print(f"Testing {tool_name}...", end=" ", flush=True)
         t_res = {"tool": tool_name, "params": params, "status": "unknown"}
-        
+
         try:
             start = asyncio.get_event_loop().time()
             res = await func(settings=settings, **params)
             duration = (asyncio.get_event_loop().time() - start) * 1000
-            
+
             print(f"✅ ({int(duration)}ms)")
             t_res["status"] = "success"
             t_res["duration_ms"] = round(duration, 1)
-            
+
         except Exception as e:
             err_msg = str(e)
             # Sanitize IPs
@@ -255,7 +255,7 @@ async def run_tests():
             t_res["status"] = "error"
             t_res["error"] = err_msg
             t_res["error_type"] = type(e).__name__
-            
+
         results["tests"].append(t_res)
 
     return results
@@ -275,7 +275,7 @@ for ENV_CONFIG in "${ENVS_TO_TEST[@]}"; do
   IFS=':' read -ra PARTS <<< "${ENV_CONFIG}"
   TYPE="${PARTS[0]}"
   HOST="${PARTS[1]}"
-  
+
   if [ "$TYPE" == "cloud" ]; then
     NAME="Cloud_API"
     export UNIFI_API_TYPE="cloud"
@@ -289,17 +289,17 @@ for ENV_CONFIG in "${ENVS_TO_TEST[@]}"; do
     export UNIFI_LOCAL_VERIFY_SSL="$SSL"
     unset UNIFI_HOST
   fi
-  
+
   export TEST_ENV_NAME="$NAME"
   RESULTS_FILE="${TEST_DIR}/${NAME}-results.json"
-  
+
   echo "--> Testing Environment: $NAME ($HOST)"
-  
+
   # Check Connectivity
   if [ "$TYPE" == "cloud" ]; then URL="https://$HOST"; else URL="https://$HOST"; fi
   OPTS=""
   [ "$SSL" == "false" ] && OPTS="-k"
-  
+
   if curl $OPTS -s -o /dev/null -w "%{http_code}" --connect-timeout 5 "$URL" | grep -qE "200|401|403"; then
      python3 "${TEST_DIR}/test_runner.py" "$RESULTS_FILE"
   else
@@ -325,12 +325,12 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 # Iterate over all result files
 for RESULT_FILE in "${TEST_DIR}"/*-results.json; do
   [ -e "$RESULT_FILE" ] || continue
-  
+
   ENV_NAME=$(basename "$RESULT_FILE" -results.json)
-  
+
   # Extract errors using jq (requires jq, fallback to grep if needed, but jq is safer)
   # We assume jq is available as per allowed-tools, or we use a python one-liner helper
-  
+
   python3 -c "
 import json, sys, os
 try:
@@ -341,13 +341,13 @@ try:
             print(f\"{t['tool']}|{t['error']}\")
 except: pass
 " | while IFS='|' read -r TOOL ERROR_MSG; do
-  
+
     echo "⚠️  Bug detected: $TOOL in $ENV_NAME"
-    
+
     # Check for existing duplicate issues
     SEARCH_QUERY="[Bug] $TOOL fails on $ENV_NAME in:title state:open label:mcp-testing"
     EXISTING=$(gh issue list --search "$SEARCH_QUERY" --json number --jq '.[0].number')
-    
+
     if [ ! -z "$EXISTING" ]; then
       echo "   ⏭️  Issue already exists: #$EXISTING. Skipping."
     else
@@ -371,7 +371,7 @@ $ERROR_MSG
       echo "   📝 Creating GitHub Issue..."
       NEW_ISSUE_URL=$(gh issue create --title "$TITLE" --body "$BODY" --label "bug,mcp-testing,automated,needs-triage" --json url --jq '.url')
       NEW_ISSUE_NUM=$(basename "$NEW_ISSUE_URL")
-      
+
       echo "   ✅ Created Issue #$NEW_ISSUE_NUM"
       echo "$NEW_ISSUE_NUM" >> "${TEST_DIR}/issues/created_ids.txt"
     fi
@@ -394,22 +394,22 @@ else
   ISSUE_COUNT=$(wc -l < "${TEST_DIR}/issues/created_ids.txt")
   echo "⏳ Waiting 60 seconds for Triage Bot to analyze $ISSUE_COUNT new issue(s)..."
   sleep 60
-  
+
   while read ISSUE_NUM; do
     echo "Processing Issue #$ISSUE_NUM..."
-    
+
     # Check for Triage Bot response
     # We look for comments from typical bot names
     BOT_RESPONDED=$(gh issue view "$ISSUE_NUM" --json comments --jq '.comments[] | select(.author.login == "github-actions[bot]" or .author.login == "claude-triage-bot") | .body' | wc -l)
-    
+
     if [ "$BOT_RESPONDED" -gt 0 ]; then
        echo "   ✅ Triage Bot has responded."
-       
+
        # INSTRUCTION STEP: Assign to @claude with specific prompt
        echo "   🤖 Assigning to @claude for fix..."
-       
+
        PROMPT="**ACTION REQUIRED** @claude
-       
+
 Please handle this issue following this workflow:
 1. **Create a Branch**: Create a new git branch dedicated to this issue.
 2. **Develop Fix**: Analyze the error log above and implement a fix in the code.
@@ -420,15 +420,15 @@ Status: Ready for development."
 
        # Post the instruction comment
        gh issue comment "$ISSUE_NUM" --body "$PROMPT"
-       
+
        # Attempt assignment (may fail depending on org permissions, but comment triggers the bot)
        gh issue edit "$ISSUE_NUM" --add-assignee "claude" 2>/dev/null || true
-       
+
        echo "   🚀 Remediation workflow triggered for #$ISSUE_NUM"
     else
        echo "   ⚠️  No Triage Bot response detected yet. Skipping auto-assignment."
     fi
-    
+
   done < "${TEST_DIR}/issues/created_ids.txt"
 fi
 ```

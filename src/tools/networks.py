@@ -147,11 +147,19 @@ async def get_network_statistics(site_id: str, settings: Settings) -> dict[str, 
 
         # Get network configurations
         networks_response = await client.get(f"/ea/sites/{site_id}/rest/networkconf")
-        networks_data = networks_response.get("data", []) if isinstance(networks_response, dict) else networks_response
+        networks_data = (
+            networks_response.get("data", [])
+            if isinstance(networks_response, dict)
+            else networks_response
+        )
 
         # Get active clients to count usage per network
         clients_response = await client.get(f"/ea/sites/{site_id}/sta")
-        clients_data = clients_response.get("data", []) if isinstance(clients_response, dict) else clients_response
+        clients_data = (
+            clients_response.get("data", [])
+            if isinstance(clients_response, dict)
+            else clients_response
+        )
 
         # Calculate statistics per network
         network_stats = []

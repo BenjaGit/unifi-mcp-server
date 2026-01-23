@@ -142,16 +142,16 @@ async def tool_name(
 ) -> Dict[str, Any]:
     """
     Brief description of what the tool does.
-    
+
     Args:
         site_id: UniFi site identifier (e.g., 'default')
         param: Description of parameter
         confirm: Required safety flag for mutating operations
         dry_run: Preview changes without applying
-        
+
     Returns:
         Dictionary containing operation results
-        
+
     Raises:
         ValueError: If validation fails
         APIError: If UniFi API request fails
@@ -159,14 +159,14 @@ async def tool_name(
     # 1. Input validation
     if not site_id:
         raise ValueError("site_id is required")
-    
+
     # 2. Safety checks for mutating operations
     if not dry_run and not confirm:
         return {
             "error": "confirm=True required for this operation",
             "dry_run_available": True
         }
-    
+
     # 3. Dry-run preview
     if dry_run:
         return {
@@ -174,20 +174,20 @@ async def tool_name(
             "would_perform": "description of action",
             "affected_resources": ["list", "of", "resources"]
         }
-    
+
     # 4. Execute operation
     try:
         result = await unifi_api.perform_action(site_id, param)
-        
+
         # 5. Audit logging
         logger.info(f"Tool executed: {tool_name}", extra={
             "site_id": site_id,
             "param": param,
             "result": result
         })
-        
+
         return result
-        
+
     except Exception as e:
         logger.error(f"Tool failed: {e}")
         raise
@@ -223,7 +223,7 @@ async def test_create_firewall_rule():
     # Arrange
     mock_api = AsyncMock()
     mock_api.create_rule.return_value = {"_id": "rule123", "name": "test"}
-    
+
     # Act
     with patch("src.api.client.UniFiAPI", return_value=mock_api):
         result = await create_firewall_rule(
@@ -232,7 +232,7 @@ async def test_create_firewall_rule():
             action="accept",
             confirm=True
         )
-    
+
     # Assert
     assert result["name"] == "test"
     mock_api.create_rule.assert_called_once()
@@ -267,19 +267,19 @@ from src.api.client import UniFiAPI
 async with UniFiAPI(config) as api:
     # List operations
     devices = await api.get(f"/sites/{site_id}/devices")
-    
+
     # Create operations
     new_rule = await api.post(
         f"/sites/{site_id}/firewall/rules",
         json=rule_data
     )
-    
+
     # Update operations
     updated = await api.put(
         f"/sites/{site_id}/firewall/rules/{rule_id}",
         json=updated_data
     )
-    
+
     # Delete operations
     await api.delete(f"/sites/{site_id}/firewall/rules/{rule_id}")
 ```
@@ -304,15 +304,15 @@ from typing import Optional, List, Literal
 
 class FirewallZone(BaseModel):
     """Zone-Based Firewall zone configuration."""
-    
+
     # Required fields with descriptions
     name: str = Field(..., description="Zone name (e.g., 'LAN', 'IoT')")
     site_id: str = Field(..., description="UniFi site identifier")
-    
+
     # Optional fields with defaults
     description: Optional[str] = Field(None, description="Zone description")
     enabled: bool = Field(True, description="Whether zone is active")
-    
+
     # Constrained fields
     networks: List[str] = Field(
         default_factory=list,
@@ -320,7 +320,7 @@ class FirewallZone(BaseModel):
         min_items=0,
         max_items=50
     )
-    
+
     # Custom validation
     @validator("name")
     def validate_name(cls, v):
@@ -330,14 +330,14 @@ class FirewallZone(BaseModel):
         if not v.replace("-", "").replace("_", "").isalnum():
             raise ValueError("Zone name must be alphanumeric")
         return v
-    
+
     @root_validator
     def check_consistency(cls, values):
         """Validate field consistency."""
         if values.get("enabled") and not values.get("networks"):
             raise ValueError("Enabled zones must have at least one network")
         return values
-    
+
     class Config:
         """Pydantic configuration."""
         # Allow extra fields for forward compatibility
@@ -521,16 +521,16 @@ gemini "Create 5 practical examples of using the DPI statistics tools"
 async def update_zbf_policy_matrix(site_id: str, source_zone_id: str, dest_zone_id: str, action: str) -> Dict:
     """
     ⚠️ API LIMITATION: This endpoint does not exist in UniFi API v10.0.156.
-    
+
     Configure zone policies via UniFi Console:
     Settings → Security → Zone-Based Firewall → Policy Matrix
-    
+
     Args:
         site_id: UniFi site identifier
         source_zone_id: Source zone ID
         dest_zone_id: Destination zone ID
         action: Policy action ('accept', 'drop', 'reject')
-        
+
     Returns:
         Error message explaining API limitation
     """
@@ -605,11 +605,11 @@ async def batch_restart_devices(device_ids: List[str], site_id: str):
     """Restart multiple devices in parallel."""
     tasks = [restart_device(device_id, site_id) for device_id in device_ids]
     results = await asyncio.gather(*tasks, return_exceptions=True)
-    
+
     # Process results
     successes = [r for r in results if not isinstance(r, Exception)]
     failures = [r for r in results if isinstance(r, Exception)]
-    
+
     return {"successes": len(successes), "failures": len(failures)}
 ```
 
@@ -624,7 +624,7 @@ async def get_network_topology(site_id: str) -> Dict:
     devices = await api.get_devices(site_id)
     clients = await api.get_clients(site_id)
     networks = await api.get_networks(site_id)
-    
+
     # Build topology
     return build_topology(devices, clients, networks)
 ```

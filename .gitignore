@@ -184,3 +184,6 @@ temp/
 # Local live environment test results
 test-results/
 docs/bugs/
+
+# Git worktrees
+.worktrees/

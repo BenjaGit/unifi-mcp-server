@@ -1,5 +1,4 @@
 from enum import Enum
-from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -32,29 +31,29 @@ class IPVersion(str, Enum):
 class MatchTarget(BaseModel):
     zone_id: str = Field(..., description="Firewall zone ID")
     matching_target: MatchingTarget = Field(..., description="Target matching type")
-    matching_target_type: Optional[str] = Field(None, description="Target type qualifier")
-    port_matching_type: Optional[str] = Field(None, description="Port matching type (ANY/SPECIFIC)")
-    port: Optional[str] = Field(None, description="Port(s) e.g. '53', '80,443', '1000-2000'")
-    match_opposite_ports: Optional[bool] = Field(None, description="Invert port matching")
-    ips: Optional[list[str]] = Field(None, description="IP addresses for IP matching")
-    match_opposite_ips: Optional[bool] = Field(None, description="Invert IP matching")
-    network_ids: Optional[list[str]] = Field(None, description="Network IDs for NETWORK matching")
-    match_opposite_networks: Optional[bool] = Field(None, description="Invert network matching")
-    regions: Optional[list[str]] = Field(None, description="ISO country codes for REGION matching")
-    client_macs: Optional[list[str]] = Field(None, description="MAC addresses for CLIENT matching")
-    match_mac: Optional[bool] = Field(None, description="Match by MAC address")
+    matching_target_type: str | None = Field(None, description="Target type qualifier")
+    port_matching_type: str | None = Field(None, description="Port matching type (ANY/SPECIFIC)")
+    port: str | None = Field(None, description="Port(s) e.g. '53', '80,443', '1000-2000'")
+    match_opposite_ports: bool | None = Field(None, description="Invert port matching")
+    ips: list[str] | None = Field(None, description="IP addresses for IP matching")
+    match_opposite_ips: bool | None = Field(None, description="Invert IP matching")
+    network_ids: list[str] | None = Field(None, description="Network IDs for NETWORK matching")
+    match_opposite_networks: bool | None = Field(None, description="Invert network matching")
+    regions: list[str] | None = Field(None, description="ISO country codes for REGION matching")
+    client_macs: list[str] | None = Field(None, description="MAC addresses for CLIENT matching")
+    match_mac: bool | None = Field(None, description="Match by MAC address")
 
     model_config = ConfigDict(populate_by_name=True, extra="allow")
 
 
 class Schedule(BaseModel):
     mode: str = Field(..., description="Schedule mode (ALWAYS/CUSTOM)")
-    date_start: Optional[str] = Field(None, description="Start date YYYY-MM-DD")
-    date_end: Optional[str] = Field(None, description="End date YYYY-MM-DD")
-    time_all_day: Optional[bool] = Field(None, description="All day or specific time")
-    time_range_start: Optional[str] = Field(None, description="Start time HH:MM")
-    time_range_end: Optional[str] = Field(None, description="End time HH:MM")
-    repeat_on_days: Optional[list[str]] = Field(None, description="Days to repeat")
+    date_start: str | None = Field(None, description="Start date YYYY-MM-DD")
+    date_end: str | None = Field(None, description="End date YYYY-MM-DD")
+    time_all_day: bool | None = Field(None, description="All day or specific time")
+    time_range_start: str | None = Field(None, description="Start time HH:MM")
+    time_range_end: str | None = Field(None, description="End time HH:MM")
+    repeat_on_days: list[str] | None = Field(None, description="Days to repeat")
 
     model_config = ConfigDict(extra="allow")
 
@@ -71,21 +70,21 @@ class FirewallPolicy(BaseModel):
     connection_state_type: ConnectionStateType = Field(
         ConnectionStateType.ALL, description="Connection state matching type"
     )
-    connection_states: Optional[list[str]] = Field(
+    connection_states: list[str] | None = Field(
         None, description="Connection states when type is CUSTOM"
     )
-    create_allow_respond: Optional[bool] = Field(None, description="Auto-allow response traffic")
-    logging: Optional[bool] = Field(None, description="Enable rule logging")
-    match_ip_sec: Optional[bool] = Field(None, description="Match IPsec traffic")
-    match_opposite_protocol: Optional[bool] = Field(None, description="Match opposite protocol")
-    icmp_typename: Optional[str] = Field(None, description="ICMP type name")
-    icmp_v6_typename: Optional[str] = Field(None, description="ICMPv6 type name")
-    description: Optional[str] = Field(None, description="Policy description")
-    origin_id: Optional[str] = Field(None, description="Related origin object ID")
-    origin_type: Optional[str] = Field(None, description="Origin type (e.g. port_forward)")
+    create_allow_respond: bool | None = Field(None, description="Auto-allow response traffic")
+    logging: bool | None = Field(None, description="Enable rule logging")
+    match_ip_sec: bool | None = Field(None, description="Match IPsec traffic")
+    match_opposite_protocol: bool | None = Field(None, description="Match opposite protocol")
+    icmp_typename: str | None = Field(None, description="ICMP type name")
+    icmp_v6_typename: str | None = Field(None, description="ICMPv6 type name")
+    description: str | None = Field(None, description="Policy description")
+    origin_id: str | None = Field(None, description="Related origin object ID")
+    origin_type: str | None = Field(None, description="Origin type (e.g. port_forward)")
     source: MatchTarget = Field(..., description="Source matching criteria")
     destination: MatchTarget = Field(..., description="Destination matching criteria")
-    schedule: Optional[Schedule] = Field(None, description="Time-based scheduling")
+    schedule: Schedule | None = Field(None, description="Time-based scheduling")
 
     model_config = ConfigDict(populate_by_name=True, extra="allow")
 
@@ -97,28 +96,28 @@ class FirewallPolicyCreate(BaseModel):
     protocol: str = Field("all", description="Protocol")
     ip_version: str = Field("BOTH", description="IP version filter")
     connection_state_type: str = Field("ALL", description="Connection state type")
-    connection_states: Optional[list[str]] = Field(None, description="Connection states")
+    connection_states: list[str] | None = Field(None, description="Connection states")
     source: dict = Field(..., description="Source matching criteria")
     destination: dict = Field(..., description="Destination matching criteria")
-    description: Optional[str] = Field(None, description="Policy description")
-    index: Optional[int] = Field(None, description="Priority order")
-    schedule: Optional[dict] = Field(None, description="Time-based scheduling")
+    description: str | None = Field(None, description="Policy description")
+    index: int | None = Field(None, description="Priority order")
+    schedule: dict | None = Field(None, description="Time-based scheduling")
 
     model_config = ConfigDict(extra="allow")
 
 
 class FirewallPolicyUpdate(BaseModel):
-    name: Optional[str] = Field(None, description="Policy name")
-    action: Optional[str] = Field(None, description="Policy action")
-    enabled: Optional[bool] = Field(None, description="Whether policy is active")
-    protocol: Optional[str] = Field(None, description="Protocol")
-    ip_version: Optional[str] = Field(None, description="IP version filter")
-    connection_state_type: Optional[str] = Field(None, description="Connection state type")
-    connection_states: Optional[list[str]] = Field(None, description="Connection states")
-    source: Optional[dict] = Field(None, description="Source matching criteria")
-    destination: Optional[dict] = Field(None, description="Destination matching criteria")
-    description: Optional[str] = Field(None, description="Policy description")
-    index: Optional[int] = Field(None, description="Priority order")
-    schedule: Optional[dict] = Field(None, description="Time-based scheduling")
+    name: str | None = Field(None, description="Policy name")
+    action: str | None = Field(None, description="Policy action")
+    enabled: bool | None = Field(None, description="Whether policy is active")
+    protocol: str | None = Field(None, description="Protocol")
+    ip_version: str | None = Field(None, description="IP version filter")
+    connection_state_type: str | None = Field(None, description="Connection state type")
+    connection_states: list[str] | None = Field(None, description="Connection states")
+    source: dict | None = Field(None, description="Source matching criteria")
+    destination: dict | None = Field(None, description="Destination matching criteria")
+    description: str | None = Field(None, description="Policy description")
+    index: int | None = Field(None, description="Priority order")
+    schedule: dict | None = Field(None, description="Time-based scheduling")
 
     model_config = ConfigDict(extra="allow")

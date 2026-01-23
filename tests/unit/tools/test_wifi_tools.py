@@ -5,13 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 import src.tools.wifi as wifi_module
-from src.tools.wifi import (
-    create_wlan,
-    delete_wlan,
-    get_wlan_statistics,
-    list_wlans,
-    update_wlan,
-)
+from src.tools.wifi import create_wlan, delete_wlan, get_wlan_statistics, list_wlans, update_wlan
 from src.utils.exceptions import ResourceNotFoundError, ValidationError
 
 

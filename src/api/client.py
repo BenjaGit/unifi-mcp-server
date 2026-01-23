@@ -111,18 +111,18 @@ class UniFiClient:
 
     def _translate_endpoint(self, endpoint: str) -> str:
         """Translate endpoints based on API type.
-        
+
         This method handles endpoint translation for different API modes:
         - cloud-v1: Stable v1 API (no translation for /ea/ endpoints, maps to /v1/)
         - cloud-ea: Early Access API (no translation needed)
         - local: Gateway API (translates cloud format to local format)
-        
+
         Args:
             endpoint: API endpoint (e.g., /ea/sites/{site_id}/devices or /v1/hosts)
-        
+
         Returns:
             Translated endpoint appropriate for the configured API type
-        
+
         Examples:
             Cloud EA: /ea/sites/default/devices -> /ea/sites/default/devices (unchanged)
             Cloud V1: /v1/hosts -> /v1/hosts (unchanged)
@@ -132,26 +132,26 @@ class UniFiClient:
         if self.settings.api_type in (APIType.CLOUD_V1, APIType.CLOUD_EA):
             # Cloud APIs - no translation needed
             return endpoint
-        
+
         # Local API - translate cloud format to local format
         import re
-        
+
         # Special case: /ea/sites (without site_id) -> Integration API
         if endpoint == "/ea/sites":
             return "/proxy/network/integration/v1/sites"
-        
+
         # Pattern: /ea/sites/{site_id}/{rest_of_path}
         # Transform to: /proxy/network/api/s/{site_name}/{local_path}
         # Note: Local API uses site names (e.g., 'default'), not UUIDs
         # AND different endpoint paths than cloud API
-        match = re.match(r'^/ea/sites/([^/]+)/(.+)$', endpoint)
+        match = re.match(r"^/ea/sites/([^/]+)/(.+)$", endpoint)
         if match:
             site_id, cloud_path = match.groups()
             # Translate UUID to site name if we have the mapping
             site_name = self._site_uuid_to_name.get(site_id, site_id)
             if site_id != site_name:
                 self.logger.debug(f"Translated site ID: {site_id} -> {site_name}")
-            
+
             # Map cloud API paths to local API paths
             # Cloud API uses different endpoint naming than local API
             path_mapping = {
@@ -159,15 +159,15 @@ class UniFiClient:
                 "sta": "stat/sta",  # clients
                 "rest/networkconf": "rest/networkconf",  # VLANs/networks
             }
-            
+
             local_path = path_mapping.get(cloud_path, cloud_path)
             if cloud_path != local_path:
                 self.logger.debug(f"Translated path: {cloud_path} -> {local_path}")
-            
+
             return f"/proxy/network/api/s/{site_name}/{local_path}"
-        
+
         # Pattern: /ea/sites/{site_id} (no trailing path)
-        match = re.match(r'^/ea/sites/([^/]+)$', endpoint)
+        match = re.match(r"^/ea/sites/([^/]+)$", endpoint)
         if match:
             site_id = match.group(1)
             # Translate UUID to site name if we have the mapping
@@ -175,11 +175,11 @@ class UniFiClient:
             if site_id != site_name:
                 self.logger.debug(f"Translated site ID: {site_id} -> {site_name}")
             return f"/proxy/network/api/s/{site_name}/self"
-        
+
         # If no pattern matches, check if it's already a local endpoint
         if endpoint.startswith("/proxy/network/"):
             return endpoint
-        
+
         # If not recognized, return as-is and log warning
         self.logger.warning(f"Endpoint does not match known patterns: {endpoint}")
         return endpoint
@@ -199,7 +199,7 @@ class UniFiClient:
                 test_endpoint = "/ea/sites"  # EA API or local (will be auto-translated)
 
             response = await self._request("GET", test_endpoint)
-            
+
             # Handle both dict and list responses
             # Local API (after normalization) returns list directly
             # Cloud API returns dict with "meta", "data", etc.
@@ -218,18 +218,20 @@ class UniFiClient:
                 )
             else:
                 self._authenticated = False
-                
-            self.logger.info(f"Successfully authenticated with UniFi API (response type: {type(response).__name__})")
+
+            self.logger.info(
+                f"Successfully authenticated with UniFi API (response type: {type(response).__name__})"
+            )
         except Exception as e:
             self.logger.error(f"Authentication failed: {e}")
             raise AuthenticationError(f"Failed to authenticate with UniFi API: {e}") from e
-    
+
     def _build_site_uuid_map(self, sites: list[dict[str, Any]]) -> None:
         """Build a mapping of site UUIDs to internal reference names.
-        
+
         This is required for local API, which uses site names (e.g., 'default')
         instead of UUIDs in endpoint paths.
-        
+
         Args:
             sites: List of site objects from /ea/sites endpoint
         """
@@ -239,7 +241,7 @@ class UniFiClient:
             internal_ref = site.get("internalReference")
             if site_id and internal_ref:
                 self._site_uuid_to_name[site_id] = internal_ref
-        
+
         self.logger.info(f"Built site UUID mapping: {len(self._site_uuid_to_name)} sites")
 
     async def _request(
@@ -275,23 +277,27 @@ class UniFiClient:
         try:
             # Automatically translate endpoint based on API type
             translated_endpoint = self._translate_endpoint(endpoint)
-            
+
             # ENHANCED LOGGING - Use INFO level to ensure visibility
             if endpoint != translated_endpoint:
                 self.logger.info(f"Endpoint translation: {endpoint} -> {translated_endpoint}")
-            
+
             # Construct full URL explicitly to ensure HTTPS protocol is preserved
             # httpx's base_url joining can have issues with protocol handling
-            full_url = f"{self.settings.base_url}{translated_endpoint}" if translated_endpoint.startswith("/") else translated_endpoint
-            
+            full_url = (
+                f"{self.settings.base_url}{translated_endpoint}"
+                if translated_endpoint.startswith("/")
+                else translated_endpoint
+            )
+
             # CRITICAL: Ensure HTTPS scheme - force replace http:// with https://
             if full_url.startswith("http://"):
                 full_url = full_url.replace("http://", "https://", 1)
                 self.logger.warning(f"Force-corrected HTTP to HTTPS: {full_url}")
-            
+
             # ENHANCED LOGGING - Show actual URL being requested
             self.logger.info(f"Making {method} request to: {full_url}")
-            
+
             response = await self.client.request(
                 method=method,
                 url=full_url,
@@ -349,7 +355,7 @@ class UniFiClient:
             try:
                 if response.text and response.text.strip():
                     json_response: dict[str, Any] = response.json()
-                    
+
                     # Normalize response format based on API type
                     # Cloud V1 API returns: {"data": [...], "httpStatusCode": 200, "traceId": "..."}
                     # Local API returns: {"data": [...], "count": N, "totalCount": N}
@@ -357,8 +363,14 @@ class UniFiClient:
                     if isinstance(json_response, dict) and "data" in json_response:
                         # Both cloud v1 and local API wrap data in a "data" field
                         data = json_response["data"]
-                        api_type = self.settings.api_type.value if hasattr(self.settings.api_type, 'value') else str(self.settings.api_type)
-                        self.logger.debug(f"Normalized {api_type} API response: extracted {len(data) if isinstance(data, list) else 'N/A'} items")
+                        api_type = (
+                            self.settings.api_type.value
+                            if hasattr(self.settings.api_type, "value")
+                            else str(self.settings.api_type)
+                        )
+                        self.logger.debug(
+                            f"Normalized {api_type} API response: extracted {len(data) if isinstance(data, list) else 'N/A'} items"
+                        )
                         # Return the data directly for consistency across all APIs
                         # If data is a list, return it; if single object, return as-is
                         return data if isinstance(data, list) else {"data": data}

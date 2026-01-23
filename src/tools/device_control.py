@@ -62,7 +62,9 @@ async def restart_device(
             # Verify device exists
             response = await client.get(f"/ea/sites/{site_id}/devices")
             # Client now auto-unwraps the "data" field, so response is the actual data
-            devices_data: list[dict[str, Any]] = response if isinstance(response, list) else response.get("data", [])
+            devices_data: list[dict[str, Any]] = (
+                response if isinstance(response, list) else response.get("data", [])
+            )
 
             device_exists = any(
                 validate_mac_address(d.get("mac", "")) == device_mac for d in devices_data
@@ -153,7 +155,9 @@ async def locate_device(
             # Verify device exists
             response = await client.get(f"/ea/sites/{site_id}/devices")
             # Client now auto-unwraps the "data" field, so response is the actual data
-            devices_data: list[dict[str, Any]] = response if isinstance(response, list) else response.get("data", [])
+            devices_data: list[dict[str, Any]] = (
+                response if isinstance(response, list) else response.get("data", [])
+            )
 
             device_exists = any(
                 validate_mac_address(d.get("mac", "")) == device_mac for d in devices_data
@@ -252,7 +256,9 @@ async def upgrade_device(
             # Verify device exists and get details
             response = await client.get(f"/ea/sites/{site_id}/devices")
             # Client now auto-unwraps the "data" field, so response is the actual data
-            devices_data: list[dict[str, Any]] = response if isinstance(response, list) else response.get("data", [])
+            devices_data: list[dict[str, Any]] = (
+                response if isinstance(response, list) else response.get("data", [])
+            )
 
             device = None
             for d in devices_data:

@@ -147,60 +147,115 @@ export async function performLogin(page, credentials) {
   await delay(1000);
 
   // Click continue/forward button (required before password/passkey prompt appears)
-  const continueButton = await page.evaluate(() => {
-    const buttons = Array.from(document.querySelectorAll('button, input[type="submit"]'));
+  // Try multiple strategies to click the button
+  let buttonClicked = false;
 
-    // Look for button with arrow icon or continue text
-    const continueBtn = buttons.find(btn => {
-      const text = btn.textContent?.toLowerCase() || '';
-      const ariaLabel = btn.getAttribute('aria-label')?.toLowerCase() || '';
-      const svg = btn.querySelector('svg');
+  // Strategy 1: Find and click button directly in page context
+  try {
+    const clicked = await page.evaluate(() => {
+      const buttons = Array.from(document.querySelectorAll('button, input[type="submit"]'));
 
-      return text.includes('continue') ||
-             text.includes('next') ||
-             ariaLabel.includes('continue') ||
-             ariaLabel.includes('next') ||
-             svg !== null; // Has an icon (likely the arrow)
+      // Look for button with arrow icon or continue text
+      const continueBtn = buttons.find(btn => {
+        const text = btn.textContent?.toLowerCase() || '';
+        const ariaLabel = btn.getAttribute('aria-label')?.toLowerCase() || '';
+        const svg = btn.querySelector('svg');
+
+        return text.includes('continue') ||
+               text.includes('next') ||
+               ariaLabel.includes('continue') ||
+               ariaLabel.includes('next') ||
+               svg !== null; // Has an icon (likely the arrow)
+      });
+
+      if (continueBtn) {
+        continueBtn.click();
+        return true;
+      }
+      return false;
     });
 
-    if (!continueBtn) return null;
-
-    // Create unique selector
-    if (continueBtn.id) return `#${continueBtn.id}`;
-    if (continueBtn.type === 'submit') return 'button[type="submit"]';
-
-    // Try to use aria-label
-    const ariaLabel = continueBtn.getAttribute('aria-label');
-    if (ariaLabel) return `button[aria-label="${ariaLabel}"]`;
-
-    return 'button';
-  });
-
-  if (continueButton) {
-    try {
-      await page.click(continueButton);
+    if (clicked) {
+      buttonClicked = true;
       console.log('✓ Continue button clicked');
-      await delay(2000); // Wait for next screen to load
-    } catch (error) {
-      console.log('⚠️  Could not click continue button, proceeding anyway...');
+      await delay(3000); // Wait for next screen to load
     }
-  } else {
-    console.log('⚠️  No continue button found, proceeding...');
-    await delay(2000);
+  } catch (error) {
+    console.log('Strategy 1 failed:', error.message);
   }
 
-  // Check if passkey/WebAuthn prompt appears (bypasses password)
-  const hasPasskey = await page.evaluate(() => {
-    const text = document.body.textContent?.toLowerCase() || '';
-    return text.includes('passkey') ||
-           text.includes('security key') ||
-           text.includes('authenticator') ||
-           text.includes('biometric') ||
-           text.includes('touch id') ||
-           text.includes('face id');
-  });
+  // Strategy 2: Try clicking submit button if Strategy 1 failed
+  if (!buttonClicked) {
+    try {
+      await page.click('button[type="submit"]', { timeout: 2000 });
+      buttonClicked = true;
+      console.log('✓ Submit button clicked');
+      await delay(3000);
+    } catch (error) {
+      // Try next strategy
+    }
+  }
 
-  if (hasPasskey) {
+  // Strategy 3: Press Enter key as fallback
+  if (!buttonClicked) {
+    try {
+      await page.keyboard.press('Enter');
+      buttonClicked = true;
+      console.log('✓ Enter key pressed');
+      await delay(3000);
+    } catch (error) {
+      console.log('⚠️  Could not submit form, proceeding anyway...');
+      await delay(2000);
+    }
+  }
+
+  // Wait and detect which auth method appears: passkey OR password
+  // Check multiple times as the page may still be loading
+  let hasPasskey = false;
+  let hasPassword = false;
+  let authType = null;
+
+  console.log('Detecting authentication method...');
+
+  for (let i = 0; i < 10; i++) { // Check for up to 10 seconds
+    // Check for passkey prompt
+    hasPasskey = await page.evaluate(() => {
+      const text = document.body.textContent?.toLowerCase() || '';
+      return text.includes('passkey') ||
+             text.includes('security key') ||
+             text.includes('authenticator') ||
+             text.includes('biometric') ||
+             text.includes('touch id') ||
+             text.includes('face id') ||
+             text.includes('use your passkey');
+    });
+
+    // Check for password field
+    hasPassword = await page.evaluate(() => {
+      const passwordInput = document.querySelector('input[type="password"]');
+      return passwordInput !== null && passwordInput.offsetParent !== null; // Visible
+    });
+
+    if (hasPasskey) {
+      authType = 'passkey';
+      break;
+    } else if (hasPassword) {
+      authType = 'password';
+      break;
+    }
+
+    await delay(1000); // Wait 1 second before checking again
+  }
+
+  if (!authType) {
+    console.warn('⚠️  Could not detect auth method, assuming passkey...');
+    authType = 'passkey';
+    hasPasskey = true;
+  }
+
+  console.log(`✓ Detected authentication method: ${authType}`);
+
+  if (authType === 'passkey') {
     console.warn('\n🔑 Passkey/WebAuthn authentication detected!');
     console.warn('Please complete passkey authentication in the browser window.');
     console.warn('This may include:');
@@ -227,11 +282,10 @@ export async function performLogin(page, credentials) {
     if (!authenticated) {
       throw new Error('Passkey authentication timed out. Please try again.');
     }
-  } else {
+  } else if (authType === 'password') {
     // Traditional password flow
+    // Password field should already be visible since we detected it
     try {
-      await page.waitForSelector('input[type="password"]', { timeout: PASSWORD_TIMEOUT });
-
       // Fill in password
       await page.type('input[type="password"]', credentials.password);
       console.log('✓ Password entered');

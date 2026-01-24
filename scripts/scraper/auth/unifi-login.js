@@ -99,104 +99,176 @@ export async function performLogin(page, credentials) {
 
   console.log('Authentication required...');
 
-  // Wait for email input field
+  // Wait for username/email input field (UniFi uses id="user")
   try {
-    await page.waitForSelector('input[type="email"], input[name="email"], input[placeholder*="email" i]', {
+    await page.waitForSelector('#user, input[autocomplete="username"], input[type="email"], input[name="email"]', {
       timeout: 10000
     });
   } catch (error) {
-    throw new Error('Could not find email input field. Page structure may have changed.');
+    throw new Error('Could not find username/email input field. Page structure may have changed.');
   }
 
-  // Find and fill email field
+  // Find and fill username/email field
   const emailSelector = await page.evaluate(() => {
     const inputs = Array.from(document.querySelectorAll('input'));
     const emailInput = inputs.find(input =>
+      input.id === 'user' ||
+      input.autocomplete === 'username' ||
       input.type === 'email' ||
       input.name?.toLowerCase().includes('email') ||
-      input.placeholder?.toLowerCase().includes('email')
+      input.name?.toLowerCase().includes('user') ||
+      input.placeholder?.toLowerCase().includes('email') ||
+      input.ariaLabel?.toLowerCase().includes('user')
     );
     if (!emailInput) return null;
 
     // Create unique selector
     if (emailInput.id) return `#${emailInput.id}`;
+    if (emailInput.autocomplete === 'username') return 'input[autocomplete="username"]';
     if (emailInput.name) return `input[name="${emailInput.name}"]`;
     return 'input[type="email"]';
   });
 
   if (!emailSelector) {
-    throw new Error('Could not determine email input selector');
+    throw new Error('Could not determine username/email input selector');
   }
 
-  // Fill in email
+  // Fill in email/username
   await page.type(emailSelector, credentials.email);
-  console.log('✓ Email entered');
+  console.log('✓ Email/username entered');
 
-  // Wait for password field
-  await page.waitForSelector('input[type="password"]', { timeout: 5000 });
+  // Wait a moment for the page to react
+  await page.waitForTimeout(2000);
 
-  // Fill in password
-  await page.type('input[type="password"]', credentials.password);
-  console.log('✓ Password entered');
-
-  // Find and click submit button
-  const submitButton = await page.evaluate(() => {
-    const buttons = Array.from(document.querySelectorAll('button, input[type="submit"]'));
-    const submitBtn = buttons.find(btn =>
-      btn.type === 'submit' ||
-      btn.textContent?.toLowerCase().includes('sign in') ||
-      btn.textContent?.toLowerCase().includes('log in') ||
-      btn.textContent?.toLowerCase().includes('continue')
-    );
-    if (!submitBtn) return null;
-
-    // Create unique selector
-    if (submitBtn.id) return `#${submitBtn.id}`;
-    if (submitBtn.className) return `.${submitBtn.className.split(' ').join('.')}`;
-    return 'button[type="submit"]';
+  // Check if passkey/WebAuthn prompt appears (bypasses password)
+  const hasPasskey = await page.evaluate(() => {
+    const text = document.body.textContent?.toLowerCase() || '';
+    return text.includes('passkey') ||
+           text.includes('security key') ||
+           text.includes('authenticator') ||
+           text.includes('biometric') ||
+           text.includes('touch id') ||
+           text.includes('face id');
   });
 
-  if (!submitButton) {
-    throw new Error('Could not find submit button');
+  if (hasPasskey) {
+    console.warn('\n🔑 Passkey/WebAuthn authentication detected!');
+    console.warn('Please complete passkey authentication in the browser window.');
+    console.warn('This may include:');
+    console.warn('  - Touch ID / Face ID');
+    console.warn('  - Security key (YubiKey, etc.)');
+    console.warn('  - Phone/device confirmation');
+    console.warn('\nWaiting up to 120 seconds for completion...\n');
+
+    // Wait for user to complete passkey auth
+    // Check every 5 seconds if authentication succeeded
+    let authenticated = false;
+    for (let i = 0; i < 24; i++) { // 24 * 5s = 120 seconds
+      await page.waitForTimeout(5000);
+
+      const currentUrl = page.url();
+      if (!currentUrl.includes('login') && !currentUrl.includes('auth')) {
+        authenticated = true;
+        console.log('✓ Passkey authentication successful');
+        break;
+      }
+    }
+
+    if (!authenticated) {
+      throw new Error('Passkey authentication timed out. Please try again.');
+    }
+  } else {
+    // Traditional password flow
+    try {
+      await page.waitForSelector('input[type="password"]', { timeout: 5000 });
+
+      // Fill in password
+      await page.type('input[type="password"]', credentials.password);
+      console.log('✓ Password entered');
+
+      // Find and click submit button
+      const submitButton = await page.evaluate(() => {
+        const buttons = Array.from(document.querySelectorAll('button, input[type="submit"]'));
+        const submitBtn = buttons.find(btn =>
+          btn.type === 'submit' ||
+          btn.textContent?.toLowerCase().includes('sign in') ||
+          btn.textContent?.toLowerCase().includes('log in') ||
+          btn.textContent?.toLowerCase().includes('continue')
+        );
+        if (!submitBtn) return null;
+
+        // Create unique selector
+        if (submitBtn.id) return `#${submitBtn.id}`;
+        if (submitBtn.className) return `.${submitBtn.className.split(' ').join('.')}`;
+        return 'button[type="submit"]';
+      });
+
+      if (!submitButton) {
+        throw new Error('Could not find submit button');
+      }
+
+      // Click submit
+      await page.click(submitButton);
+      console.log('✓ Login submitted');
+
+      // Wait for navigation after login
+      await page.waitForNavigation({
+        waitUntil: 'networkidle2',
+        timeout: 30000
+      }).catch(() => {
+        console.log('Navigation timeout - checking if login succeeded anyway');
+      });
+    } catch (error) {
+      if (error.message.includes('waiting for selector')) {
+        throw new Error('Could not find password field. If using passkeys, run in headed mode.');
+      }
+      throw error;
+    }
   }
 
-  // Click submit
-  await page.click(submitButton);
-  console.log('✓ Login submitted');
-
-  // Wait for navigation after login
-  await page.waitForNavigation({
-    waitUntil: 'networkidle2',
-    timeout: 30000
-  }).catch(() => {
-    console.log('Navigation timeout - checking if login succeeded anyway');
-  });
-
-  // Check if login succeeded
+  // Check if login succeeded (works for both passkey and password flows)
   const finalUrl = page.url();
   if (finalUrl.includes('login') || finalUrl.includes('auth')) {
     throw new Error('Login failed - still on login page. Check credentials.');
   }
 
-  // Handle potential 2FA or additional verification
-  await page.waitForTimeout(3000);
+  // Handle potential 2FA or additional verification (skip if passkey was used)
+  if (!hasPasskey) {
+    await page.waitForTimeout(3000);
 
-  // Check for 2FA prompts
-  const has2FA = await page.evaluate(() => {
-    const text = document.body.textContent?.toLowerCase() || '';
-    return text.includes('verification') ||
-           text.includes('two-factor') ||
-           text.includes('2fa') ||
-           text.includes('authenticator');
-  });
+    // Check for traditional 2FA prompts (SMS, authenticator app codes)
+    const has2FA = await page.evaluate(() => {
+      const text = document.body.textContent?.toLowerCase() || '';
+      return (text.includes('verification code') ||
+              text.includes('two-factor') ||
+              text.includes('2fa') ||
+              text.includes('enter code') ||
+              text.includes('authenticator app')) &&
+             !text.includes('passkey'); // Exclude passkey-related text
+    });
 
-  if (has2FA) {
-    console.warn('\n⚠️  Two-factor authentication detected!');
-    console.warn('Please complete 2FA manually in the browser window.');
-    console.warn('Waiting 60 seconds for manual completion...\n');
+    if (has2FA) {
+      console.warn('\n⚠️  Two-factor authentication detected!');
+      console.warn('Please enter your verification code in the browser window.');
+      console.warn('Waiting up to 90 seconds for completion...\n');
 
-    // Wait for user to complete 2FA
-    await page.waitForTimeout(60000);
+      // Wait for user to complete 2FA, checking every 5 seconds
+      let twoFAComplete = false;
+      for (let i = 0; i < 18; i++) { // 18 * 5s = 90 seconds
+        await page.waitForTimeout(5000);
+
+        const currentUrl = page.url();
+        if (!currentUrl.includes('verification') && !currentUrl.includes('2fa')) {
+          twoFAComplete = true;
+          console.log('✓ 2FA completed');
+          break;
+        }
+      }
+
+      if (!twoFAComplete) {
+        console.warn('⚠️  2FA timeout - continuing anyway...');
+      }
+    }
   }
 
   // Navigate to API docs to confirm access

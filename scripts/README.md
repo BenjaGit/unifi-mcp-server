@@ -185,7 +185,11 @@ If you encounter login problems:
 node scraper/scrape-api-docs.js --clear-session --headed
 ```
 
-**2FA:** If two-factor authentication is enabled, the scraper will pause for 60 seconds to allow manual completion in the browser window. Use `--headed` mode.
+**Passkeys/WebAuthn:** If your account uses passkeys (Touch ID, Face ID, security keys, or biometric authentication), the scraper will automatically detect this and wait up to 120 seconds for you to complete authentication. **You MUST use `--headed` mode** for passkey authentication.
+
+**Traditional 2FA:** If you use SMS or authenticator app codes (not passkeys), the scraper will pause for up to 90 seconds to allow manual code entry. Use `--headed` mode.
+
+**Password-only accounts:** If you use a traditional password without 2FA or passkeys, the scraper can run in headless mode (but headed mode is recommended for troubleshooting).
 
 ### Selector Issues
 

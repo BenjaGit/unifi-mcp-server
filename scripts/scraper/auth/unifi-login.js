@@ -12,6 +12,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const COOKIES_FILE = path.join(__dirname, '../../session-cookies.json');
 
+// Configurable timeouts (can be overridden by environment variables)
+const PASSKEY_TIMEOUT = parseInt(process.env.AUTH_PASSKEY_TIMEOUT || '120000'); // 2 minutes
+const TWO_FA_TIMEOUT = parseInt(process.env.AUTH_2FA_TIMEOUT || '90000');       // 90 seconds
+const PASSWORD_TIMEOUT = parseInt(process.env.AUTH_PASSWORD_TIMEOUT || '15000'); // 15 seconds
+
 /**
  * Load existing session cookies if available
  * @returns {Promise<Array|null>} Cookies or null if not found
@@ -139,7 +144,50 @@ export async function performLogin(page, credentials) {
   console.log('✓ Email/username entered');
 
   // Wait a moment for the page to react
-  await delay(2000);
+  await delay(1000);
+
+  // Click continue/forward button (required before password/passkey prompt appears)
+  const continueButton = await page.evaluate(() => {
+    const buttons = Array.from(document.querySelectorAll('button, input[type="submit"]'));
+
+    // Look for button with arrow icon or continue text
+    const continueBtn = buttons.find(btn => {
+      const text = btn.textContent?.toLowerCase() || '';
+      const ariaLabel = btn.getAttribute('aria-label')?.toLowerCase() || '';
+      const svg = btn.querySelector('svg');
+
+      return text.includes('continue') ||
+             text.includes('next') ||
+             ariaLabel.includes('continue') ||
+             ariaLabel.includes('next') ||
+             svg !== null; // Has an icon (likely the arrow)
+    });
+
+    if (!continueBtn) return null;
+
+    // Create unique selector
+    if (continueBtn.id) return `#${continueBtn.id}`;
+    if (continueBtn.type === 'submit') return 'button[type="submit"]';
+
+    // Try to use aria-label
+    const ariaLabel = continueBtn.getAttribute('aria-label');
+    if (ariaLabel) return `button[aria-label="${ariaLabel}"]`;
+
+    return 'button';
+  });
+
+  if (continueButton) {
+    try {
+      await page.click(continueButton);
+      console.log('✓ Continue button clicked');
+      await delay(2000); // Wait for next screen to load
+    } catch (error) {
+      console.log('⚠️  Could not click continue button, proceeding anyway...');
+    }
+  } else {
+    console.log('⚠️  No continue button found, proceeding...');
+    await delay(2000);
+  }
 
   // Check if passkey/WebAuthn prompt appears (bypasses password)
   const hasPasskey = await page.evaluate(() => {
@@ -159,12 +207,13 @@ export async function performLogin(page, credentials) {
     console.warn('  - Touch ID / Face ID');
     console.warn('  - Security key (YubiKey, etc.)');
     console.warn('  - Phone/device confirmation');
-    console.warn('\nWaiting up to 120 seconds for completion...\n');
+    console.warn(`\nWaiting up to ${PASSKEY_TIMEOUT / 1000} seconds for completion...\n`);
 
     // Wait for user to complete passkey auth
     // Check every 5 seconds if authentication succeeded
     let authenticated = false;
-    for (let i = 0; i < 24; i++) { // 24 * 5s = 120 seconds
+    const maxIterations = Math.ceil(PASSKEY_TIMEOUT / 5000);
+    for (let i = 0; i < maxIterations; i++) {
       await delay(5000);
 
       const currentUrl = page.url();
@@ -181,7 +230,7 @@ export async function performLogin(page, credentials) {
   } else {
     // Traditional password flow
     try {
-      await page.waitForSelector('input[type="password"]', { timeout: 5000 });
+      await page.waitForSelector('input[type="password"]', { timeout: PASSWORD_TIMEOUT });
 
       // Fill in password
       await page.type('input[type="password"]', credentials.password);
@@ -251,11 +300,12 @@ export async function performLogin(page, credentials) {
     if (has2FA) {
       console.warn('\n⚠️  Two-factor authentication detected!');
       console.warn('Please enter your verification code in the browser window.');
-      console.warn('Waiting up to 90 seconds for completion...\n');
+      console.warn(`Waiting up to ${TWO_FA_TIMEOUT / 1000} seconds for completion...\n`);
 
       // Wait for user to complete 2FA, checking every 5 seconds
       let twoFAComplete = false;
-      for (let i = 0; i < 18; i++) { // 18 * 5s = 90 seconds
+      const maxIterations = Math.ceil(TWO_FA_TIMEOUT / 5000);
+      for (let i = 0; i < maxIterations; i++) {
         await delay(5000);
 
         const currentUrl = page.url();

@@ -2,8 +2,9 @@
 
 [![CI](https://github.com/enuno/unifi-mcp-server/actions/workflows/ci.yml/badge.svg)](https://github.com/enuno/unifi-mcp-server/actions/workflows/ci.yml)
 [![Security](https://github.com/enuno/unifi-mcp-server/actions/workflows/security.yml/badge.svg)](https://github.com/enuno/unifi-mcp-server/actions/workflows/security.yml)
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+[![PyPI](https://img.shields.io/pypi/v/unifi-mcp-server.svg)](https://pypi.org/project/unifi-mcp-server/)
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/enuno/unifi-mcp-server)
 
 A Model Context Protocol (MCP) server that exposes the UniFi Network Controller API, enabling AI agents and applications to interact with UniFi network infrastructure in a standardized way.
@@ -12,8 +13,14 @@ A Model Context Protocol (MCP) server that exposes the UniFi Network Controller 
 
 **Current Stable Release**: v0.2.0 (2026-01-25) 🎉
 
+**Installation:**
+```bash
+pip install unifi-mcp-server
+```
+
 **What's New in v0.2.0:**
 - ✨ **74 MCP Tools** - All 7 feature phases complete
+- 📦 **Published on PyPI** - Easy installation with pip/uv
 - 📊 **QoS Management** - Traffic prioritization and bandwidth control (11 tools)
 - 💾 **Backup & Restore** - Automated scheduling and verification (8 tools)
 - 🌐 **Multi-Site Aggregation** - Cross-site analytics and management (4 tools)
@@ -153,27 +160,26 @@ The UniFi MCP Server supports **three distinct API modes** with different capabi
 
 ### Installation
 
-#### Using PyPI
+#### Using PyPI (Recommended)
+
+The UniFi MCP Server is published on PyPI and can be installed with pip or uv:
 
 ```bash
-# Install from PyPI (when published)
-pip install unifi-mcp-server==0.2.0
+# Install from PyPI
+pip install unifi-mcp-server
 
 # Or using uv (faster)
-uv pip install unifi-mcp-server==0.2.0
+uv pip install unifi-mcp-server
+
+# Install specific version
+pip install unifi-mcp-server==0.2.0
 ```
 
-#### Using npm (Metadata Package)
+After installation, the `unifi-mcp-server` command will be available globally.
 
-```bash
-# Install metadata package from npm
-npm install unifi-mcp-server
+**PyPI Package**: https://pypi.org/project/unifi-mcp-server/
 
-# Note: This is a metadata wrapper. The actual server is Python-based.
-# Install the Python server using pip as shown above.
-```
-
-#### Using Docker (Recommended for Production)
+#### Using Docker (Alternative)
 
 ```bash
 # Pull the latest release
@@ -545,31 +551,60 @@ The MCP Inspector will be available at `http://localhost:5173` for interactive t
 
 Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
 
-#### Option 1: Using uv (Recommended)
+#### Option 1: Using PyPI Package (Recommended)
+
+After installing via `pip install unifi-mcp-server`:
 
 ```json
 {
   "mcpServers": {
     "unifi": {
-      "command": "uv",
-      "args": [
-        "--directory",
-        "/path/to/unifi-mcp-server",
-        "run",
-        "mcp",
-        "run",
-        "src/main.py"
-      ],
+      "command": "unifi-mcp-server",
       "env": {
         "UNIFI_API_KEY": "your-api-key-here",
-        "UNIFI_API_TYPE": "cloud"
+        "UNIFI_API_TYPE": "local",
+        "UNIFI_LOCAL_HOST": "192.168.1.1"
       }
     }
   }
 }
 ```
 
-#### Option 2: Using Docker
+For cloud API access, use:
+
+```json
+{
+  "mcpServers": {
+    "unifi": {
+      "command": "unifi-mcp-server",
+      "env": {
+        "UNIFI_API_KEY": "your-api-key-here",
+        "UNIFI_API_TYPE": "cloud-v1"
+      }
+    }
+  }
+}
+```
+
+#### Option 2: Using uv with PyPI Package
+
+```json
+{
+  "mcpServers": {
+    "unifi": {
+      "command": "uvx",
+      "args": ["unifi-mcp-server"],
+      "env": {
+        "UNIFI_API_KEY": "your-api-key-here",
+        "UNIFI_API_TYPE": "local",
+        "UNIFI_LOCAL_HOST": "192.168.1.1"
+      }
+    }
+  }
+}
+```
+
+#### Option 3: Using Docker
 
 ```json
 {
@@ -597,7 +632,47 @@ Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/
 
 Add to your Cursor MCP configuration (`mcp.json` via "View: Open MCP Settings → New MCP Server"):
 
-#### Option 1: Using Docker (Recommended)
+#### Option 1: Using PyPI Package (Recommended)
+
+After installing via `pip install unifi-mcp-server`:
+
+```json
+{
+  "mcpServers": {
+    "unifi-mcp": {
+      "command": "unifi-mcp-server",
+      "env": {
+        "UNIFI_API_KEY": "your-api-key-here",
+        "UNIFI_API_TYPE": "local",
+        "UNIFI_LOCAL_HOST": "192.168.1.1",
+        "UNIFI_LOCAL_VERIFY_SSL": "false"
+      },
+      "disabled": false
+    }
+  }
+}
+```
+
+#### Option 2: Using uv with PyPI Package
+
+```json
+{
+  "mcpServers": {
+    "unifi-mcp": {
+      "command": "uvx",
+      "args": ["unifi-mcp-server"],
+      "env": {
+        "UNIFI_API_KEY": "your-api-key-here",
+        "UNIFI_API_TYPE": "local",
+        "UNIFI_LOCAL_HOST": "192.168.1.1"
+      },
+      "disabled": false
+    }
+  }
+}
+```
+
+#### Option 3: Using Docker
 
 ```json
 {
@@ -619,28 +694,6 @@ Add to your Cursor MCP configuration (`mcp.json` via "View: Open MCP Settings �
 }
 ```
 
-#### Option 2: Using uv
-
-```json
-{
-  "mcpServers": {
-    "unifi-mcp": {
-      "command": "uv",
-      "args": [
-        "--directory", "/path/to/unifi-mcp-server",
-        "run", "mcp", "run", "src/main.py"
-      ],
-      "env": {
-        "UNIFI_API_KEY": "your-api-key-here",
-        "UNIFI_API_TYPE": "local",
-        "UNIFI_LOCAL_HOST": "192.168.1.1"
-      },
-      "disabled": false
-    }
-  }
-}
-```
-
 **Configuration Notes:**
 - Replace `UNIFI_API_KEY` with your actual UniFi API key
 - For local gateway access, set `UNIFI_API_TYPE=local` and provide `UNIFI_LOCAL_HOST`
@@ -652,14 +705,15 @@ Add to your Cursor MCP configuration (`mcp.json` via "View: Open MCP Settings �
 
 The UniFi MCP Server works with any MCP-compatible client. Here are generic configuration patterns:
 
-#### Using npx (for clients that support it)
+#### Using the Installed Command
+
+After installing from PyPI (`pip install unifi-mcp-server`):
 
 ```json
 {
   "mcpServers": {
     "unifi": {
-      "command": "npx",
-      "args": ["-y", "unifi-mcp-server"],
+      "command": "unifi-mcp-server",
       "env": {
         "UNIFI_API_KEY": "your-api-key-here",
         "UNIFI_API_TYPE": "local",
@@ -670,14 +724,32 @@ The UniFi MCP Server works with any MCP-compatible client. Here are generic conf
 }
 ```
 
-#### Using Python directly
+#### Using uvx (Run from PyPI without installation)
 
 ```json
 {
   "mcpServers": {
     "unifi": {
-      "command": "python",
-      "args": ["-m", "unifi_mcp_server"],
+      "command": "uvx",
+      "args": ["unifi-mcp-server"],
+      "env": {
+        "UNIFI_API_KEY": "your-api-key-here",
+        "UNIFI_API_TYPE": "local",
+        "UNIFI_LOCAL_HOST": "192.168.1.1"
+      }
+    }
+  }
+}
+```
+
+#### Using Python Module Directly
+
+```json
+{
+  "mcpServers": {
+    "unifi": {
+      "command": "python3",
+      "args": ["-m", "src.main"],
       "env": {
         "UNIFI_API_KEY": "your-api-key-here",
         "UNIFI_API_TYPE": "local",

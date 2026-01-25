@@ -52,13 +52,19 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/elvis/unifi-mcp-server"
-Repository = "https://github.com/elvis/unifi-mcp-server"
-Issues = "https://github.com/elvis/unifi-mcp-server/issues"
+Homepage = "https://github.com/enuno/unifi-mcp-server"
+Repository = "https://github.com/enuno/unifi-mcp-server"
+Issues = "https://github.com/enuno/unifi-mcp-server/issues"
+
+[project.scripts]
+unifi-mcp-server = "src.main:main"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.build]
+include = ["src/**/*.py"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src"]

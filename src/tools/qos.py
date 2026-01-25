@@ -7,9 +7,7 @@ from ..config import Settings
 from ..models.qos_profile import (
     PROAV_TEMPLATES,
     REFERENCE_PROFILES,
-    ProAVProtocol,
     QoSProfile,
-    SmartQueueConfig,
     TrafficRoute,
 )
 from ..utils import ValidationError, audit_action, get_logger, validate_confirmation
@@ -353,7 +351,7 @@ async def delete_qos_profile(
 
         resolved_site_id = await client.resolve_site_id(site_id)
         endpoint = settings.get_api_path(f"s/{resolved_site_id}/rest/qosprofile/{profile_id}")
-        response = await client.delete(endpoint)
+        await client.delete(endpoint)
 
         await audit_action(
             settings,
@@ -466,8 +464,7 @@ async def create_proav_profile(
     else:
         available = list(PROAV_TEMPLATES.keys()) + list(REFERENCE_PROFILES.keys())
         raise ValidationError(
-            f"Unknown protocol '{protocol}'. "
-            f"Available options: {', '.join(available)}"
+            f"Unknown protocol '{protocol}'. " f"Available options: {', '.join(available)}"
         )
 
     # Build profile from template
@@ -587,12 +584,8 @@ async def validate_proav_profile(
         )
 
     if max_latency <= 10:
-        validation["recommendations"].append(
-            "Use dedicated VLAN for time-sensitive traffic"
-        )
-        validation["recommendations"].append(
-            "Enable hardware offload on network switches"
-        )
+        validation["recommendations"].append("Use dedicated VLAN for time-sensitive traffic")
+        validation["recommendations"].append("Enable hardware offload on network switches")
 
     if min_bandwidth >= 1000:  # >= 1 Gbps
         validation["recommendations"].append(
@@ -1064,7 +1057,7 @@ async def delete_traffic_route(
 
         resolved_site_id = await client.resolve_site_id(site_id)
         endpoint = settings.get_api_path(f"s/{resolved_site_id}/rest/routing/{route_id}")
-        response = await client.delete(endpoint)
+        await client.delete(endpoint)
 
         await audit_action(
             settings,

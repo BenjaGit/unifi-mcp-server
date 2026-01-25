@@ -20,16 +20,17 @@ from .tools import dpi as dpi_tools
 from .tools import dpi_tools as dpi_new_tools
 from .tools import firewall as firewall_tools
 from .tools import firewall_zones as firewall_zones_tools
-from .tools import qos as qos_tools
 from .tools import network_config as network_config_tools
 from .tools import networks as networks_tools
 from .tools import port_forwarding as port_fwd_tools
+from .tools import qos as qos_tools
+from .tools import radius as radius_tools
 from .tools import reference_data as ref_tools
 from .tools import site_manager as site_manager_tools
 from .tools import site_vpn as site_vpn_tools
 from .tools import sites as sites_tools
+from .tools import topology as topology_tools
 from .tools import traffic_flows as traffic_flows_tools
-from .tools import radius as radius_tools
 from .tools import traffic_matching_lists as tml_tools
 from .tools import vouchers as vouchers_tools
 from .tools import vpn as vpn_tools
@@ -1266,7 +1267,9 @@ async def delete_hotspot_package(
     site_id: str, package_id: str, confirm: bool = False, dry_run: bool = False
 ) -> dict:
     """Delete a hotspot package (requires confirm=True)."""
-    return await radius_tools.delete_hotspot_package(site_id, package_id, settings, confirm, dry_run)
+    return await radius_tools.delete_hotspot_package(
+        site_id, package_id, settings, confirm, dry_run
+    )
 
 
 # Firewall Zone Tools
@@ -1944,6 +1947,107 @@ async def delete_traffic_matching_list(
     )
 
 
+# Network Topology Tools
+@mcp.tool()
+async def get_network_topology(
+    site_id: str,
+    include_coordinates: bool = False,
+) -> dict:
+    """
+    Retrieve complete network topology graph.
+
+    Fetches the network topology including all devices, clients, and their
+    interconnections. Optionally includes position coordinates for visualization.
+
+    Args:
+        site_id: Site identifier ("default" for default site)
+        include_coordinates: Whether to calculate node position coordinates
+
+    Returns:
+        Network diagram with nodes, connections, and statistics
+    """
+    return await topology_tools.get_network_topology(site_id, settings, include_coordinates)
+
+
+@mcp.tool()
+async def get_device_connections(
+    site_id: str,
+    device_id: str | None = None,
+) -> list[dict]:
+    """
+    Get device interconnection details.
+
+    Retrieves detailed connection information for a specific device or all devices.
+
+    Args:
+        site_id: Site identifier
+        device_id: Specific device ID, or None for all devices
+
+    Returns:
+        List of connection dictionaries
+    """
+    return await topology_tools.get_device_connections(site_id, device_id, settings)
+
+
+@mcp.tool()
+async def get_port_mappings(
+    site_id: str,
+    device_id: str,
+) -> dict:
+    """
+    Get port-level connection mappings for a device.
+
+    Retrieves detailed information about which ports are connected to which devices/clients.
+
+    Args:
+        site_id: Site identifier
+        device_id: Device ID
+
+    Returns:
+        Dictionary with device_id and port mapping information
+    """
+    return await topology_tools.get_port_mappings(site_id, device_id, settings)
+
+
+@mcp.tool()
+async def export_topology(
+    site_id: str,
+    format: str,
+) -> str:
+    """
+    Export network topology in various formats.
+
+    Exports the network topology as JSON, GraphML (XML), or DOT (Graphviz) format.
+
+    Args:
+        site_id: Site identifier
+        format: Export format ("json", "graphml", or "dot")
+
+    Returns:
+        Topology data as a formatted string
+    """
+    return await topology_tools.export_topology(site_id, format, settings)  # type: ignore
+
+
+@mcp.tool()
+async def get_topology_statistics(
+    site_id: str,
+) -> dict:
+    """
+    Get network topology statistics.
+
+    Retrieves statistical summary of the network topology including device counts,
+    client counts, connection counts, and network depth.
+
+    Args:
+        site_id: Site identifier
+
+    Returns:
+        Dictionary with topology statistics
+    """
+    return await topology_tools.get_topology_statistics(site_id, settings)
+
+
 # VPN Management Tools
 @mcp.tool()
 async def list_vpn_tunnels(
@@ -2004,17 +2108,7 @@ async def update_site_to_site_vpn(
     )
 
 
-# RADIUS & Reference Data Tools
-@mcp.tool()
-async def list_radius_profiles(
-    site_id: str,
-    limit: int | None = None,
-    offset: int | None = None,
-) -> list[dict]:
-    """List all RADIUS profiles in a site (read-only)."""
-    return await ref_tools.list_radius_profiles(site_id, settings, limit, offset)
-
-
+# Reference Data Tools
 @mcp.tool()
 async def list_device_tags(
     site_id: str,

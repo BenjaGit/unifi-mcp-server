@@ -28,7 +28,9 @@ class RADIUSProfile(BaseModel):
 
     # Advanced settings
     enabled: bool = Field(True, description="Whether profile is enabled")
-    interim_update_interval: int | None = Field(None, description="Interim accounting update interval (seconds)")
+    interim_update_interval: int | None = Field(
+        None, description="Interim accounting update interval (seconds)"
+    )
     use_usg_accounting_server: bool = Field(False, description="Use USG as accounting proxy")
 
     # Metadata

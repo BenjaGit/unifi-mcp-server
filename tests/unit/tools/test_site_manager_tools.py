@@ -860,9 +860,7 @@ async def test_search_across_sites_device(mock_settings):
             {
                 "site_id": "site-2",
                 "name": "Office 2",
-                "devices": [
-                    {"name": "AP-Conference", "mac": "aa:bb:cc:dd:ee:03", "type": "uap"}
-                ],
+                "devices": [{"name": "AP-Conference", "mac": "aa:bb:cc:dd:ee:03", "type": "uap"}],
             },
         ]
     }
@@ -937,9 +935,7 @@ async def test_search_across_sites_no_results(mock_settings):
         mock_client.__aexit__ = AsyncMock()
         mock_client_class.return_value = mock_client
 
-        result = await search_across_sites(
-            mock_settings, query="nonexistent", search_type="device"
-        )
+        result = await search_across_sites(mock_settings, query="nonexistent", search_type="device")
 
         assert result["total_results"] == 0
         assert len(result["results"]) == 0

@@ -235,7 +235,9 @@ class TrafficRoute(BaseModel):
     schedule: RouteSchedule | None = Field(None, description="Time-based schedule")
 
     # Priority
-    priority: int = Field(default=100, ge=1, le=1000, description="Route priority (lower = higher priority)")
+    priority: int = Field(
+        default=100, ge=1, le=1000, description="Route priority (lower = higher priority)"
+    )
 
     # State
     site_id: str | None = Field(None, description="Site ID")
@@ -255,14 +257,18 @@ class SmartQueueConfig(BaseModel):
     wan_id: str = Field(..., description="WAN interface ID")
 
     # Queue algorithm
-    algorithm: QueueAlgorithm = Field(default=QueueAlgorithm.FQ_CODEL, description="Queue algorithm")
+    algorithm: QueueAlgorithm = Field(
+        default=QueueAlgorithm.FQ_CODEL, description="Queue algorithm"
+    )
 
     # Bandwidth limits
     download_kbps: int = Field(..., ge=0, description="Download bandwidth in kbps")
     upload_kbps: int = Field(..., ge=0, description="Upload bandwidth in kbps")
 
     # Advanced settings
-    overhead_bytes: int = Field(default=44, ge=0, le=256, description="Per-packet overhead in bytes")
+    overhead_bytes: int = Field(
+        default=44, ge=0, le=256, description="Per-packet overhead in bytes"
+    )
     target_delay_ms: int = Field(default=5, ge=1, le=100, description="Target queueing delay in ms")
 
     # Bufferbloat test metadata

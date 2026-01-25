@@ -551,7 +551,9 @@ async def test_get_restore_status_connection_error(mock_settings):
     """Test graceful handling when controller is restarting during restore."""
     mock_client = MagicMock()
     mock_client.authenticate = AsyncMock()
-    mock_client.get_restore_status = AsyncMock(side_effect=ConnectionError("Controller unavailable"))
+    mock_client.get_restore_status = AsyncMock(
+        side_effect=ConnectionError("Controller unavailable")
+    )
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=None)
 

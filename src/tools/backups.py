@@ -754,12 +754,16 @@ async def get_backup_status(
                 "error_message": status_data.get("error", None),
             }
 
-            logger.info(f"Retrieved status for backup operation '{operation_id}': {result['status']}")
+            logger.info(
+                f"Retrieved status for backup operation '{operation_id}': {result['status']}"
+            )
             return result
 
     except AttributeError:
         # Fallback if API client doesn't have get_backup_status method
-        logger.warning(f"Backup status API not available. Operation '{operation_id}' status unknown.")
+        logger.warning(
+            f"Backup status API not available. Operation '{operation_id}' status unknown."
+        )
         return {
             "operation_id": operation_id,
             "status": "completed",  # Assume completed since backups are synchronous
@@ -850,7 +854,9 @@ async def get_restore_status(
 
     except AttributeError:
         # Fallback if API client doesn't have get_restore_status method
-        logger.warning(f"Restore status API not available. Operation '{operation_id}' status unknown.")
+        logger.warning(
+            f"Restore status API not available. Operation '{operation_id}' status unknown."
+        )
         return {
             "operation_id": operation_id,
             "status": "in_progress",
@@ -957,13 +963,17 @@ async def schedule_backups(
     # Validate frequency
     valid_frequencies = ["daily", "weekly", "monthly"]
     if frequency.lower() not in valid_frequencies:
-        raise ValidationError(f"Invalid frequency '{frequency}'. Must be one of: {valid_frequencies}")
+        raise ValidationError(
+            f"Invalid frequency '{frequency}'. Must be one of: {valid_frequencies}"
+        )
 
     # Validate time format (HH:MM)
     import re
 
     if not re.match(r"^([01]\d|2[0-3]):([0-5]\d)$", time_of_day):
-        raise ValidationError(f"Invalid time_of_day '{time_of_day}'. Must be HH:MM format (24-hour)")
+        raise ValidationError(
+            f"Invalid time_of_day '{time_of_day}'. Must be HH:MM format (24-hour)"
+        )
 
     # Validate frequency-specific parameters
     if frequency == "weekly" and day_of_week is None:
@@ -1072,7 +1082,7 @@ async def schedule_backups(
         raise ValidationError(
             "Backup scheduling not supported by this controller. "
             "Consider using external cron jobs to call trigger_backup."
-        )
+        ) from None
     except Exception as e:
         logger.error(f"Failed to configure backup schedule for site '{site_id}': {e}")
         log_audit(

@@ -46,7 +46,9 @@ async def block_client(
     parameters = {"site_id": site_id, "client_mac": client_mac}
 
     if dry_run:
-        logger.info(sanitize_log_message(f"DRY RUN: Would block client '{client_mac}' in site '{site_id}'"))
+        logger.info(
+            sanitize_log_message(f"DRY RUN: Would block client '{client_mac}' in site '{site_id}'")
+        )
         log_audit(
             operation="block_client",
             parameters=parameters,
@@ -132,7 +134,11 @@ async def unblock_client(
     parameters = {"site_id": site_id, "client_mac": client_mac}
 
     if dry_run:
-        logger.info(sanitize_log_message(f"DRY RUN: Would unblock client '{client_mac}' in site '{site_id}'"))
+        logger.info(
+            sanitize_log_message(
+                f"DRY RUN: Would unblock client '{client_mac}' in site '{site_id}'"
+            )
+        )
         log_audit(
             operation="unblock_client",
             parameters=parameters,
@@ -150,7 +156,9 @@ async def unblock_client(
             unblock_data = {"mac": client_mac, "cmd": "unblock-sta"}
             await client.post(f"/ea/sites/{site_id}/cmd/stamgr", json_data=unblock_data)
 
-            logger.info(sanitize_log_message(f"Unblocked client '{client_mac}' in site '{site_id}'"))
+            logger.info(
+                sanitize_log_message(f"Unblocked client '{client_mac}' in site '{site_id}'")
+            )
             log_audit(
                 operation="unblock_client",
                 parameters=parameters,
@@ -206,7 +214,11 @@ async def reconnect_client(
     parameters = {"site_id": site_id, "client_mac": client_mac}
 
     if dry_run:
-        logger.info(sanitize_log_message(f"DRY RUN: Would force reconnect for client '{client_mac}' in site '{site_id}'"))
+        logger.info(
+            sanitize_log_message(
+                f"DRY RUN: Would force reconnect for client '{client_mac}' in site '{site_id}'"
+            )
+        )
         log_audit(
             operation="reconnect_client",
             parameters=parameters,
@@ -239,7 +251,11 @@ async def reconnect_client(
                 f"/ea/sites/{site_id}/cmd/stamgr", json_data=reconnect_data
             )
 
-            logger.info(sanitize_log_message(f"Forced reconnect for client '{client_mac}' in site '{site_id}'"))
+            logger.info(
+                sanitize_log_message(
+                    f"Forced reconnect for client '{client_mac}' in site '{site_id}'"
+                )
+            )
             log_audit(
                 operation="reconnect_client",
                 parameters=parameters,
@@ -305,7 +321,9 @@ async def authorize_guest(
 
     if dry_run:
         logger.info(
-            sanitize_log_message(f"DRY RUN: Would authorize guest client '{client_mac}' for {duration}s in site '{site_id}'")
+            sanitize_log_message(
+                f"DRY RUN: Would authorize guest client '{client_mac}' for {duration}s in site '{site_id}'"
+            )
         )
         log_audit(
             operation="authorize_guest",
@@ -340,7 +358,9 @@ async def authorize_guest(
             )
 
             logger.info(
-                sanitize_log_message(f"Authorized guest client '{client_mac}' for {duration}s in site '{site_id}'")
+                sanitize_log_message(
+                    f"Authorized guest client '{client_mac}' for {duration}s in site '{site_id}'"
+                )
             )
             log_audit(
                 operation="authorize_guest",
@@ -413,7 +433,9 @@ async def limit_bandwidth(
 
     if dry_run:
         logger.info(
-            sanitize_log_message(f"DRY RUN: Would apply bandwidth limits to client '{client_mac}' in site '{site_id}'")
+            sanitize_log_message(
+                f"DRY RUN: Would apply bandwidth limits to client '{client_mac}' in site '{site_id}'"
+            )
         )
         log_audit(
             operation="limit_bandwidth",
@@ -450,7 +472,11 @@ async def limit_bandwidth(
                 json_data=limit_data,
             )
 
-            logger.info(sanitize_log_message(f"Applied bandwidth limits to client '{client_mac}' in site '{site_id}'"))
+            logger.info(
+                sanitize_log_message(
+                    f"Applied bandwidth limits to client '{client_mac}' in site '{site_id}'"
+                )
+            )
             log_audit(
                 operation="limit_bandwidth",
                 parameters=parameters,
@@ -467,7 +493,9 @@ async def limit_bandwidth(
             }
 
     except Exception as e:
-        logger.error(sanitize_log_message(f"Failed to apply bandwidth limits to client '{client_mac}': {e}"))
+        logger.error(
+            sanitize_log_message(f"Failed to apply bandwidth limits to client '{client_mac}': {e}")
+        )
         log_audit(
             operation="limit_bandwidth",
             parameters=parameters,

@@ -142,7 +142,9 @@ async def list_active_clients(
         # Parse into Client models
         clients = [Client(**c).model_dump() for c in paginated]
 
-        logger.info(sanitize_log_message(f"Retrieved {len(clients)} active clients for site '{site_id}'"))
+        logger.info(
+            sanitize_log_message(f"Retrieved {len(clients)} active clients for site '{site_id}'")
+        )
         return clients
 
 
@@ -193,5 +195,9 @@ async def search_clients(
         # Parse into Client models
         clients = [Client(**c).model_dump() for c in paginated]
 
-        logger.info(sanitize_log_message(f"Found {len(clients)} clients matching '{query}' in site '{site_id}'"))
+        logger.info(
+            sanitize_log_message(
+                f"Found {len(clients)} clients matching '{query}' in site '{site_id}'"
+            )
+        )
         return clients

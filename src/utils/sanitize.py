@@ -8,7 +8,6 @@ client identifiers, and network configuration details.
 import re
 from typing import Any
 
-
 # Sensitive field patterns
 SENSITIVE_FIELDS = {
     # Network identifiers
@@ -126,8 +125,7 @@ def sanitize_dict(data: dict[str, Any], partial: bool = True) -> dict[str, Any]:
         elif isinstance(value, list):
             # Sanitize lists
             sanitized[key] = [
-                sanitize_dict(item, partial) if isinstance(item, dict) else item
-                for item in value
+                sanitize_dict(item, partial) if isinstance(item, dict) else item for item in value
             ]
         else:
             # Keep non-sensitive values as-is

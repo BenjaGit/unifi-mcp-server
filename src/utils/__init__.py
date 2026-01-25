@@ -24,8 +24,8 @@ from .helpers import (
     sanitize_dict,
 )
 from .logger import get_logger, log_api_request, log_audit_event
+from .sanitize import sanitize_dict as sanitize_sensitive_dict
 from .sanitize import (
-    sanitize_dict as sanitize_sensitive_dict,
     sanitize_for_logging,
     sanitize_list,
     sanitize_log_message,

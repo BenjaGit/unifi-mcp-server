@@ -88,7 +88,11 @@ async def get_dpi_statistics(
         applications = sorted(app_stats.values(), key=lambda x: x["total_bytes"], reverse=True)
         categories = sorted(category_stats.values(), key=lambda x: x["total_bytes"], reverse=True)
 
-        logger.info(sanitize_log_message(f"Retrieved DPI statistics for site '{site_id}' " f"(time range: {time_range})"))
+        logger.info(
+            sanitize_log_message(
+                f"Retrieved DPI statistics for site '{site_id}' " f"(time range: {time_range})"
+            )
+        )
 
         return {
             "site_id": site_id,
@@ -127,8 +131,10 @@ async def list_top_applications(
     top_apps: list[dict[str, Any]] = dpi_stats["applications"][:limit]
 
     logger.info(
-        sanitize_log_message(f"Retrieved top {len(top_apps)} applications for site '{site_id}' "
-        f"(time range: {time_range}")
+        sanitize_log_message(
+            f"Retrieved top {len(top_apps)} applications for site '{site_id}' "
+            f"(time range: {time_range}"
+        )
     )
 
     return top_apps
@@ -215,8 +221,10 @@ async def get_client_dpi(
                 app["percentage"] = 0
 
         logger.info(
-            sanitize_log_message(f"Retrieved DPI statistics for client '{client_mac}' in site '{site_id}' "
-            f"(time range: {time_range})")
+            sanitize_log_message(
+                f"Retrieved DPI statistics for client '{client_mac}' in site '{site_id}' "
+                f"(time range: {time_range})"
+            )
         )
 
         return {

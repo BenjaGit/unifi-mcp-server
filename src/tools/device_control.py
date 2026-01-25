@@ -46,7 +46,11 @@ async def restart_device(
     parameters = {"site_id": site_id, "device_mac": device_mac}
 
     if dry_run:
-        logger.info(sanitize_log_message(f"DRY RUN: Would restart device '{device_mac}' in site '{site_id}'"))
+        logger.info(
+            sanitize_log_message(
+                f"DRY RUN: Would restart device '{device_mac}' in site '{site_id}'"
+            )
+        )
         log_audit(
             operation="restart_device",
             parameters=parameters,
@@ -77,7 +81,11 @@ async def restart_device(
             restart_data = {"mac": device_mac, "cmd": "restart"}
             response = await client.post(f"/ea/sites/{site_id}/cmd/devmgr", json_data=restart_data)
 
-            logger.info(sanitize_log_message(f"Initiated restart for device '{device_mac}' in site '{site_id}'"))
+            logger.info(
+                sanitize_log_message(
+                    f"Initiated restart for device '{device_mac}' in site '{site_id}'"
+                )
+            )
             log_audit(
                 operation="restart_device",
                 parameters=parameters,
@@ -138,7 +146,10 @@ async def locate_device(
 
     if dry_run:
         logger.info(
-            sanitize_log_message(f"DRY RUN: Would {action} locate mode for device '{device_mac}' " f"in site '{site_id}'")
+            sanitize_log_message(
+                f"DRY RUN: Would {action} locate mode for device '{device_mac}' "
+                f"in site '{site_id}'"
+            )
         )
         log_audit(
             operation="locate_device",
@@ -172,8 +183,10 @@ async def locate_device(
             response = await client.post(f"/ea/sites/{site_id}/cmd/devmgr", json_data=locate_data)
 
             logger.info(
-                sanitize_log_message(f"{action.capitalize()}d locate mode for device '{device_mac}' "
-                f"in site '{site_id}'")
+                sanitize_log_message(
+                    f"{action.capitalize()}d locate mode for device '{device_mac}' "
+                    f"in site '{site_id}'"
+                )
             )
             log_audit(
                 operation="locate_device",
@@ -190,7 +203,9 @@ async def locate_device(
             }
 
     except Exception as e:
-        logger.error(sanitize_log_message(f"Failed to {action} locate for device '{device_mac}': {e}"))
+        logger.error(
+            sanitize_log_message(f"Failed to {action} locate for device '{device_mac}': {e}")
+        )
         log_audit(
             operation="locate_device",
             parameters=parameters,
@@ -238,8 +253,10 @@ async def upgrade_device(
 
     if dry_run:
         logger.info(
-            sanitize_log_message(f"DRY RUN: Would initiate firmware upgrade for device '{device_mac}' "
-            f"in site '{site_id}'")
+            sanitize_log_message(
+                f"DRY RUN: Would initiate firmware upgrade for device '{device_mac}' "
+                f"in site '{site_id}'"
+            )
         )
         log_audit(
             operation="upgrade_device",
@@ -279,7 +296,9 @@ async def upgrade_device(
             response = await client.post(f"/ea/sites/{site_id}/cmd/devmgr", json_data=upgrade_data)
 
             logger.info(
-                sanitize_log_message(f"Initiated firmware upgrade for device '{device_mac}' " f"in site '{site_id}'")
+                sanitize_log_message(
+                    f"Initiated firmware upgrade for device '{device_mac}' " f"in site '{site_id}'"
+                )
             )
             log_audit(
                 operation="upgrade_device",

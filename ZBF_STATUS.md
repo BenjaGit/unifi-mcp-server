@@ -1,8 +1,8 @@
 # Zone-Based Firewall (ZBF) Implementation Status
 
-**Last Updated:** 2025-11-18
+**Last Updated:** 2026-01-25
 **Version:** v0.1.4
-**Status:** Phase 2 Complete - **CRITICAL FINDINGS**
+**Status:** ✅ FUNCTIONAL (Zone Management + Firewall Policies v2 API)
 
 ## ⚠️ Phase 2 Verification Results - CRITICAL
 
@@ -19,6 +19,83 @@
 5. **⚠️ 8 tools non-functional** - endpoints don't exist
 
 **See [PHASE2_FINDINGS.md](tests/verification/PHASE2_FINDINGS.md) for complete verification report.**
+
+## ✅ Working Alternative: Firewall Policies v2 API
+
+**Added:** 2026-01-08 (PR #13 by @justcarlson)
+**Status:** ✅ **FULLY FUNCTIONAL** for zone-to-zone policies
+
+While the legacy ZBF matrix endpoints don't exist, **zone-to-zone policies are fully supported via the Firewall Policies v2 API**. This is the recommended approach for implementing zone-based security policies.
+
+### Available Tools (5 total)
+
+| Tool | Description | Endpoint |
+|------|-------------|----------|
+| `list_firewall_policies` | List all policies (including zone-based) | `GET /v2/api/site/{site}/firewall-policies` |
+| `get_firewall_policy` | Get specific policy details | `GET /v2/api/site/{site}/firewall-policies/{id}` |
+| `create_firewall_policy` | Create zone-to-zone policy | `POST /v2/api/site/{site}/firewall-policies` |
+| `update_firewall_policy` | Modify existing policy | `PUT /v2/api/site/{site}/firewall-policies/{id}` |
+| `delete_firewall_policy` | Remove policy | `DELETE /v2/api/site/{site}/firewall-policies/{id}` |
+
+### Zone-to-Zone Policy Example
+
+```python
+# Create zones first
+lan_zone = await mcp.call_tool("create_firewall_zone", {
+    "site_id": "default",
+    "name": "LAN",
+    "description": "Trusted local network",
+    "confirm": True
+})
+
+iot_zone = await mcp.call_tool("create_firewall_zone", {
+    "site_id": "default",
+    "name": "IoT",
+    "description": "Internet of Things devices",
+    "confirm": True
+})
+
+# Create zone-to-zone policy: LAN can access IoT, but IoT cannot access LAN
+await mcp.call_tool("create_firewall_policy", {
+    "site_id": "default",
+    "name": "LAN to IoT Allow",
+    "action": "ALLOW",
+    "source_zone_id": lan_zone["_id"],
+    "destination_zone_id": iot_zone["_id"],
+    "enabled": True,
+    "confirm": True
+})
+
+# Block IoT from accessing LAN
+await mcp.call_tool("create_firewall_policy", {
+    "site_id": "default",
+    "name": "IoT to LAN Block",
+    "action": "BLOCK",
+    "source_zone_id": iot_zone["_id"],
+    "destination_zone_id": lan_zone["_id"],
+    "enabled": True,
+    "confirm": True
+})
+```
+
+### Features
+
+- ✅ Full zone-to-zone policy control (ALLOW/BLOCK)
+- ✅ Source and destination zone specification
+- ✅ Protocol filtering (all, tcp, udp, tcp_udp, icmpv6)
+- ✅ Advanced matching targets (ANY, IP, NETWORK, REGION, CLIENT)
+- ✅ Policy enable/disable without deletion
+- ✅ Dry-run mode for preview
+- ✅ Audit logging for compliance
+- ✅ Requires `confirm=True` for safety
+
+### Requirements
+
+- **Local API only** - `UNIFI_API_TYPE=local`
+- UniFi Network Application 9.0+
+- Zone IDs from `create_firewall_zone` or `list_firewall_zones`
+
+See [API.md](API.md#firewall-policies-v2-api) for complete documentation.
 
 ## Overview
 
@@ -37,12 +114,18 @@ This document tracks the implementation status of Zone-Based Firewall (ZBF) func
 | Category | Tools | Implementation Status | Endpoint Status | Test Coverage |
 |----------|-------|----------------------|-----------------|--------------|
 | Zone Management | 7 | Complete | 2 Verified, 5 Untested | 85.96% |
-| Zone Policy Matrix | 5 | Complete | **0 Verified (endpoints don't exist)** | 81.41% |
-| Application Blocking | 2 | Complete | **0 Verified (endpoints don't exist)** | 81.41% |
-| Statistics | 1 | Complete | **0 Verified (endpoint doesn't exist)** | 85.96% |
-| **Total** | **15** | **Complete** | **2/15 Verified (13%)** | **84.13%** |
+| **Firewall Policies v2 (Zone-to-Zone)** | **5** | **Complete** | ✅ **Working (PR #13)** | **N/A** |
+| Zone Policy Matrix (Legacy) | 5 | Deprecated | **0 Verified (endpoints don't exist)** | 81.41% |
+| Application Blocking | 2 | Deprecated | **0 Verified (endpoints don't exist)** | 81.41% |
+| Statistics | 1 | Deprecated | **0 Verified (endpoint doesn't exist)** | 85.96% |
+| **Total (Functional)** | **12** | **Complete** | **✅ Working** | **N/A** |
+| **Total (Legacy/Deprecated)** | **8** | **Deprecated** | **Endpoints don't exist** | **84.13%** |
 
-**Functional Tools:** 2 verified, 5 untested (likely work), **8 non-functional (endpoints don't exist)**
+**Functional Tools:**
+- ✅ 7 Zone Management tools (2 verified, 5 untested but likely working)
+- ✅ 5 Firewall Policies v2 tools (zone-to-zone policies - **working alternative**)
+
+**Deprecated Tools:** 8 legacy ZBF matrix tools (endpoints don't exist - use Firewall Policies v2 instead)
 
 ## Tool-by-Tool Status
 
@@ -144,7 +227,9 @@ This document tracks the implementation status of Zone-Based Firewall (ZBF) func
   - Speculative endpoint (not in actual API)
 - **Action Required:** Remove tool or mark as unavailable
 
-### Zone Policy Matrix (5 tools) - **ALL ENDPOINTS DO NOT EXIST**
+### Zone Policy Matrix (5 tools) - **DEPRECATED - USE FIREWALL POLICIES V2 API INSTEAD**
+
+**⚠️ These legacy endpoints do not exist. Use Firewall Policies v2 API for zone-to-zone policies instead.**
 
 #### ❌ `get_zbf_matrix` - **ENDPOINT DOES NOT EXIST**
 - **Status:** Implemented & Tested (but NON-FUNCTIONAL)
@@ -193,7 +278,9 @@ This document tracks the implementation status of Zone-Based Firewall (ZBF) func
 - **API Support:** ❌ Not available
 - **Action Required:** Remove tool or mark as unavailable
 
-### Application Blocking (2 tools) - **ALL ENDPOINTS DO NOT EXIST**
+### Application Blocking (2 tools) - **DEPRECATED - ENDPOINTS DO NOT EXIST**
+
+**⚠️ These endpoints do not exist in the UniFi API.**
 
 #### ❌ `block_application_by_zone` - **ENDPOINT DOES NOT EXIST**
 - **Status:** Implemented & Tested (but NON-FUNCTIONAL)

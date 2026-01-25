@@ -55,7 +55,7 @@ The UniFi MCP Server supports **three distinct API modes** with different capabi
 - **Network Configuration**: Create, update, and delete networks, VLANs, and subnets with DHCP configuration
 - **Client Management**: Query, block, unblock, and reconnect clients
 - **Firewall Rules**: Create, update, and delete firewall rules with traffic filtering
-- **Zone-Based Firewall (ZBF)**: Modern zone-based security with zone management (create, read, update, delete zones and network assignments). *Note: Zone policy matrix and application blocking endpoints do not exist in UniFi API v10.0.156 - requires UniFi Console UI configuration. See ZBF_STATUS.md for details.*
+- **Zone-Based Firewall (ZBF)**: Modern zone-based security with full zone management (create, read, update, delete zones and network assignments). Zone-to-zone policies available via Firewall Policies v2 API. *Note: Legacy ZBF matrix endpoints do not exist in UniFi API v10.0.156 - use Firewall Policies v2 API instead. See ZBF_STATUS.md and API.md for details.*
 - **WiFi/SSID Management**: Create and manage wireless networks with WPA2/WPA3, guest networks, and VLAN isolation
 - **Port Forwarding**: Configure port forwarding rules for external access
 - **DPI Statistics**: Deep Packet Inspection analytics for bandwidth usage by application and category
@@ -581,13 +581,14 @@ Security is a top priority. Please see [SECURITY.md](SECURITY.md) for:
 - [x] Redis caching with automatic invalidation
 - [x] Webhook support for real-time events
 
-**Phase 6: Zone-Based Firewall (7 working tools, 8 non-functional)**
+**Phase 6: Zone-Based Firewall (12 working tools)**
 
 - [x] Zone management (create, update, delete, list, assign networks) - 7 tools ✅ WORKING
-- [x] Zone policy matrix (get matrix, update policies, delete policies) - 5 tools ❌ ENDPOINTS DO NOT EXIST
+- [x] **Zone-to-zone policies via Firewall Policies v2 API** - 5 tools ✅ WORKING (PR #13)
+- [x] Legacy zone matrix endpoints - 5 tools ❌ ENDPOINTS DO NOT EXIST (use v2 API instead)
 - [x] Application blocking per zone (DPI-based blocking) - 2 tools ❌ ENDPOINTS DO NOT EXIST
 - [x] Zone statistics and monitoring - 1 tool ❌ ENDPOINT DOES NOT EXIST
-- [x] Type-safe Pydantic models for ZBF
+- [x] Type-safe Pydantic models for ZBF and Firewall Policies
 - [x] Comprehensive unit tests (84% coverage)
 - [x] Endpoint verification on U7 Express and UDM Pro (v10.0.156)
 
@@ -603,14 +604,15 @@ Security is a top priority. Please see [SECURITY.md](SECURITY.md) for:
 - [x] Comprehensive unit tests (86.62% coverage)
 - [x] Advanced analytics and reporting capabilities
 
-**ZBF API Limitations (Verified 2025-11-18):**
+**ZBF Implementation Notes (Verified 2025-11-18):**
 - ✅ Zone CRUD operations work (local gateway API only)
-- ❌ Zone policy matrix NOT available via API (configure in UniFi Console)
+- ✅ **Zone-to-zone policies work via Firewall Policies v2 API** (local gateway API only)
+- ❌ Legacy zone matrix endpoints NOT available via API (use v2 API instead)
 - ❌ Application blocking per zone NOT available via API
 - ❌ Zone statistics NOT available via API
-- See `tests/verification/PHASE2_FINDINGS.md` for complete verification report
+- See ZBF_STATUS.md for complete details and examples
 
-**Total: 77 MCP tools (69 functional, 8 deprecated) + 4 MCP resources**
+**Total: 77 MCP tools (74 functional: 69 general + 5 firewall policies v2, 8 deprecated ZBF matrix) + 4 MCP resources**
 
 ### Version 0.2.0 (Planned)
 

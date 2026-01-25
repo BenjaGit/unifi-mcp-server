@@ -501,6 +501,107 @@ async def validate_backup(site_id: str, backup_filename: str) -> dict:
     return await backups_tools.validate_backup(site_id, backup_filename, settings)
 
 
+@mcp.tool()
+async def get_backup_status(operation_id: str) -> dict:
+    """Get the status of an ongoing or completed backup operation.
+
+    Monitor the progress of a backup operation. Useful for tracking long-running
+    system backups.
+
+    Args:
+        operation_id: Backup operation identifier (returned by trigger_backup)
+
+    Returns:
+        Backup operation status including progress and result
+    """
+    return await backups_tools.get_backup_status(operation_id, settings)
+
+
+@mcp.tool()
+async def get_restore_status(operation_id: str) -> dict:
+    """Get the status of an ongoing or completed restore operation.
+
+    Monitor the progress of a restore operation. Critical for tracking restore
+    progress as controller may restart during restore.
+
+    Args:
+        operation_id: Restore operation identifier (returned by restore_backup)
+
+    Returns:
+        Restore operation status with rollback availability
+    """
+    return await backups_tools.get_restore_status(operation_id, settings)
+
+
+@mcp.tool()
+async def schedule_backups(
+    site_id: str,
+    backup_type: str,
+    frequency: str,
+    time_of_day: str,
+    enabled: bool = True,
+    retention_days: int = 30,
+    max_backups: int = 10,
+    day_of_week: int | None = None,
+    day_of_month: int | None = None,
+    cloud_backup_enabled: bool = False,
+    confirm: bool = False,
+    dry_run: bool = False,
+) -> dict:
+    """Configure automated backup schedule (requires confirm=True).
+
+    Set up recurring backups to run automatically at specified intervals.
+
+    Args:
+        site_id: Site identifier
+        backup_type: "network" or "system"
+        frequency: "daily", "weekly", or "monthly"
+        time_of_day: Time in HH:MM format (24-hour)
+        enabled: Whether schedule is enabled (default: True)
+        retention_days: Days to retain backups (1-365, default: 30)
+        max_backups: Maximum backups to keep (1-100, default: 10)
+        day_of_week: For weekly: 0=Monday, 6=Sunday
+        day_of_month: For monthly: 1-31
+        cloud_backup_enabled: Sync to cloud (default: False)
+        confirm: Must be True to execute
+        dry_run: Validate without configuring (default: False)
+
+    Returns:
+        Backup schedule configuration details
+    """
+    return await backups_tools.schedule_backups(
+        site_id,
+        backup_type,
+        frequency,
+        time_of_day,
+        settings,
+        enabled,
+        retention_days,
+        max_backups,
+        day_of_week,
+        day_of_month,
+        cloud_backup_enabled,
+        confirm,
+        dry_run,
+    )
+
+
+@mcp.tool()
+async def get_backup_schedule(site_id: str) -> dict:
+    """Get the configured automated backup schedule for a site.
+
+    Retrieve details about the current backup schedule including frequency,
+    retention policy, and next scheduled execution.
+
+    Args:
+        site_id: Site identifier
+
+    Returns:
+        Backup schedule configuration, or indication if no schedule exists
+    """
+    return await backups_tools.get_backup_schedule(site_id, settings)
+
+
 # Network Configuration Tools (Phase 4)
 @mcp.tool()
 async def create_network(

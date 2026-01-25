@@ -23,6 +23,7 @@ This document provides comprehensive reference documentation for the UniFi Netwo
 - [DNS Policies](#dns-policies)
 - [Traffic Matching Lists](#traffic-matching-lists)
 - [Quality of Service (QoS)](#quality-of-service-qos)
+- [Backup and Restore](#backup-and-restore)
 - [Supporting Resources](#supporting-resources)
 
 ---
@@ -2087,6 +2088,451 @@ Common DSCP values for traffic classification (RFC 4594):
 - **CS3** (24): Broadcast video
 - **CS2** (16): High-throughput data
 - **CS1** (8): Low-priority data
+
+---
+
+## Backup and Restore
+
+Comprehensive backup and restore operations for disaster recovery, configuration migration, and system maintenance.
+
+### Overview
+
+UniFi's Backup and Restore system provides critical disaster recovery capabilities:
+
+- **Backup Creation**: Create network or system backups on-demand or on schedule
+- **Backup Management**: List, download, validate, and delete backup files
+- **Restore Operations**: Restore from backups with automatic pre-restore safety backups
+- **Automated Scheduling**: Configure daily, weekly, or monthly automated backups
+- **Operation Monitoring**: Track backup and restore progress in real-time
+- **Cloud Sync**: Optionally sync backups to UniFi Cloud (requires account)
+
+**Backup Types:**
+- **Network Backups** (<10 MB): Network settings, device configurations, WiFi networks, firewall rules (fastest, recommended for frequent backups)
+- **System Backups** (10-100+ MB): Complete OS, application, and device configurations (comprehensive, recommended for major changes)
+
+**Best Practices:**
+- Always create a pre-restore backup before restoring (enabled by default)
+- Schedule automated daily network backups for production environments
+- Keep at least 7-30 days of backup retention
+- Download critical backups to external storage before major changes
+- Test backup validation before restore operations
+- Monitor controller connectivity during restore (controller may restart)
+
+### Trigger Backup ✅
+
+Create a new backup of the specified type.
+
+- **Method:** `POST`
+- **Endpoint:** `/api/cmd/backup`
+- **MCP Tool:** `trigger_backup()`
+- **Implementation:** v0.2.0 Phase 4 (86% coverage)
+- **Requires:** `confirm=true`
+- **Supports:** `dry_run=true`
+
+**Request Body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `backup_type` | string | Yes | "network" or "system" |
+| `retention_days` | number | No | Days to retain (default: 30, -1 for indefinite) |
+
+**Example Request:**
+
+```json
+{
+  "backup_type": "network",
+  "retention_days": 30
+}
+```
+
+**Response:** `200 OK`
+
+```json
+{
+  "backup_id": "backup_20260124_123456",
+  "filename": "backup_2026-01-24_12-34-56.unf",
+  "download_url": "/data/backup/backup_2026-01-24_12-34-56.unf",
+  "backup_type": "network",
+  "created_at": "2026-01-24T12:34:56Z",
+  "retention_days": 30,
+  "status": "completed"
+}
+```
+
+**Note**: Network backups complete in <30 seconds, system backups may take 1-3 minutes.
+
+---
+
+### List Backups ✅
+
+Retrieve metadata for all available backup files.
+
+- **Method:** `GET`
+- **Endpoint:** `/api/backup/list-backups`
+- **MCP Tool:** `list_backups()`
+- **Implementation:** v0.2.0 Phase 4 (86% coverage)
+
+**Response:** `200 OK`
+
+```json
+[
+  {
+    "backup_id": "backup_20260124_123456",
+    "filename": "backup_2026-01-24_12-34-56.unf",
+    "backup_type": "NETWORK",
+    "created_at": "2026-01-24T12:34:56Z",
+    "size_bytes": 8456192,
+    "version": "10.1.68",
+    "is_valid": true,
+    "cloud_synced": true
+  }
+]
+```
+
+---
+
+### Get Backup Details ✅
+
+Retrieve detailed information about a specific backup.
+
+- **Method:** `GET`
+- **Endpoint:** `/api/backup/details/{filename}`
+- **MCP Tool:** `get_backup_details()`
+- **Implementation:** v0.2.0 Phase 4 (86% coverage)
+
+**Path Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `backup_filename` | string | Backup filename (e.g., "backup_2026-01-24.unf") |
+
+**Response:** `200 OK`
+
+---
+
+### Download Backup ✅
+
+Download a backup file to local storage.
+
+- **Method:** `GET`
+- **Endpoint:** `/api/backup/download/{filename}`
+- **MCP Tool:** `download_backup()`
+- **Implementation:** v0.2.0 Phase 4 (86% coverage)
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `backup_filename` | string | Yes | Backup filename to download |
+| `output_path` | string | Yes | Local filesystem path to save |
+| `verify_checksum` | boolean | No | Calculate SHA256 checksum (default: true) |
+
+**Example Usage:**
+
+```python
+result = await download_backup(
+    site_id="default",
+    backup_filename="backup_2026-01-24.unf",
+    output_path="/backups/unifi_backup.unf",
+    settings=settings
+)
+print(f"Downloaded: {result['size_bytes']} bytes")
+print(f"Checksum: {result['checksum']}")
+```
+
+---
+
+### Delete Backup ✅
+
+Permanently delete a backup file from controller storage.
+
+- **Method:** `DELETE`
+- **Endpoint:** `/api/backup/delete-backup`
+- **MCP Tool:** `delete_backup()`
+- **Implementation:** v0.2.0 Phase 4 (86% coverage)
+- **Requires:** `confirm=true`
+- **Supports:** `dry_run=true`
+
+**Warning**: This operation cannot be undone. Ensure backup is downloaded or unnecessary before deletion.
+
+---
+
+### Restore Backup ✅
+
+Restore the controller from a backup file (DESTRUCTIVE).
+
+- **Method:** `POST`
+- **Endpoint:** `/api/backup/restore`
+- **MCP Tool:** `restore_backup()`
+- **Implementation:** v0.2.0 Phase 4 (86% coverage)
+- **Requires:** `confirm=true`
+- **Supports:** `dry_run=true`
+
+**Request Body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `backup_filename` | string | Yes | Backup file to restore from |
+| `create_pre_restore_backup` | boolean | No | Create safety backup first (default: true) |
+
+**Safety Features:**
+- Automatic pre-restore backup creation (recommended)
+- Mandatory confirmation flag
+- Rollback capability via pre-restore backup
+- Audit logging
+
+**Example Request:**
+
+```json
+{
+  "backup_filename": "backup_2026-01-24.unf",
+  "create_pre_restore_backup": true
+}
+```
+
+**Response:** `200 OK`
+
+```json
+{
+  "backup_filename": "backup_2026-01-24.unf",
+  "status": "restore_initiated",
+  "pre_restore_backup_id": "backup_20260124_140000_preRestore",
+  "can_rollback": true,
+  "restore_time": "2026-01-24T14:00:00Z",
+  "warning": "Controller may restart. Devices may temporarily disconnect."
+}
+```
+
+**Critical Warning**: Restore operations will:
+1. Restore all configuration from the backup
+2. Overwrite current settings
+3. Cause controller restart (2-5 minutes)
+4. Temporarily disconnect devices
+
+---
+
+### Validate Backup ✅
+
+Validate a backup file before restore.
+
+- **Method:** `POST`
+- **Endpoint:** `/api/backup/validate`
+- **MCP Tool:** `validate_backup()`
+- **Implementation:** v0.2.0 Phase 4 (86% coverage)
+
+**Response:** `200 OK`
+
+```json
+{
+  "backup_id": "backup_20260124_123456",
+  "backup_filename": "backup_2026-01-24.unf",
+  "is_valid": true,
+  "checksum_valid": true,
+  "format_valid": true,
+  "version_compatible": true,
+  "backup_version": "10.1.68",
+  "warnings": [],
+  "errors": [],
+  "size_bytes": 8456192,
+  "validated_at": "2026-01-24T14:00:00Z"
+}
+```
+
+---
+
+### Get Backup Status ✅
+
+Monitor the progress of an ongoing or completed backup operation.
+
+- **Method:** `GET`
+- **Endpoint:** `/api/backup/status/{operationId}`
+- **MCP Tool:** `get_backup_status()`
+- **Implementation:** v0.2.0 Phase 4 (86% coverage)
+
+**Path Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `operation_id` | string | Backup operation identifier (from trigger_backup) |
+
+**Response:** `200 OK`
+
+```json
+{
+  "operation_id": "op_backup_abc123",
+  "status": "completed",
+  "progress_percent": 100,
+  "current_step": "Finalizing backup",
+  "started_at": "2026-01-24T12:34:00Z",
+  "completed_at": "2026-01-24T12:35:30Z",
+  "backup_metadata": {
+    "id": "backup-123",
+    "filename": "backup_20260124.unf"
+  },
+  "error_message": null
+}
+```
+
+**Status Values:** `pending`, `in_progress`, `completed`, `failed`
+
+**Note**: Most backups complete quickly. This tool is primarily useful for large system backups.
+
+---
+
+### Get Restore Status ✅
+
+Monitor the progress of an ongoing or completed restore operation.
+
+- **Method:** `GET`
+- **Endpoint:** `/api/restore/status/{operationId}`
+- **MCP Tool:** `get_restore_status()`
+- **Implementation:** v0.2.0 Phase 4 (86% coverage)
+
+**Path Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `operation_id` | string | Restore operation identifier (from restore_backup) |
+
+**Response:** `200 OK`
+
+```json
+{
+  "operation_id": "op_restore_xyz789",
+  "backup_id": "backup_20260124_123456",
+  "status": "in_progress",
+  "progress_percent": 45,
+  "current_step": "Restoring device configurations",
+  "started_at": "2026-01-24T14:00:00Z",
+  "completed_at": null,
+  "pre_restore_backup_id": "backup_20260124_140000_preRestore",
+  "can_rollback": true,
+  "error_message": null,
+  "rollback_reason": null
+}
+```
+
+**Status Values:** `pending`, `in_progress`, `completed`, `failed`, `rolled_back`
+
+**Note**: Expect connection errors during restore as controller restarts. Monitor controller connectivity to determine completion.
+
+---
+
+### Schedule Backups ✅
+
+Configure automated backup schedule for recurring backups.
+
+- **Method:** `POST`
+- **Endpoint:** `/api/backup/schedule`
+- **MCP Tool:** `schedule_backups()`
+- **Implementation:** v0.2.0 Phase 4 (86% coverage)
+- **Requires:** `confirm=true`
+- **Supports:** `dry_run=true`
+
+**Request Body:**
+
+| Field | Type | Required | Constraints |
+|-------|------|----------|-------------|
+| `backup_type` | string | Yes | "network" or "system" |
+| `frequency` | string | Yes | "daily", "weekly", or "monthly" |
+| `time_of_day` | string | Yes | HH:MM format (24-hour) |
+| `enabled` | boolean | No | Default: true |
+| `retention_days` | number | No | 1-365 (default: 30) |
+| `max_backups` | number | No | 1-100 (default: 10) |
+| `day_of_week` | number | No | 0-6 (0=Monday, required if weekly) |
+| `day_of_month` | number | No | 1-31 (required if monthly) |
+| `cloud_backup_enabled` | boolean | No | Sync to cloud (default: false) |
+
+**Example Request (Daily):**
+
+```json
+{
+  "backup_type": "network",
+  "frequency": "daily",
+  "time_of_day": "03:00",
+  "retention_days": 30,
+  "max_backups": 10,
+  "enabled": true
+}
+```
+
+**Example Request (Weekly):**
+
+```json
+{
+  "backup_type": "system",
+  "frequency": "weekly",
+  "time_of_day": "02:00",
+  "day_of_week": 6,
+  "retention_days": 90,
+  "max_backups": 12,
+  "cloud_backup_enabled": true,
+  "enabled": true
+}
+```
+
+**Response:** `201 Created`
+
+```json
+{
+  "schedule_id": "schedule_daily_network",
+  "site_id": "default",
+  "enabled": true,
+  "backup_type": "network",
+  "frequency": "daily",
+  "time_of_day": "03:00",
+  "retention_days": 30,
+  "max_backups": 10,
+  "cloud_backup_enabled": false,
+  "configured_at": "2026-01-24T14:30:00Z",
+  "next_run": "2026-01-25T03:00:00Z"
+}
+```
+
+**Scheduling Recommendations:**
+- **Daily network backups**: Production environments (3 AM recommended)
+- **Weekly system backups**: Most use cases (Sunday 2 AM recommended)
+- **Monthly backups**: Only for static environments
+
+---
+
+### Get Backup Schedule ✅
+
+Retrieve the configured automated backup schedule for a site.
+
+- **Method:** `GET`
+- **Endpoint:** `/api/backup/schedule`
+- **MCP Tool:** `get_backup_schedule()`
+- **Implementation:** v0.2.0 Phase 4 (86% coverage)
+
+**Response (Configured):** `200 OK`
+
+```json
+{
+  "configured": true,
+  "schedule_id": "schedule_daily_network",
+  "enabled": true,
+  "backup_type": "network",
+  "frequency": "daily",
+  "time_of_day": "03:00",
+  "retention_days": 30,
+  "max_backups": 10,
+  "cloud_backup_enabled": true,
+  "last_run": "2026-01-24T03:00:00Z",
+  "last_backup_id": "backup-123",
+  "next_run": "2026-01-25T03:00:00Z"
+}
+```
+
+**Response (Not Configured):** `200 OK`
+
+```json
+{
+  "configured": false,
+  "message": "No automated backup schedule configured for this site",
+  "recommendation": "Use schedule_backups to configure automated backups"
+}
+```
 
 ---
 

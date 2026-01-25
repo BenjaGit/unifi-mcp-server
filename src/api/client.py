@@ -508,7 +508,11 @@ class UniFiClient:
 
         sites_endpoint = self.settings.get_integration_path("sites")
         response = await self.get(sites_endpoint)
-        sites = response.get("data", response.get("sites", []))
+        # Handle both list (when API returns {"data": [...]}) and dict responses
+        if isinstance(response, list):
+            sites = response
+        else:
+            sites = response.get("data", response.get("sites", []))
 
         for site in sites:
             site_id = site.get("id") or site.get("_id")

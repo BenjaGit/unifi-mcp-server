@@ -167,9 +167,11 @@ async def create_firewall_rule(
                 f"/ea/sites/{site_id}/rest/firewallrule", json_data=rule_data
             )
             # Client now auto-unwraps the "data" field, so response is the actual data
-            created_rule: dict[str, Any] = (
-                response[0] if isinstance(response, list) else response.get("data", [{}])[0]
-            )
+            if isinstance(response, list):
+                created_rule: dict[str, Any] = response[0]
+            else:
+                data_list = response.get("data", [{}])
+                created_rule = data_list[0] if isinstance(data_list, list) else {}
 
             logger.info(f"Created firewall rule '{name}' in site '{site_id}'")
             log_audit(
@@ -310,9 +312,11 @@ async def update_firewall_rule(
                 f"/ea/sites/{site_id}/rest/firewallrule/{rule_id}", json_data=update_data
             )
             # Client now auto-unwraps the "data" field, so response is the actual data
-            updated_rule: dict[str, Any] = (
-                response[0] if isinstance(response, list) else response.get("data", [{}])[0]
-            )
+            if isinstance(response, list):
+                updated_rule: dict[str, Any] = response[0]
+            else:
+                data_list = response.get("data", [{}])
+                updated_rule = data_list[0] if isinstance(data_list, list) else {}
 
             logger.info(f"Updated firewall rule '{rule_id}' in site '{site_id}'")
             log_audit(

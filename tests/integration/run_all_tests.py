@@ -37,8 +37,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from dotenv import load_dotenv
 
 # Import all test suites
-from tests.integration.test_cloud_suite import create_cloud_suite
+from tests.integration.test_client_ops_suite import create_client_ops_suite
 from tests.integration.test_client_suite import create_client_suite
+from tests.integration.test_cloud_suite import create_cloud_suite
+from tests.integration.test_device_ops_suite import create_device_ops_suite
 from tests.integration.test_device_suite import create_device_suite
 from tests.integration.test_dpi_suite import create_dpi_suite
 from tests.integration.test_firewall_suite import create_firewall_suite
@@ -72,13 +74,9 @@ def discover_test_suites():
     suites.append(create_traffic_flows_suite())       # Traffic flow monitoring (11 tests)
     suites.append(create_firewall_zones_suite())      # Firewall zones (8 tests)
 
-    # TODO: Week 4 test suites (destructive operations - dry-run only)
-    # from tests.integration.test_device_ops_suite import create_device_ops_suite
-    # from tests.integration.test_backup_restore_suite import create_backup_restore_suite
-    # from tests.integration.test_client_ops_suite import create_client_ops_suite
-    # suites.append(create_device_ops_suite())
-    # suites.append(create_backup_restore_suite())
-    # suites.append(create_client_ops_suite())
+    # Week 4: Destructive operations test suites (DRY-RUN ONLY)
+    suites.append(create_device_ops_suite())          # Device operations (5 tests)
+    suites.append(create_client_ops_suite())          # Client operations (4 tests)
 
     return suites
 

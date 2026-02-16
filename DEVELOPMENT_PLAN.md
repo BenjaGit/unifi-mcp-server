@@ -2,8 +2,20 @@
 
 **📋 Version Correction Notice**: v0.2.0 was published prematurely on 2025-11-17. The current stable release is v0.1.4 (identical code). The true v0.2.0 with all planned features is targeted for Q1 2025.
 
-**🆕 Recent Updates (2025-11-26)**:
+**🆕 Recent Updates**:
 
+**2026-01-24 - API Documentation Expansion:**
+- 📚 Updated UNIFI_API.md with newly documented endpoints from developer.ui.com
+- ✨ **Site Manager API v1.0.0:** Added ISP Metrics, SD-WAN Config visibility, Version Control, and Host Management endpoints
+- ✨ **Network API v10.1.68:** Added Cloud Connector/Proxy endpoints, Device Adoption, and DPI Application Categories
+- ✨ **Protect API v6.2.83:** Documented comprehensive API with 36+ endpoints for cameras, lights, sensors, chimes, and NVRs
+- 📊 **Development Plan Impact:**
+  - v0.2.0 tools expanded from 25-35 to 30-40 tools
+  - v1.0.0 tools expanded from 35-50 to 50-70 tools (primarily due to Protect API)
+  - Total estimated tools increased from 125-160 to 146-185 tools
+  - Updated feature priorities and implementation scopes
+
+**2025-11-26:**
 - ✅ Implemented comprehensive multi-API support (local, cloud-v1, cloud-ea)
 - ✅ Fixed list_vlans to return all networks including WAN, VPN, and corporate networks
 - ✅ Updated UNIFI_API.md to v10.0.156 with comprehensive endpoint documentation
@@ -81,10 +93,14 @@ This release will focus on delivering the most critical features for modern UniF
   - OAuth/SSO authentication for Site Manager API at `unifi.ui.com`
   - Multi-site aggregated monitoring and management
   - Cross-site device status and health metrics
-  - Internet health metrics integration
+  - Internet health metrics integration including ISP Metrics endpoints
+  - **New (2026-01-24):** ISP Metrics query and retrieval (`Get ISP Metrics`, `Query ISP Metrics`)
+  - **New (2026-01-24):** SD-WAN configuration visibility (`List SD-WAN Configs`, `Get SD-WAN Config by ID`, `Get SD-WAN Config Status`)
+  - **New (2026-01-24):** Version Control, Host Management (`List Hosts`, `Get Host by ID`)
   - Vantage Point support for performance monitoring
   - Multi-tenant architecture for enterprise deployments
-  - **Estimated Tools:** 3-4 new MCP tools
+  - **API Endpoints:** Site Manager v1.0.0 endpoints at `https://api.ui.com/v1/...`
+  - **Estimated Tools:** 6-8 new MCP tools (expanded from 3-4 due to newly documented endpoints)
 
 - **Enhanced RADIUS and Guest Portal (Medium - P2):**
   - Full CRUD operations for RADIUS profiles (currently GET only)
@@ -108,9 +124,18 @@ This release will focus on delivering the most critical features for modern UniF
   - **API Endpoints:** `/api/s/{site}/stat/topology`
   - **Estimated Tools:** 2-3 new MCP tools
 
-**Total Estimated New Tools for v0.2.0:** ~25-35 new MCP tools
+- **Cloud Connector/Proxy Endpoints (Medium - P2):**
+  - **New (2026-01-24):** Connector endpoints for cloud-based proxy access to local controllers
+  - Network API connector operations (POST, GET, PUT, DELETE, PATCH)
+  - Protect API connector operations (proxy access to cameras, sensors, NVRs)
+  - Enables cloud-based management without direct local access
+  - Useful for remote management and multi-site deployments
+  - **API Endpoints:** `/v1/connector/consoles/{consoleId}/proxy/network/...`, `/v1/connector/consoles/{consoleId}/proxy/protect/...`
+  - **Estimated Tools:** 2-3 new MCP tools (wrapper tools for cloud proxy access)
+
+**Total Estimated New Tools for v0.2.0:** ~30-40 new MCP tools (expanded due to newly documented Site Manager and Cloud Connector endpoints)
 **Target Timeline:** Q1 2025 (3-4 months development)
-**Development Effort:** ~15-20 weeks total across all features
+**Development Effort:** ~17-23 weeks total across all features
 
 ### Version 0.3.0 (Q2 2025) - Policy Automation & SD-WAN
 
@@ -150,13 +175,16 @@ This release will build on the foundation of v0.2.0 by introducing advanced poli
   - **Estimated Tools:** 4-5 new MCP tools
 
 - **Enhanced DPI with Historical Trends (Medium - P2):**
+  - **New (2026-01-24):** List DPI Application Categories endpoint
   - Historical DPI trend analysis over time
   - Application usage patterns and comparative analytics
   - Time-series data for bandwidth consumption by application
   - Predictive usage modeling and forecasting
   - Export capabilities for DPI historical data
+  - Application category metadata for classification
+  - **API Endpoints:** `/api/s/{site}/stat/dpi`, Network v10.1.68 DPI categories endpoint
   - **Dependencies:** Traffic Flows API (from v0.2.0)
-  - **Estimated Tools:** 2-3 new MCP tools
+  - **Estimated Tools:** 3-4 new MCP tools (expanded to include categories listing)
 
 - **Enhanced Monitoring Capabilities (Medium - P2):**
   - Advanced real-time monitoring of system and network metrics
@@ -232,14 +260,27 @@ This release will mark the transition of the UniFi MCP Server into a comprehensi
   - **Estimated Tools:** 5-7 new MCP tools
 
 - **UniFi Protect Integration (Medium - P2):**
-  - Camera snapshot retrieval
-  - Motion detection events via webhooks
-  - Alarm manager trigger configuration
-  - Location-based notification settings for cameras
-  - Video clip management
-  - Camera configuration and status monitoring
-  - **Note:** Separate application with distinct API endpoints
-  - **Estimated Tools:** 4-5 new MCP tools
+  - **Status:** ✅ **API FULLY DOCUMENTED** (v6.2.83 - 2026-01-24)
+  - **Comprehensive Protect API Coverage (36+ endpoints documented):**
+    - **Camera Management:** Get camera details, patch settings, get all cameras
+    - **RTSPS Streaming:** Create/delete/get RTSPS streams for cameras with quality selection
+    - **Camera Operations:** Get snapshots, disable microphone permanently, create talkback sessions
+    - **Light Management:** Get light details, patch light settings, get all lights
+    - **Sensor Management:** Get sensor details, patch sensor settings (light/humidity/temperature/motion/alarm), get all sensors
+    - **Chime Management:** Get chime details, patch chime settings (ring configuration), get all chimes
+    - **NVR Management:** Get NVR details and status
+    - **Device Asset Files:** Upload and retrieve device asset files
+    - **Viewer Details:** Get application information and viewer details
+  - **Integration Features:**
+    - Motion detection events via webhooks
+    - Alarm manager trigger configuration
+    - Location-based notification settings for cameras
+    - Video clip management
+    - Camera configuration and status monitoring
+    - PTZ camera controls
+    - Live view management
+  - **Note:** Separate application with distinct API endpoints at `/v1/connector/consoles/{consoleId}/proxy/protect/integration/v1/...`
+  - **Estimated Tools:** 20-25 new MCP tools (significantly expanded from 4-5 due to comprehensive API discovery)
 
 - **UniFi Talk Integration (Medium - P2):**
   - VoIP phone management
@@ -284,10 +325,10 @@ This release will mark the transition of the UniFi MCP Server into a comprehensi
   - **API Endpoints:** `/api/s/{site}/rest/dynamicdns` (PUT/POST), `/api/s/{site}/rest/tag`, `/api/s/{site}/stat/sdn`
   - **Estimated Tools:** 3-4 new MCP tools
 
-**Total Estimated New Tools for v1.0.0:** ~35-50 new MCP tools
+**Total Estimated New Tools for v1.0.0:** ~50-70 new MCP tools (expanded due to comprehensive Protect API documentation)
 **Target Timeline:** H2 2025 (6-8 months development)
-**Development Effort:** ~30-40 weeks total across all features
-**Total Tools (v0.1.0 + all releases):** ~125-160 MCP tools
+**Development Effort:** ~35-50 weeks total across all features (increased due to expanded Protect integration)
+**Total Tools (v0.1.0 + all releases):** ~140-180 MCP tools
 
 ## 3. API Gap Analysis & Research Findings
 
@@ -696,6 +737,24 @@ The following features represent moderate-priority gaps that enhance functionali
 - Tag creation, assignment, and management
 - Device grouping via tags
 
+#### 3.3.7 Device Adoption and Provisioning
+
+**Current Status:** Not implemented
+
+**New (2026-01-24):**
+
+- Network v10.1.68 "Adopt Devices" endpoint discovered
+- Streamlined device adoption workflow
+- Batch device adoption capabilities
+- Integration with Zero Touch Provisioning (ZTP)
+
+**Missing:**
+
+- Device adoption API implementation
+- Adoption status monitoring
+- Bulk adoption operations
+- Pre-adoption device discovery
+
 ### 3.4 Feature-to-Version Mapping
 
 Based on the gap analysis, here is the recommended mapping of features to version milestones:
@@ -733,11 +792,13 @@ This section provides a comprehensive inventory of UniFi API endpoints categoriz
 #### Fully Implemented (v0.1.0)
 
 - Device management (`/api/s/{site}/stat/device`, `/api/s/{site}/rest/device`)
+  - **Gap:** Device adoption endpoint not yet implemented (Network v10.1.68 "Adopt Devices" endpoint discovered 2026-01-24)
 - Client operations (`/api/s/{site}/stat/sta`, `/api/s/{site}/rest/user`)
 - Basic firewall rules (`/api/s/{site}/rest/firewallrule`)
 - WiFi configuration (`/api/s/{site}/rest/wlanconf`)
 - Port forwarding (`/api/s/{site}/rest/portforward`)
 - Basic DPI statistics (`/api/s/{site}/stat/dpi`)
+  - **Gap:** DPI Application Categories listing not yet implemented (discovered 2026-01-24)
 - Site operations (`/api/s/{site}/stat/health`)
 
 #### Partially Implemented
@@ -767,6 +828,19 @@ This section provides a comprehensive inventory of UniFi API endpoints categoriz
 - `/api/s/{site}/cmd/hotspot` - Voucher management
 - `/api/s/{site}/rest/tag` - Tagged MACs
 - Enhanced notification configuration
+- **New (2026-01-24):** Site Manager API endpoints:
+  - ISP Metrics (Get/Query ISP Metrics)
+  - SD-WAN Config visibility (List/Get SD-WAN Configs, Get Config Status)
+  - Version Control, Host Management (List Hosts, Get Host by ID)
+- **New (2026-01-24):** Cloud Connector/Proxy endpoints (Network and Protect)
+- **New (2026-01-24):** Device adoption endpoint (Network v10.1.68)
+- **New (2026-01-24):** DPI Application Categories listing
+- **New (2026-01-24):** UniFi Protect Integration (36+ endpoints):
+  - Camera management, RTSPS streaming, snapshots, talkback
+  - Light management (get/patch settings, list all)
+  - Sensor management (get/patch settings, list all)
+  - Chime management (get/patch settings, list all)
+  - NVR details, device asset file management
 
 #### Not Implemented - Low Priority
 
@@ -1183,9 +1257,9 @@ Each application requires:
 | Version | New Tool Categories | Estimated New Tools | Cumulative Tools |
 |---------|---------------------|---------------------|------------------|
 | v0.1.0 | - | 40 | 40 |
-| v0.2.0 | ZBF, Traffic Flow, QoS, Backup, Topology, RADIUS | 25-35 | 65-75 |
-| v0.3.0 | SD-WAN, Alerts, Object-Oriented, Enhanced Monitoring | 26-35 | 91-110 |
-| v1.0.0 | VPN, Multi-App (Identity, Access, Protect), Analytics | 35-50 | 126-160 |
+| v0.2.0 | ZBF, Traffic Flow, QoS, Backup, Topology, RADIUS, Site Manager (expanded), Cloud Connector | 30-40 | 70-80 |
+| v0.3.0 | SD-WAN, Alerts, Object-Oriented, Enhanced Monitoring, DPI Categories | 26-35 | 96-115 |
+| v1.0.0 | VPN, Multi-App (Identity, Access, Protect - expanded), Analytics, Device Adoption | 50-70 | 146-185 |
 
 ### 4.5 Error Handling and Safety Mechanisms
 

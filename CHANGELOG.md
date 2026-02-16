@@ -5,6 +5,155 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2] - 2026-02-16
+
+### 🎉 Feature Release - Port Profile Management & Security Hardening
+
+This release adds comprehensive switch port management capabilities, fixes critical security vulnerabilities, corrects API endpoint issues, and improves code quality across the codebase.
+
+### Added
+
+**Port Profile & Switch Port Management (8 new tools)**
+
+- `list_port_profiles` - Paginated listing of switch port profiles with filtering
+- `get_port_profile` - Fetch detailed port profile configuration by ID
+- `create_port_profile` - Create port profiles with full configuration:
+  - PoE settings (auto, passthrough, 24V, 48V, passthrough+)
+  - VLAN configuration (native, trunk, excluded VLANs)
+  - 802.1X port-based authentication
+  - LLDP-MED voice VLAN support
+  - Port speed/duplex configuration
+  - Port isolation and storm control
+- `update_port_profile` - Update profiles with fetch-then-merge to preserve fields
+- `delete_port_profile` - Delete port profiles with existence verification
+- `get_device_port_overrides` - Retrieve per-port overrides and full port table for devices
+- `set_device_port_overrides` - Apply port-specific configuration:
+  - Smart merge by `port_idx` (preserves other ports)
+  - Full replace mode for complete reconfiguration
+  - Validation of required fields (`port_idx`, `portconf_id`)
+- `get_device_by_mac` - Look up devices by MAC address for port configuration
+
+**Pydantic Models**
+
+- `PortProfile` - Complete port profile data model with validation
+- `PortOverride` - Per-port override configuration
+- `PortTableEntry` - Read-only port status and statistics
+- `DuplicateResourceError` - Exception for duplicate name detection
+
+**Test Coverage**
+
+- 75 new unit tests for port profile tools (100% of new code covered)
+- Total test count: 1,068 (up from 990)
+- All tests passing across Python 3.10, 3.11, 3.12
+
+### Security
+
+**Critical Dependency Updates (18 vulnerabilities fixed)**
+
+- **FastMCP**: 0.1.0 → 2.14.5
+  - Fixed CVE-2025-66416 (high severity)
+  - Fixed auth integration confused deputy attack (high)
+  - Fixed reflected XSS in callback page (medium)
+  - Fixed Windows command injection (medium)
+- **MCP SDK**: 1.16.0 → 1.26.0
+  - Enabled DNS rebinding protection by default (high)
+- **cryptography**: 43.0.0 → 46.0.5
+  - Fixed SECT curve subgroup attack vulnerability (high)
+- **httpx**: 0.27.0 → 0.28.1
+- **pydantic**: 2.0.0 → 2.12.5
+- **agnost**: 0.1.8 → 0.1.12
+- **urllib3**: Added >=2.3.0 requirement
+  - Fixed decompression bomb safeguards bypass (high)
+  - Fixed unbounded links in decompression chain (high)
+  - Fixed O(n²) streaming API DoS (high)
+
+**Security Hardening**
+
+- Removed `session-work.md` and `TEST_RESULTS.md` from git tracking (contained real internal IPs)
+- Added both files to `.gitignore` to prevent future leaks
+- Replaced PII in `SECURITY.md` (placeholder emails → GitHub Security Advisories)
+- MAC address sanitization in logs and error messages (masked to `aa:bb:cc:xx:xx:xx`)
+- Git history verified clean - no secrets ever committed
+
+### Fixed
+
+**API Endpoint & Payload Corrections**
+
+- **RADIUS Tools** - Corrected endpoints and field names:
+  - Profile endpoints: `/integration/v1/.../radius/profiles` → `/ea/sites/.../rest/radiusprofile`
+  - Account endpoints: `/integration/v1/.../radius/accounts` → `/ea/sites/.../rest/account`
+  - Password field: `password` → `x_password` (actual UniFi API field)
+  - VLAN field: `vlan_id` → `vlan`
+  - Auto-populate `tunnel_type`/`tunnel_medium_type` when VLAN specified
+  - Secrets redacted (`***REDACTED***`) in all responses
+  - Fixed list response handling at 5 locations (prevents `AttributeError` on `.get()`)
+
+- **Firewall Tools** - New payload fields for proper rule creation:
+  - Added `ruleset` (default `WAN_IN`) and `rule_index` (default `2000`)
+  - Added `src_networkconf_id`/`dst_networkconf_id` with type variants (default `None`, typed `str | None`)
+  - Added connection state flags: `state_established`, `state_related`, `state_new`, `state_invalid`
+  - Added traffic `logging` flag
+  - Fixed parameter names: `source`/`destination` → `src_address`/`dst_address`
+
+- **WLAN Tools** - New creation parameters:
+  - Added `networkconf_id` - associate SSID with specific network
+  - Added `ap_group_ids`/`ap_group_mode` - per-AP-group broadcasting
+  - Added `wlan_bands` - band selection (`2g`, `5g`, or both)
+  - Added IoT optimization and minimum data rate controls
+
+- **Network Config Tools** - Fixed VLAN field name (`vlan_id` → `vlan`)
+
+- **All Tools** - Boolean parameter coercion (`"true"` → `True`) for MCP JSON-RPC compatibility
+
+**Bug Fixes**
+
+- Fixed `dry_run` requiring `confirm=True` - `validate_confirmation()` now accepts `dry_run` parameter
+- Fixed missing `DuplicateResourceError` exception (was imported but not defined)
+- Fixed RADIUS response crashes where list responses were passed to `.get()` or Pydantic constructors
+- Updated all 55 call sites across 16 tool modules for dry_run fix
+
+**Code Quality**
+
+- Added full type hints to `coerce_bool(value: bool | str | None) -> bool`
+- Added full type hints to `validate_confirmation(confirm: bool | str | None, operation: str, dry_run: bool | str = False) -> None`
+- Port profile tools validate responses through Pydantic models before returning
+- Fixed import ordering (isort) across all files
+
+### Changed
+
+- Tool count: 74 → 82+ MCP tools
+- Test count: 990 → 1,068 tests
+- Updated version references in README.md, CLAUDE.md, pyproject.toml
+
+### Technical Details
+
+**Commits**
+
+- `94277cb` - Fix RADIUS, firewall, WLAN, network endpoints/payloads (29 files)
+- `20efe10` - Add port profile and device port override tools (6 files)
+- `b7c0489` - Remove PII, harden repo for public release (4 files)
+- `448b916` - Add missing DuplicateResourceError exception (2 files)
+- `653d957` - Allow dry_run without confirm, fix firewall param names
+- `360339f` - Add type hints to coerce_bool and validate_confirmation
+- `d666965` - Validate port profile responses through Pydantic models
+- `e77129c` - Fix MAC leak in logs/errors, firewall defaults, RADIUS response handling
+- `ffe8d86` - Merge PR #35: port profile tools, API fixes, and security hardening
+- `9feb15b` - Style: apply black and isort formatting fixes
+- `ddaa9e9` - Fix(deps): update dependencies to address security vulnerabilities
+- `5674286` - Style: fix isort import ordering
+- `ffc1e6e` - Docs: update documentation for v0.2.2 release
+
+**Statistics**
+
+- 40 files changed (+2,726 / -1,235 lines)
+- 8 new MCP tools (total: ~82)
+- 75 new unit tests (total: 1,068)
+- 3 new Pydantic models
+- 1 new exception class
+- 18 security vulnerabilities fixed
+- 0 test failures
+- 6 warnings (pre-existing async mock coroutines)
+
 ## [0.2.1] - 2026-01-25
 
 ### 🔧 Critical Bug Fix - Topology Tools

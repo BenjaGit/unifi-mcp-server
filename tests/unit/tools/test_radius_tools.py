@@ -245,9 +245,7 @@ async def test_delete_radius_profile_success(mock_settings):
 
         assert result["success"] is True
         assert "deleted successfully" in result["message"]
-        mock_client.delete.assert_called_once_with(
-            "/ea/sites/default/rest/radiusprofile/profile-1"
-        )
+        mock_client.delete.assert_called_once_with("/ea/sites/default/rest/radiusprofile/profile-1")
 
 
 # =============================================================================

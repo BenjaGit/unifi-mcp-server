@@ -174,3 +174,113 @@ class SiteManagerClient:
             Response with Vantage Points list
         """
         return await self.get("vantage-points")
+
+    # ISP Metrics endpoints (added 2026-02-16)
+    async def get_isp_metrics(self, site_id: str) -> dict[str, Any]:
+        """Get ISP metrics for a site.
+
+        Args:
+            site_id: Site identifier
+
+        Returns:
+            ISP metrics data
+        """
+        return await self.get(f"sites/{site_id}/isp/metrics")
+
+    async def query_isp_metrics(
+        self,
+        site_id: str | None = None,
+        start_time: str | None = None,
+        end_time: str | None = None,
+    ) -> dict[str, Any]:
+        """Query ISP metrics with filters.
+
+        Args:
+            site_id: Optional site identifier (None for all sites)
+            start_time: Optional start time (ISO format)
+            end_time: Optional end time (ISO format)
+
+        Returns:
+            ISP metrics query results
+        """
+        params = {}
+        if site_id:
+            params["site_id"] = site_id
+        if start_time:
+            params["start_time"] = start_time
+        if end_time:
+            params["end_time"] = end_time
+
+        return await self.get("isp/metrics", params=params)
+
+    # SD-WAN endpoints (added 2026-02-16)
+    async def list_sdwan_configs(self) -> dict[str, Any]:
+        """List all SD-WAN configurations.
+
+        Returns:
+            Response with SD-WAN configurations list
+        """
+        return await self.get("sdwan/configs")
+
+    async def get_sdwan_config(self, config_id: str) -> dict[str, Any]:
+        """Get SD-WAN configuration by ID.
+
+        Args:
+            config_id: Configuration identifier
+
+        Returns:
+            SD-WAN configuration data
+        """
+        return await self.get(f"sdwan/configs/{config_id}")
+
+    async def get_sdwan_config_status(self, config_id: str) -> dict[str, Any]:
+        """Get SD-WAN configuration deployment status.
+
+        Args:
+            config_id: Configuration identifier
+
+        Returns:
+            SD-WAN configuration status data
+        """
+        return await self.get(f"sdwan/configs/{config_id}/status")
+
+    # Host Management endpoints (added 2026-02-16)
+    async def list_hosts(
+        self, limit: int | None = None, offset: int | None = None
+    ) -> dict[str, Any]:
+        """List all managed hosts/consoles.
+
+        Args:
+            limit: Maximum number of hosts to return
+            offset: Number of hosts to skip
+
+        Returns:
+            Response with hosts list
+        """
+        params = {}
+        if limit:
+            params["limit"] = limit
+        if offset:
+            params["offset"] = offset
+
+        return await self.get("hosts", params=params)
+
+    async def get_host(self, host_id: str) -> dict[str, Any]:
+        """Get host details by ID.
+
+        Args:
+            host_id: Host identifier
+
+        Returns:
+            Host details
+        """
+        return await self.get(f"hosts/{host_id}")
+
+    # Version Control endpoint (added 2026-02-16)
+    async def get_version_control(self) -> dict[str, Any]:
+        """Get API version control information.
+
+        Returns:
+            Version control data
+        """
+        return await self.get("version")

@@ -60,12 +60,20 @@ SD-WAN Management (P0) requires Site Manager API. Recently documented endpoints:
 - SD-WAN Config Visibility (List/Get configs, Get status)
 - Version Control, Host Management
 
-**Implementation Phases**:
+**✨ MAJOR DISCOVERY (2026-02-16):**
 
-#### Phase 1: OAuth/SSO Authentication (2-3 weeks)
-- OAuth 2.0 flow for `api.ui.com`
-- Token management and refresh
-- Multi-site support
+Site Manager API uses **API Key authentication** (X-API-Key header), NOT OAuth/SSO!
+This is the same authentication we already use for Cloud API. No OAuth implementation needed.
+
+**Revised Timeline:** Phase 1 reduced from 2-3 weeks to 3-5 days.
+
+**Implementation Phases** (Revised):
+
+#### Phase 1: Extend API Client for Site Manager (3-5 days) ⚡ Much Faster!
+- Extend existing `UniFiAPIClient` to support Site Manager endpoints
+- Use existing API key authentication (X-API-Key header)
+- Add Site Manager base URL: `https://api.ui.com/v1/`
+- Rate limiting: 10,000 req/min (v1 stable)
 
 #### Phase 2: ISP Metrics Endpoints (3-5 days)
 - `get_isp_metrics`, `query_isp_metrics` tools

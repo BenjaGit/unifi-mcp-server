@@ -1,8 +1,11 @@
 """Input validation functions for UniFi MCP Server."""
 
+import logging
 import re
 
 from .exceptions import ValidationError
+
+logger = logging.getLogger(__name__)
 
 
 def validate_mac_address(mac: str) -> str:
@@ -117,17 +120,42 @@ def validate_device_id(device_id: str) -> str:
     return device_id.lower()
 
 
-def validate_confirmation(confirm: bool | None, operation: str) -> None:
-    """Validate that confirmation is provided for mutating operations.
+def coerce_bool(value: bool | str | None) -> bool:
+    """Coerce a value to bool, handling MCP JSON-RPC string serialization.
+
+    MCP clients may send boolean parameters as strings ("true"/"false")
+    rather than native booleans due to JSON-RPC serialization differences.
 
     Args:
-        confirm: Confirmation flag
+        value: Value to coerce (bool, str, None, or other)
+
+    Returns:
+        Boolean value
+    """
+    if isinstance(value, str):
+        return value.lower() in ("true", "1", "yes")
+    return bool(value)
+
+
+def validate_confirmation(
+    confirm: bool | str | None, operation: str, dry_run: bool | str = False
+) -> None:
+    """Validate that confirmation is provided for mutating operations.
+
+    Skips validation when dry_run is True, allowing users to preview
+    operations without needing to set confirm=True.
+
+    Args:
+        confirm: Confirmation flag (bool or string from MCP serialization)
         operation: Operation name
+        dry_run: If True, skip confirmation check (preview mode)
 
     Raises:
-        ValidationError: If confirmation is not provided
+        ValidationError: If confirmation is not provided and not in dry-run mode
     """
-    if not confirm:
+    if coerce_bool(dry_run):
+        return
+    if not coerce_bool(confirm):
         raise ValidationError(
             f"Operation '{operation}' requires confirmation. Set confirm=true to proceed."
         )

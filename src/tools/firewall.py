@@ -56,15 +56,24 @@ async def create_firewall_rule(
     name: str,
     action: str,
     settings: Settings,
-    source: str | None = None,
-    destination: str | None = None,
+    src_address: str | None = None,
+    dst_address: str | None = None,
     protocol: str | None = None,
     port: int | None = None,
     enabled: bool = True,
     ruleset: str = "WAN_IN",
     rule_index: int = 2000,
-    confirm: bool = False,
-    dry_run: bool = False,
+    src_networkconf_id: str | None = None,
+    src_networkconf_type: str = "NETv4",
+    dst_networkconf_id: str | None = None,
+    dst_networkconf_type: str = "NETv4",
+    state_established: bool = False,
+    state_related: bool = False,
+    state_new: bool = False,
+    state_invalid: bool = False,
+    logging: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict[str, Any]:
     """Create a new firewall rule.
 
@@ -73,13 +82,22 @@ async def create_firewall_rule(
         name: Rule name
         action: Action to take (accept, drop, reject)
         settings: Application settings
-        source: Source network/IP (CIDR notation)
-        destination: Destination network/IP (CIDR notation)
+        src_address: Source IP address (CIDR notation or single IP)
+        dst_address: Destination IP address (CIDR notation or single IP)
         protocol: Protocol (tcp, udp, icmp, all)
         port: Destination port number
         enabled: Enable the rule immediately
-        ruleset: Ruleset to apply rule to (WAN_IN, WAN_OUT, LAN_IN, etc.)
+        ruleset: Ruleset to apply rule to (WAN_IN, WAN_OUT, LAN_IN, LAN_OUT, etc.)
         rule_index: Position in firewall chain (higher = lower priority)
+        src_networkconf_id: Source network configuration ID (for inter-VLAN rules)
+        src_networkconf_type: Source network type (default: NETv4)
+        dst_networkconf_id: Destination network configuration ID (for inter-VLAN rules)
+        dst_networkconf_type: Destination network type (default: NETv4)
+        state_established: Match established connections
+        state_related: Match related connections
+        state_new: Match new connections
+        state_invalid: Match invalid connections
+        logging: Enable logging for matched traffic
         confirm: Confirmation flag (must be True to execute)
         dry_run: If True, validate but don't create the rule
 
@@ -91,7 +109,7 @@ async def create_firewall_rule(
         ValidationError: If validation fails
     """
     site_id = validate_site_id(site_id)
-    validate_confirmation(confirm, "firewall operation")
+    validate_confirmation(confirm, "firewall operation", dry_run)
     logger = get_logger(__name__, settings.log_level)
 
     # Validate action
@@ -105,30 +123,35 @@ async def create_firewall_rule(
         if protocol.lower() not in valid_protocols:
             raise ValueError(f"Invalid protocol '{protocol}'. Must be one of: {valid_protocols}")
 
-    # Build rule data with required defaults
-    rule_data = {
+    # Build rule data
+    rule_data: dict[str, Any] = {
         "name": name,
         "action": action.lower(),
         "enabled": enabled,
         "ruleset": ruleset,
         "rule_index": rule_index,
-        # Required default fields
         "setting_preference": "auto",
-        "src_networkconf_type": "NETv4",
-        "dst_networkconf_type": "NETv4",
-        "state_new": False,
-        "state_established": False,
-        "state_invalid": False,
-        "state_related": False,
-        "logging": False,
+        "src_networkconf_type": src_networkconf_type,
+        "dst_networkconf_type": dst_networkconf_type,
+        "state_new": state_new,
+        "state_established": state_established,
+        "state_invalid": state_invalid,
+        "state_related": state_related,
+        "logging": logging,
         "protocol_match_excepted": False,
     }
 
-    if source:
-        rule_data["src_address"] = source
+    if src_networkconf_id is not None:
+        rule_data["src_networkconf_id"] = src_networkconf_id
 
-    if destination:
-        rule_data["dst_address"] = destination
+    if dst_networkconf_id is not None:
+        rule_data["dst_networkconf_id"] = dst_networkconf_id
+
+    if src_address:
+        rule_data["src_address"] = src_address
+
+    if dst_address:
+        rule_data["dst_address"] = dst_address
 
     if protocol:
         rule_data["protocol"] = protocol.lower()
@@ -141,8 +164,8 @@ async def create_firewall_rule(
         "site_id": site_id,
         "name": name,
         "action": action,
-        "source": source,
-        "destination": destination,
+        "src_address": src_address,
+        "dst_address": dst_address,
         "protocol": protocol,
         "port": port,
         "enabled": enabled,
@@ -200,13 +223,13 @@ async def update_firewall_rule(
     settings: Settings,
     name: str | None = None,
     action: str | None = None,
-    source: str | None = None,
-    destination: str | None = None,
+    src_address: str | None = None,
+    dst_address: str | None = None,
     protocol: str | None = None,
     port: int | None = None,
     enabled: bool | None = None,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict[str, Any]:
     """Update an existing firewall rule.
 
@@ -216,8 +239,8 @@ async def update_firewall_rule(
         settings: Application settings
         name: New rule name
         action: New action (accept, drop, reject)
-        source: New source network/IP
-        destination: New destination network/IP
+        src_address: New source network/IP
+        dst_address: New destination network/IP
         protocol: New protocol (tcp, udp, icmp, all)
         port: New destination port
         enabled: Enable/disable the rule
@@ -232,7 +255,7 @@ async def update_firewall_rule(
         ResourceNotFoundError: If rule not found
     """
     site_id = validate_site_id(site_id)
-    validate_confirmation(confirm, "firewall operation")
+    validate_confirmation(confirm, "firewall operation", dry_run)
     logger = get_logger(__name__, settings.log_level)
 
     # Validate action if provided
@@ -252,8 +275,8 @@ async def update_firewall_rule(
         "rule_id": rule_id,
         "name": name,
         "action": action,
-        "source": source,
-        "destination": destination,
+        "src_address": src_address,
+        "dst_address": dst_address,
         "protocol": protocol,
         "port": port,
         "enabled": enabled,
@@ -297,10 +320,10 @@ async def update_firewall_rule(
                 update_data["name"] = name
             if action is not None:
                 update_data["action"] = action.lower()
-            if source is not None:
-                update_data["src_address"] = source
-            if destination is not None:
-                update_data["dst_address"] = destination
+            if src_address is not None:
+                update_data["src_address"] = src_address
+            if dst_address is not None:
+                update_data["dst_address"] = dst_address
             if protocol is not None:
                 update_data["protocol"] = protocol.lower()
             if port is not None:
@@ -343,8 +366,8 @@ async def delete_firewall_rule(
     site_id: str,
     rule_id: str,
     settings: Settings,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict[str, Any]:
     """Delete a firewall rule.
 
@@ -363,7 +386,7 @@ async def delete_firewall_rule(
         ResourceNotFoundError: If rule not found
     """
     site_id = validate_site_id(site_id)
-    validate_confirmation(confirm, "firewall operation")
+    validate_confirmation(confirm, "firewall operation", dry_run)
     logger = get_logger(__name__, settings.log_level)
 
     parameters = {"site_id": site_id, "rule_id": rule_id}

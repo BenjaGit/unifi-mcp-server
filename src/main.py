@@ -23,6 +23,7 @@ from .tools import firewall_zones as firewall_zones_tools
 from .tools import network_config as network_config_tools
 from .tools import networks as networks_tools
 from .tools import port_forwarding as port_fwd_tools
+from .tools import port_profiles as port_profile_tools
 from .tools import qos as qos_tools
 from .tools import radius as radius_tools
 from .tools import reference_data as ref_tools
@@ -290,27 +291,53 @@ async def create_firewall_rule(
     site_id: str,
     name: str,
     action: str,
-    source: str | None = None,
-    destination: str | None = None,
-    protocol: str | None = None,
+    src_address: str | None = None,
+    dst_address: str | None = None,
+    protocol: str = "all",
     port: int | None = None,
     enabled: bool = True,
-    confirm: bool = False,
-    dry_run: bool = False,
+    ruleset: str = "WAN_IN",
+    rule_index: int = 2000,
+    src_networkconf_id: str | None = None,
+    src_networkconf_type: str = "NETv4",
+    dst_networkconf_id: str | None = None,
+    dst_networkconf_type: str = "NETv4",
+    state_established: bool = False,
+    state_related: bool = False,
+    state_new: bool = False,
+    state_invalid: bool = False,
+    logging: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict:
-    """Create a new firewall rule (requires confirm=True)."""
+    """Create a new firewall rule (requires confirm=True).
+
+    Use src_networkconf_id/dst_networkconf_id for inter-VLAN rules (pass network config ID).
+    Use src_address/dst_address for IP-based rules (CIDR or single IP).
+    """
     return await firewall_tools.create_firewall_rule(
-        site_id,
-        name,
-        action,
-        settings,
-        source,
-        destination,
-        protocol,
-        port,
-        enabled,
-        confirm,
-        dry_run,
+        site_id=site_id,
+        name=name,
+        action=action,
+        settings=settings,
+        src_address=src_address,
+        dst_address=dst_address,
+        protocol=protocol,
+        port=port,
+        enabled=enabled,
+        ruleset=ruleset,
+        rule_index=rule_index,
+        src_networkconf_id=src_networkconf_id,
+        src_networkconf_type=src_networkconf_type,
+        dst_networkconf_id=dst_networkconf_id,
+        dst_networkconf_type=dst_networkconf_type,
+        state_established=state_established,
+        state_related=state_related,
+        state_new=state_new,
+        state_invalid=state_invalid,
+        logging=logging,
+        confirm=confirm,
+        dry_run=dry_run,
     )
 
 
@@ -320,34 +347,34 @@ async def update_firewall_rule(
     rule_id: str,
     name: str | None = None,
     action: str | None = None,
-    source: str | None = None,
-    destination: str | None = None,
+    src_address: str | None = None,
+    dst_address: str | None = None,
     protocol: str | None = None,
     port: int | None = None,
     enabled: bool | None = None,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict:
     """Update an existing firewall rule (requires confirm=True)."""
     return await firewall_tools.update_firewall_rule(
-        site_id,
-        rule_id,
-        settings,
-        name,
-        action,
-        source,
-        destination,
-        protocol,
-        port,
-        enabled,
-        confirm,
-        dry_run,
+        site_id=site_id,
+        rule_id=rule_id,
+        settings=settings,
+        name=name,
+        action=action,
+        src_address=src_address,
+        dst_address=dst_address,
+        protocol=protocol,
+        port=port,
+        enabled=enabled,
+        confirm=confirm,
+        dry_run=dry_run,
     )
 
 
 @mcp.tool()
 async def delete_firewall_rule(
-    site_id: str, rule_id: str, confirm: bool = False, dry_run: bool = False
+    site_id: str, rule_id: str, confirm: bool | str = False, dry_run: bool | str = False
 ) -> dict:
     """Delete a firewall rule (requires confirm=True)."""
     return await firewall_tools.delete_firewall_rule(site_id, rule_id, settings, confirm, dry_run)
@@ -359,8 +386,8 @@ async def trigger_backup(
     site_id: str,
     backup_type: str,
     retention_days: int = 30,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict:
     """Trigger a backup operation on the UniFi controller (requires confirm=True).
 
@@ -433,8 +460,8 @@ async def download_backup(
 async def delete_backup(
     site_id: str,
     backup_filename: str,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict:
     """Delete a backup file from the controller (requires confirm=True).
 
@@ -458,8 +485,8 @@ async def restore_backup(
     site_id: str,
     backup_filename: str,
     create_pre_restore_backup: bool = True,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict:
     """Restore the UniFi controller from a backup file (requires confirm=True).
 
@@ -547,8 +574,8 @@ async def schedule_backups(
     day_of_week: int | None = None,
     day_of_month: int | None = None,
     cloud_backup_enabled: bool = False,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict:
     """Configure automated backup schedule (requires confirm=True).
 
@@ -617,26 +644,30 @@ async def create_network(
     dhcp_stop: str | None = None,
     dhcp_dns_1: str | None = None,
     dhcp_dns_2: str | None = None,
+    dhcp_dns_3: str | None = None,
+    dhcp_dns_4: str | None = None,
     domain_name: str | None = None,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict:
     """Create a new network/VLAN (requires confirm=True)."""
     return await network_config_tools.create_network(
-        site_id,
-        name,
-        vlan_id,
-        subnet,
-        settings,
-        purpose,
-        dhcp_enabled,
-        dhcp_start,
-        dhcp_stop,
-        dhcp_dns_1,
-        dhcp_dns_2,
-        domain_name,
-        confirm,
-        dry_run,
+        site_id=site_id,
+        name=name,
+        vlan_id=vlan_id,
+        subnet=subnet,
+        settings=settings,
+        purpose=purpose,
+        dhcp_enabled=dhcp_enabled,
+        dhcp_start=dhcp_start,
+        dhcp_stop=dhcp_stop,
+        dhcp_dns_1=dhcp_dns_1,
+        dhcp_dns_2=dhcp_dns_2,
+        dhcp_dns_3=dhcp_dns_3,
+        dhcp_dns_4=dhcp_dns_4,
+        domain_name=domain_name,
+        confirm=confirm,
+        dry_run=dry_run,
     )
 
 
@@ -653,33 +684,37 @@ async def update_network(
     dhcp_stop: str | None = None,
     dhcp_dns_1: str | None = None,
     dhcp_dns_2: str | None = None,
+    dhcp_dns_3: str | None = None,
+    dhcp_dns_4: str | None = None,
     domain_name: str | None = None,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict:
     """Update an existing network (requires confirm=True)."""
     return await network_config_tools.update_network(
-        site_id,
-        network_id,
-        settings,
-        name,
-        vlan_id,
-        subnet,
-        purpose,
-        dhcp_enabled,
-        dhcp_start,
-        dhcp_stop,
-        dhcp_dns_1,
-        dhcp_dns_2,
-        domain_name,
-        confirm,
-        dry_run,
+        site_id=site_id,
+        network_id=network_id,
+        settings=settings,
+        name=name,
+        vlan_id=vlan_id,
+        subnet=subnet,
+        purpose=purpose,
+        dhcp_enabled=dhcp_enabled,
+        dhcp_start=dhcp_start,
+        dhcp_stop=dhcp_stop,
+        dhcp_dns_1=dhcp_dns_1,
+        dhcp_dns_2=dhcp_dns_2,
+        dhcp_dns_3=dhcp_dns_3,
+        dhcp_dns_4=dhcp_dns_4,
+        domain_name=domain_name,
+        confirm=confirm,
+        dry_run=dry_run,
     )
 
 
 @mcp.tool()
 async def delete_network(
-    site_id: str, network_id: str, confirm: bool = False, dry_run: bool = False
+    site_id: str, network_id: str, confirm: bool | str = False, dry_run: bool | str = False
 ) -> dict:
     """Delete a network (requires confirm=True)."""
     return await network_config_tools.delete_network(
@@ -690,7 +725,7 @@ async def delete_network(
 # Device Control Tools (Phase 4)
 @mcp.tool()
 async def restart_device(
-    site_id: str, device_mac: str, confirm: bool = False, dry_run: bool = False
+    site_id: str, device_mac: str, confirm: bool | str = False, dry_run: bool | str = False
 ) -> dict:
     """Restart a UniFi device (requires confirm=True)."""
     return await device_control_tools.restart_device(
@@ -703,8 +738,8 @@ async def locate_device(
     site_id: str,
     device_mac: str,
     enabled: bool = True,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict:
     """Enable/disable LED locate mode on a device (requires confirm=True)."""
     return await device_control_tools.locate_device(
@@ -717,8 +752,8 @@ async def upgrade_device(
     site_id: str,
     device_mac: str,
     firmware_url: str | None = None,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict:
     """Trigger firmware upgrade for a device (requires confirm=True)."""
     return await device_control_tools.upgrade_device(
@@ -729,7 +764,7 @@ async def upgrade_device(
 # Client Management Tools (Phase 4)
 @mcp.tool()
 async def block_client(
-    site_id: str, client_mac: str, confirm: bool = False, dry_run: bool = False
+    site_id: str, client_mac: str, confirm: bool | str = False, dry_run: bool | str = False
 ) -> dict:
     """Block a client from accessing the network (requires confirm=True)."""
     return await client_mgmt_tools.block_client(site_id, client_mac, settings, confirm, dry_run)
@@ -737,7 +772,7 @@ async def block_client(
 
 @mcp.tool()
 async def unblock_client(
-    site_id: str, client_mac: str, confirm: bool = False, dry_run: bool = False
+    site_id: str, client_mac: str, confirm: bool | str = False, dry_run: bool | str = False
 ) -> dict:
     """Unblock a previously blocked client (requires confirm=True)."""
     return await client_mgmt_tools.unblock_client(site_id, client_mac, settings, confirm, dry_run)
@@ -745,7 +780,7 @@ async def unblock_client(
 
 @mcp.tool()
 async def reconnect_client(
-    site_id: str, client_mac: str, confirm: bool = False, dry_run: bool = False
+    site_id: str, client_mac: str, confirm: bool | str = False, dry_run: bool | str = False
 ) -> dict:
     """Force a client to reconnect (requires confirm=True)."""
     return await client_mgmt_tools.reconnect_client(site_id, client_mac, settings, confirm, dry_run)
@@ -771,25 +806,39 @@ async def create_wlan(
     wpa_mode: str = "wpa2",
     wpa_enc: str = "ccmp",
     vlan_id: int | None = None,
+    networkconf_id: str | None = None,
+    ap_group_ids: list[str] | None = None,
+    ap_group_mode: str | None = None,
+    wlan_bands: list[str] | None = None,
+    optimize_iot_wifi_connectivity: bool | None = None,
+    minrate_ng_enabled: bool | None = None,
+    minrate_ng_data_rate_kbps: int | None = None,
     hide_ssid: bool = False,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict:
     """Create a new wireless network/SSID (requires confirm=True)."""
     return await wifi_tools.create_wlan(
-        site_id,
-        name,
-        security,
-        settings,
-        password,
-        enabled,
-        is_guest,
-        wpa_mode,
-        wpa_enc,
-        vlan_id,
-        hide_ssid,
-        confirm,
-        dry_run,
+        site_id=site_id,
+        name=name,
+        security=security,
+        settings=settings,
+        password=password,
+        enabled=enabled,
+        is_guest=is_guest,
+        wpa_mode=wpa_mode,
+        wpa_enc=wpa_enc,
+        vlan_id=vlan_id,
+        networkconf_id=networkconf_id,
+        ap_group_ids=ap_group_ids,
+        ap_group_mode=ap_group_mode,
+        wlan_bands=wlan_bands,
+        optimize_iot_wifi_connectivity=optimize_iot_wifi_connectivity,
+        minrate_ng_enabled=minrate_ng_enabled,
+        minrate_ng_data_rate_kbps=minrate_ng_data_rate_kbps,
+        hide_ssid=hide_ssid,
+        confirm=confirm,
+        dry_run=dry_run,
     )
 
 
@@ -806,34 +855,36 @@ async def update_wlan(
     wpa_enc: str | None = None,
     vlan_id: int | None = None,
     hide_ssid: bool | None = None,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict:
     """Update an existing wireless network (requires confirm=True)."""
     return await wifi_tools.update_wlan(
-        site_id,
-        wlan_id,
-        settings,
-        name,
-        security,
-        password,
-        enabled,
-        is_guest,
-        wpa_mode,
-        wpa_enc,
-        vlan_id,
-        hide_ssid,
-        confirm,
-        dry_run,
+        site_id=site_id,
+        wlan_id=wlan_id,
+        settings=settings,
+        name=name,
+        security=security,
+        password=password,
+        enabled=enabled,
+        is_guest=is_guest,
+        wpa_mode=wpa_mode,
+        wpa_enc=wpa_enc,
+        vlan_id=vlan_id,
+        hide_ssid=hide_ssid,
+        confirm=confirm,
+        dry_run=dry_run,
     )
 
 
 @mcp.tool()
 async def delete_wlan(
-    site_id: str, wlan_id: str, confirm: bool = False, dry_run: bool = False
+    site_id: str, wlan_id: str, confirm: bool | str = False, dry_run: bool | str = False
 ) -> dict:
     """Delete a wireless network (requires confirm=True)."""
-    return await wifi_tools.delete_wlan(site_id, wlan_id, settings, confirm, dry_run)
+    return await wifi_tools.delete_wlan(
+        site_id=site_id, wlan_id=wlan_id, settings=settings, confirm=confirm, dry_run=dry_run
+    )
 
 
 @mcp.tool()
@@ -862,8 +913,8 @@ async def create_port_forward(
     src: str = "any",
     enabled: bool = True,
     log: bool = False,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict:
     """Create a port forwarding rule (requires confirm=True)."""
     return await port_fwd_tools.create_port_forward(
@@ -884,7 +935,7 @@ async def create_port_forward(
 
 @mcp.tool()
 async def delete_port_forward(
-    site_id: str, rule_id: str, confirm: bool = False, dry_run: bool = False
+    site_id: str, rule_id: str, confirm: bool | str = False, dry_run: bool | str = False
 ) -> dict:
     """Delete a port forwarding rule (requires confirm=True)."""
     return await port_fwd_tools.delete_port_forward(site_id, rule_id, settings, confirm, dry_run)
@@ -938,8 +989,8 @@ async def adopt_device(
     site_id: str,
     device_id: str,
     name: str | None = None,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict:
     """Adopt a pending device onto the specified site (requires confirm=True)."""
     return await devices_tools.adopt_device(site_id, device_id, settings, name, confirm, dry_run)
@@ -952,8 +1003,8 @@ async def execute_port_action(
     port_idx: int,
     action: str,
     params: dict | None = None,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict:
     """Execute an action on a specific port (power-cycle, enable, disable) (requires confirm=True)."""
     return await devices_tools.execute_port_action(
@@ -969,8 +1020,8 @@ async def authorize_guest(
     duration: int,
     upload_limit_kbps: int | None = None,
     download_limit_kbps: int | None = None,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict:
     """Authorize a guest client for network access (requires confirm=True)."""
     return await client_mgmt_tools.authorize_guest(
@@ -991,8 +1042,8 @@ async def limit_bandwidth(
     client_mac: str,
     upload_limit_kbps: int | None = None,
     download_limit_kbps: int | None = None,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict:
     """Apply bandwidth restrictions to a client (requires confirm=True)."""
     return await client_mgmt_tools.limit_bandwidth(
@@ -1028,8 +1079,8 @@ async def create_vouchers(
     upload_quota_mb: int | None = None,
     download_quota_mb: int | None = None,
     note: str | None = None,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict:
     """Create new hotspot vouchers (requires confirm=True)."""
     return await vouchers_tools.create_vouchers(
@@ -1049,7 +1100,7 @@ async def create_vouchers(
 
 @mcp.tool()
 async def delete_voucher(
-    site_id: str, voucher_id: str, confirm: bool = False, dry_run: bool = False
+    site_id: str, voucher_id: str, confirm: bool | str = False, dry_run: bool | str = False
 ) -> dict:
     """Delete a specific voucher (requires confirm=True)."""
     return await vouchers_tools.delete_voucher(site_id, voucher_id, settings, confirm, dry_run)
@@ -1057,7 +1108,7 @@ async def delete_voucher(
 
 @mcp.tool()
 async def bulk_delete_vouchers(
-    site_id: str, filter_expr: str, confirm: bool = False, dry_run: bool = False
+    site_id: str, filter_expr: str, confirm: bool | str = False, dry_run: bool | str = False
 ) -> dict:
     """Bulk delete vouchers using a filter expression (requires confirm=True)."""
     return await vouchers_tools.bulk_delete_vouchers(
@@ -1090,8 +1141,8 @@ async def create_radius_profile(
     acct_secret: str | None = None,
     use_same_secret: bool = True,
     vlan_enabled: bool = False,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict:
     """Create a new RADIUS profile (requires confirm=True)."""
     return await radius_tools.create_radius_profile(
@@ -1124,8 +1175,8 @@ async def update_radius_profile(
     acct_secret: str | None = None,
     vlan_enabled: bool | None = None,
     enabled: bool | None = None,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict:
     """Update an existing RADIUS profile (requires confirm=True)."""
     return await radius_tools.update_radius_profile(
@@ -1148,7 +1199,7 @@ async def update_radius_profile(
 
 @mcp.tool()
 async def delete_radius_profile(
-    site_id: str, profile_id: str, confirm: bool = False, dry_run: bool = False
+    site_id: str, profile_id: str, confirm: bool | str = False, dry_run: bool | str = False
 ) -> dict:
     """Delete a RADIUS profile (requires confirm=True)."""
     return await radius_tools.delete_radius_profile(site_id, profile_id, settings, confirm, dry_run)
@@ -1167,20 +1218,36 @@ async def create_radius_account(
     username: str,
     password: str,
     vlan_id: int | None = None,
+    tunnel_type: int | None = None,
+    tunnel_medium_type: int | None = None,
     enabled: bool = True,
     note: str | None = None,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict:
-    """Create a new RADIUS account (requires confirm=True)."""
+    """Create a new RADIUS account / local credential (requires confirm=True).
+
+    For VLAN assignment, set vlan_id and tunnel_type/tunnel_medium_type will auto-populate
+    (13=VLAN, 6=802 media type).
+    """
     return await radius_tools.create_radius_account(
-        site_id, username, password, settings, vlan_id, enabled, note, confirm, dry_run
+        site_id=site_id,
+        username=username,
+        password=password,
+        settings=settings,
+        vlan_id=vlan_id,
+        tunnel_type=tunnel_type,
+        tunnel_medium_type=tunnel_medium_type,
+        enabled=enabled,
+        note=note,
+        confirm=confirm,
+        dry_run=dry_run,
     )
 
 
 @mcp.tool()
 async def delete_radius_account(
-    site_id: str, account_id: str, confirm: bool = False, dry_run: bool = False
+    site_id: str, account_id: str, confirm: bool | str = False, dry_run: bool | str = False
 ) -> dict:
     """Delete a RADIUS account (requires confirm=True)."""
     return await radius_tools.delete_radius_account(site_id, account_id, settings, confirm, dry_run)
@@ -1204,8 +1271,8 @@ async def configure_guest_portal(
     redirect_url: str | None = None,
     terms_of_service_enabled: bool | None = None,
     terms_of_service_text: str | None = None,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict:
     """Configure guest portal settings (requires confirm=True)."""
     return await radius_tools.configure_guest_portal(
@@ -1242,8 +1309,8 @@ async def create_hotspot_package(
     upload_quota_mb: int | None = None,
     price: float | None = None,
     currency: str = "USD",
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict:
     """Create a new hotspot package (requires confirm=True)."""
     return await radius_tools.create_hotspot_package(
@@ -1264,7 +1331,7 @@ async def create_hotspot_package(
 
 @mcp.tool()
 async def delete_hotspot_package(
-    site_id: str, package_id: str, confirm: bool = False, dry_run: bool = False
+    site_id: str, package_id: str, confirm: bool | str = False, dry_run: bool | str = False
 ) -> dict:
     """Delete a hotspot package (requires confirm=True)."""
     return await radius_tools.delete_hotspot_package(
@@ -1285,8 +1352,8 @@ async def create_firewall_zone(
     name: str,
     description: str | None = None,
     network_ids: list[str] | None = None,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict:
     """Create a new firewall zone (requires confirm=True)."""
     return await firewall_zones_tools.create_firewall_zone(
@@ -1301,8 +1368,8 @@ async def update_firewall_zone(
     name: str | None = None,
     description: str | None = None,
     network_ids: list[str] | None = None,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict:
     """Update an existing firewall zone (requires confirm=True)."""
     return await firewall_zones_tools.update_firewall_zone(
@@ -1347,8 +1414,8 @@ async def create_qos_profile(
     schedule_time_start: str | None = None,
     schedule_time_end: str | None = None,
     enabled: bool = True,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict:
     """Create a new QoS profile with comprehensive traffic shaping (requires confirm=True)."""
     return await qos_tools.create_qos_profile(
@@ -1389,8 +1456,8 @@ async def update_qos_profile(
     bandwidth_guaranteed_down_kbps: int | None = None,
     bandwidth_guaranteed_up_kbps: int | None = None,
     enabled: bool | None = None,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict:
     """Update an existing QoS profile (requires confirm=True)."""
     return await qos_tools.update_qos_profile(
@@ -1412,7 +1479,7 @@ async def update_qos_profile(
 
 
 @mcp.tool()
-async def delete_qos_profile(site_id: str, profile_id: str, confirm: bool = False) -> dict:
+async def delete_qos_profile(site_id: str, profile_id: str, confirm: bool | str = False) -> dict:
     """Delete a QoS profile (requires confirm=True)."""
     return await qos_tools.delete_qos_profile(site_id, profile_id, settings, confirm)
 
@@ -1434,8 +1501,8 @@ async def create_proav_profile(
     customize_bandwidth_up_kbps: int | None = None,
     customize_dscp: int | None = None,
     enabled: bool = True,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict:
     """Create a QoS profile from a ProAV or reference template (requires confirm=True)."""
     return await qos_tools.create_proav_profile(
@@ -1474,8 +1541,8 @@ async def configure_smart_queue(
     upload_kbps: int,
     algorithm: str = "fq_codel",
     overhead_bytes: int = 44,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict:
     """Configure Smart Queue Management (SQM) for bufferbloat mitigation (requires confirm=True)."""
     return await qos_tools.configure_smart_queue(
@@ -1492,7 +1559,7 @@ async def configure_smart_queue(
 
 
 @mcp.tool()
-async def disable_smart_queue(site_id: str, wan_id: str, confirm: bool = False) -> dict:
+async def disable_smart_queue(site_id: str, wan_id: str, confirm: bool | str = False) -> dict:
     """Disable Smart Queue Management (SQM) (requires confirm=True)."""
     return await qos_tools.disable_smart_queue(site_id, wan_id, settings, confirm)
 
@@ -1524,8 +1591,8 @@ async def create_traffic_route(
     bandwidth_limit_kbps: int | None = None,
     priority: int = 100,
     enabled: bool = True,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict:
     """Create a new policy-based traffic routing rule (requires confirm=True)."""
     return await qos_tools.create_traffic_route(
@@ -1558,8 +1625,8 @@ async def update_traffic_route(
     description: str | None = None,
     enabled: bool | None = None,
     priority: int | None = None,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict:
     """Update an existing traffic routing rule (requires confirm=True)."""
     return await qos_tools.update_traffic_route(
@@ -1577,7 +1644,7 @@ async def update_traffic_route(
 
 
 @mcp.tool()
-async def delete_traffic_route(site_id: str, route_id: str, confirm: bool = False) -> dict:
+async def delete_traffic_route(site_id: str, route_id: str, confirm: bool | str = False) -> dict:
     """Delete a traffic routing rule (requires confirm=True)."""
     return await qos_tools.delete_traffic_route(site_id, route_id, settings, confirm)
 
@@ -1617,8 +1684,8 @@ async def create_acl_rule(
     dst_port: int | None = None,
     priority: int = 100,
     description: str | None = None,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict:
     """Create a new ACL rule (requires confirm=True)."""
     return await acls_tools.create_acl_rule(
@@ -1661,8 +1728,8 @@ async def update_acl_rule(
     dst_port: int | None = None,
     priority: int | None = None,
     description: str | None = None,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict:
     """Update an existing ACL rule (requires confirm=True)."""
     return await acls_tools.update_acl_rule(
@@ -1690,7 +1757,7 @@ async def update_acl_rule(
 
 @mcp.tool()
 async def delete_acl_rule(
-    site_id: str, acl_rule_id: str, confirm: bool = False, dry_run: bool = False
+    site_id: str, acl_rule_id: str, confirm: bool | str = False, dry_run: bool | str = False
 ) -> dict:
     """Delete an ACL rule (requires confirm=True)."""
     return await acls_tools.delete_acl_rule(site_id, acl_rule_id, settings, confirm, dry_run)
@@ -1751,8 +1818,8 @@ async def assign_network_to_zone(
     site_id: str,
     zone_id: str,
     network_id: str,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict:
     """Dynamically assign a network to a zone (requires confirm=True)."""
     return await firewall_zones_tools.assign_network_to_zone(
@@ -1770,8 +1837,8 @@ async def get_zone_networks(site_id: str, zone_id: str) -> list[dict]:
 async def delete_firewall_zone(
     site_id: str,
     zone_id: str,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict:
     """Delete a firewall zone (requires confirm=True)."""
     return await firewall_zones_tools.delete_firewall_zone(
@@ -1784,8 +1851,8 @@ async def unassign_network_from_zone(
     site_id: str,
     zone_id: str,
     network_id: str,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict:
     """Remove a network from a firewall zone (requires confirm=True)."""
     return await firewall_zones_tools.unassign_network_from_zone(
@@ -1909,8 +1976,8 @@ async def create_traffic_matching_list(
     list_type: str,
     name: str,
     items: list[str],
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict:
     """Create a new traffic matching list (requires confirm=True)."""
     return await tml_tools.create_traffic_matching_list(
@@ -1925,8 +1992,8 @@ async def update_traffic_matching_list(
     list_type: str | None = None,
     name: str | None = None,
     items: list[str] | None = None,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict:
     """Update an existing traffic matching list (requires confirm=True)."""
     return await tml_tools.update_traffic_matching_list(
@@ -1938,8 +2005,8 @@ async def update_traffic_matching_list(
 async def delete_traffic_matching_list(
     site_id: str,
     list_id: str,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict:
     """Delete a traffic matching list (requires confirm=True)."""
     return await tml_tools.delete_traffic_matching_list(
@@ -2048,6 +2115,145 @@ async def get_topology_statistics(
     return await topology_tools.get_topology_statistics(site_id, settings)
 
 
+# Port Profile & Device Port Override Tools
+@mcp.tool()
+async def list_port_profiles(
+    site_id: str, limit: int | None = None, offset: int | None = None
+) -> list[dict]:
+    """List all switch port profiles in a site."""
+    return await port_profile_tools.list_port_profiles(site_id, settings, limit, offset)
+
+
+@mcp.tool()
+async def get_port_profile(site_id: str, profile_id: str) -> dict:
+    """Get details for a specific port profile."""
+    return await port_profile_tools.get_port_profile(site_id, profile_id, settings)
+
+
+@mcp.tool()
+async def create_port_profile(
+    site_id: str,
+    name: str,
+    forward: str,
+    native_networkconf_id: str | None = None,
+    excluded_networkconf_ids: list[str] | None = None,
+    tagged_networkconf_ids: list[str] | None = None,
+    poe_mode: str | None = None,
+    speed: int | None = None,
+    full_duplex: bool | None = None,
+    autoneg: bool | None = None,
+    dot1x_ctrl: str | None = None,
+    lldpmed_enabled: bool | None = None,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
+) -> dict:
+    """Create a new switch port profile (requires confirm=True)."""
+    return await port_profile_tools.create_port_profile(
+        site_id=site_id,
+        name=name,
+        forward=forward,
+        settings=settings,
+        native_networkconf_id=native_networkconf_id,
+        excluded_networkconf_ids=excluded_networkconf_ids,
+        tagged_networkconf_ids=tagged_networkconf_ids,
+        poe_mode=poe_mode,
+        speed=speed,
+        full_duplex=full_duplex,
+        autoneg=autoneg,
+        dot1x_ctrl=dot1x_ctrl,
+        lldpmed_enabled=lldpmed_enabled,
+        confirm=confirm,
+        dry_run=dry_run,
+    )
+
+
+@mcp.tool()
+async def update_port_profile(
+    site_id: str,
+    profile_id: str,
+    name: str | None = None,
+    forward: str | None = None,
+    native_networkconf_id: str | None = None,
+    excluded_networkconf_ids: list[str] | None = None,
+    tagged_networkconf_ids: list[str] | None = None,
+    poe_mode: str | None = None,
+    speed: int | None = None,
+    full_duplex: bool | None = None,
+    autoneg: bool | None = None,
+    dot1x_ctrl: str | None = None,
+    lldpmed_enabled: bool | None = None,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
+) -> dict:
+    """Update an existing port profile (requires confirm=True)."""
+    return await port_profile_tools.update_port_profile(
+        site_id=site_id,
+        profile_id=profile_id,
+        settings=settings,
+        name=name,
+        forward=forward,
+        native_networkconf_id=native_networkconf_id,
+        excluded_networkconf_ids=excluded_networkconf_ids,
+        tagged_networkconf_ids=tagged_networkconf_ids,
+        poe_mode=poe_mode,
+        speed=speed,
+        full_duplex=full_duplex,
+        autoneg=autoneg,
+        dot1x_ctrl=dot1x_ctrl,
+        lldpmed_enabled=lldpmed_enabled,
+        confirm=confirm,
+        dry_run=dry_run,
+    )
+
+
+@mcp.tool()
+async def delete_port_profile(
+    site_id: str, profile_id: str, confirm: bool | str = False, dry_run: bool | str = False
+) -> dict:
+    """Delete a port profile (requires confirm=True)."""
+    return await port_profile_tools.delete_port_profile(
+        site_id, profile_id, settings, confirm, dry_run
+    )
+
+
+@mcp.tool()
+async def get_device_port_overrides(site_id: str, device_id: str) -> dict:
+    """Get port overrides and port table for a device."""
+    return await port_profile_tools.get_device_port_overrides(site_id, device_id, settings)
+
+
+@mcp.tool()
+async def set_device_port_overrides(
+    site_id: str,
+    device_id: str,
+    port_overrides: list[dict],
+    merge: bool = True,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
+) -> dict:
+    """Set port overrides on a device (requires confirm=True).
+
+    Each override must include port_idx and portconf_id.
+    When merge=True (default), merges with existing overrides by port_idx.
+    When merge=False, replaces all overrides.
+    """
+    return await port_profile_tools.set_device_port_overrides(
+        site_id=site_id,
+        device_id=device_id,
+        port_overrides=port_overrides,
+        settings=settings,
+        merge=merge,
+        confirm=confirm,
+        dry_run=dry_run,
+    )
+
+
+@mcp.tool()
+async def get_device_by_mac(site_id: str, mac: str) -> dict:
+    """Get a device by its MAC address."""
+    return await port_profile_tools.get_device_by_mac(site_id, mac, settings)
+
+
 # VPN Management Tools
 @mcp.tool()
 async def list_vpn_tunnels(
@@ -2090,8 +2296,8 @@ async def update_site_to_site_vpn(
     ipsec_peer_ip: str | None = None,
     remote_vpn_subnets: list[str] | None = None,
     x_ipsec_pre_shared_key: str | None = None,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict:
     """Update a site-to-site VPN configuration (requires confirm=True)."""
     return await site_vpn_tools.update_site_to_site_vpn(

@@ -2609,7 +2609,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "agnost", specifier = ">=0.1.0" },
+    { name = "agnost", specifier = "==0.1.8" },
     { name = "bandit", marker = "extra == 'dev'", specifier = ">=1.7.0" },
     { name = "black", marker = "extra == 'dev'", specifier = ">=24.0.0" },
     { name = "fastmcp", specifier = ">=0.1.0" },

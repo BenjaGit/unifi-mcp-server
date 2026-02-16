@@ -101,8 +101,8 @@ async def create_qos_profile(
     schedule_time_start: str | None = None,
     schedule_time_end: str | None = None,
     enabled: bool = True,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict[str, Any]:
     """Create a new QoS profile with comprehensive traffic shaping.
 
@@ -132,7 +132,7 @@ async def create_qos_profile(
     Returns:
         Created QoS profile
     """
-    validate_confirmation(confirm, "create QoS profile")
+    validate_confirmation(confirm, "create QoS profile", dry_run)
 
     # Validate priority level
     if not 0 <= priority_level <= 7:
@@ -229,8 +229,8 @@ async def update_qos_profile(
     bandwidth_guaranteed_down_kbps: int | None = None,
     bandwidth_guaranteed_up_kbps: int | None = None,
     enabled: bool | None = None,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict[str, Any]:
     """Update an existing QoS profile.
 
@@ -253,7 +253,7 @@ async def update_qos_profile(
     Returns:
         Updated QoS profile
     """
-    validate_confirmation(confirm, "update QoS profile")
+    validate_confirmation(confirm, "update QoS profile", dry_run)
 
     # Validate priority level if provided
     if priority_level is not None and not 0 <= priority_level <= 7:
@@ -323,7 +323,7 @@ async def delete_qos_profile(
     site_id: str,
     profile_id: str,
     settings: Settings,
-    confirm: bool = False,
+    confirm: bool | str = False,
 ) -> dict[str, Any]:
     """Delete a QoS profile.
 
@@ -422,8 +422,8 @@ async def create_proav_profile(
     customize_bandwidth_up_kbps: int | None = None,
     customize_dscp: int | None = None,
     enabled: bool = True,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict[str, Any]:
     """Create a QoS profile from a ProAV template.
 
@@ -447,7 +447,7 @@ async def create_proav_profile(
     Returns:
         Created QoS profile
     """
-    validate_confirmation(confirm, "create ProAV profile")
+    validate_confirmation(confirm, "create ProAV profile", dry_run)
 
     # Check if it's a ProAV template or reference profile
     if protocol in PROAV_TEMPLATES:
@@ -645,8 +645,8 @@ async def configure_smart_queue(
     settings: Settings,
     algorithm: str = "fq_codel",
     overhead_bytes: int = 44,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict[str, Any]:
     """Configure Smart Queue Management (SQM) for bufferbloat mitigation.
 
@@ -667,7 +667,7 @@ async def configure_smart_queue(
     Returns:
         SQM configuration
     """
-    validate_confirmation(confirm, "configure Smart Queue Management")
+    validate_confirmation(confirm, "configure Smart Queue Management", dry_run)
 
     # Validate bandwidth
     if download_kbps <= 0 or upload_kbps <= 0:
@@ -739,7 +739,7 @@ async def disable_smart_queue(
     site_id: str,
     wan_id: str,
     settings: Settings,
-    confirm: bool = False,
+    confirm: bool | str = False,
 ) -> dict[str, Any]:
     """Disable Smart Queue Management (SQM).
 
@@ -839,8 +839,8 @@ async def create_traffic_route(
     bandwidth_limit_kbps: int | None = None,
     priority: int = 100,
     enabled: bool = True,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict[str, Any]:
     """Create a new traffic routing policy.
 
@@ -866,7 +866,7 @@ async def create_traffic_route(
     Returns:
         Created traffic route
     """
-    validate_confirmation(confirm, "create traffic route")
+    validate_confirmation(confirm, "create traffic route", dry_run)
 
     # Validate action
     valid_actions = ["allow", "deny", "mark", "shape"]
@@ -953,8 +953,8 @@ async def update_traffic_route(
     description: str | None = None,
     enabled: bool | None = None,
     priority: int | None = None,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict[str, Any]:
     """Update an existing traffic routing policy.
 
@@ -973,7 +973,7 @@ async def update_traffic_route(
     Returns:
         Updated traffic route
     """
-    validate_confirmation(confirm, "update traffic route")
+    validate_confirmation(confirm, "update traffic route", dry_run)
 
     # Build update data
     update_data: dict[str, Any] = {}
@@ -1029,7 +1029,7 @@ async def delete_traffic_route(
     site_id: str,
     route_id: str,
     settings: Settings,
-    confirm: bool = False,
+    confirm: bool | str = False,
 ) -> dict[str, Any]:
     """Delete a traffic routing policy.
 

@@ -58,7 +58,7 @@ class RADIUSAccount(BaseModel):
 
     id: str = Field(..., description="Account ID", alias="_id")
     name: str = Field(..., description="Username")
-    password: str = Field(..., description="Password")
+    password: str = Field(..., description="Password (x_password in API)", alias="x_password")
 
     # Time-based settings
     enabled: bool = Field(True, description="Account is enabled")
@@ -66,11 +66,11 @@ class RADIUSAccount(BaseModel):
     end_time: int | None = Field(None, description="Account expiration time (Unix timestamp)")
 
     # VLAN assignment
-    vlan_id: int | None = Field(None, description="Assigned VLAN ID")
+    vlan_id: int | None = Field(None, description="Assigned VLAN ID", alias="vlan")
 
-    # Tunnel settings (for WPA2-Enterprise)
-    tunnel_type: int | None = Field(None, description="RADIUS tunnel type")
-    tunnel_medium_type: int | None = Field(None, description="RADIUS tunnel medium type")
+    # Tunnel settings (for WPA2-Enterprise VLAN assignment)
+    tunnel_type: int | None = Field(None, description="RADIUS tunnel type (13=VLAN)")
+    tunnel_medium_type: int | None = Field(None, description="RADIUS tunnel medium type (6=802)")
 
     # Metadata
     site_id: str = Field(..., description="Site ID")

@@ -237,8 +237,8 @@ async def adopt_device(
     device_id: str,
     settings: Settings,
     name: str | None = None,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict[str, Any]:
     """Adopt a pending device onto the specified site.
 
@@ -253,7 +253,7 @@ async def adopt_device(
     Returns:
         Adopted device information
     """
-    validate_confirmation(confirm, "adopt device")
+    validate_confirmation(confirm, "adopt device", dry_run)
     site_id = validate_site_id(site_id)
     device_id = validate_device_id(device_id)
     logger = get_logger(__name__, settings.log_level)
@@ -295,8 +295,8 @@ async def execute_port_action(
     action: str,
     settings: Settings,
     params: dict[str, Any] | None = None,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict[str, Any]:
     """Execute an action on a specific port of a device.
 
@@ -313,7 +313,7 @@ async def execute_port_action(
     Returns:
         Action result
     """
-    validate_confirmation(confirm, f"execute port action '{action}'")
+    validate_confirmation(confirm, f"execute port action '{action}'", dry_run)
     site_id = validate_site_id(site_id)
     device_id = validate_device_id(device_id)
     logger = get_logger(__name__, settings.log_level)

@@ -6,6 +6,7 @@ from ..api.client import UniFiClient
 from ..config import APIType, Settings
 from ..models.firewall_policy import FirewallPolicy, FirewallPolicyCreate
 from ..utils import ResourceNotFoundError, get_logger, log_audit
+from ..utils.validators import coerce_bool
 
 logger = get_logger(__name__)
 
@@ -133,8 +134,8 @@ async def create_firewall_policy(
     protocol: str = "all",
     enabled: bool = True,
     description: str | None = None,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict[str, Any]:
     """Create a new firewall policy (Traffic & Firewall Rule).
 
@@ -261,8 +262,8 @@ async def update_firewall_policy(
     name: str | None = None,
     action: str | None = None,
     enabled: bool | None = None,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict[str, Any]:
     """Update an existing firewall policy.
 
@@ -288,7 +289,7 @@ async def update_firewall_policy(
     """
     _ensure_local_api(settings)
 
-    if not dry_run and not confirm:
+    if not coerce_bool(dry_run) and not coerce_bool(confirm):
         raise ValueError(
             "This operation requires confirm=True to execute. "
             "Use dry_run=True to preview changes first."
@@ -347,8 +348,8 @@ async def delete_firewall_policy(
     policy_id: str,
     site_id: str = "default",
     settings: Settings = None,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict[str, Any]:
     """Delete a firewall policy.
 
@@ -371,7 +372,7 @@ async def delete_firewall_policy(
     """
     _ensure_local_api(settings)
 
-    if not dry_run and not confirm:
+    if not coerce_bool(dry_run) and not coerce_bool(confirm):
         raise ValueError("This operation deletes a firewall policy. Pass confirm=True to proceed.")
 
     async with UniFiClient(settings) as client:

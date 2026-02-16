@@ -15,8 +15,8 @@ async def trigger_backup(
     backup_type: str,
     settings: Settings,
     retention_days: int = 30,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict[str, Any]:
     """Trigger a backup operation on the UniFi controller.
 
@@ -59,7 +59,7 @@ async def trigger_backup(
         - Backup files are named with timestamp: backup_YYYY-MM-DD_HH-MM-SS.unf
     """
     site_id = validate_site_id(site_id)
-    validate_confirmation(confirm, "backup operation")
+    validate_confirmation(confirm, "backup operation", dry_run)
     logger = get_logger(__name__, settings.log_level)
 
     # Validate backup type
@@ -353,8 +353,8 @@ async def delete_backup(
     site_id: str,
     backup_filename: str,
     settings: Settings,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict[str, Any]:
     """Delete a backup file from the controller.
 
@@ -390,7 +390,7 @@ async def delete_backup(
         Ensure you have downloaded or don't need the backup before deleting.
     """
     site_id = validate_site_id(site_id)
-    validate_confirmation(confirm, "backup deletion")
+    validate_confirmation(confirm, "backup deletion", dry_run)
     logger = get_logger(__name__, settings.log_level)
 
     parameters = {
@@ -449,8 +449,8 @@ async def restore_backup(
     backup_filename: str,
     settings: Settings,
     create_pre_restore_backup: bool = True,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict[str, Any]:
     """Restore the UniFi controller from a backup file.
 
@@ -501,7 +501,9 @@ async def restore_backup(
         rollback if needed.
     """
     site_id = validate_site_id(site_id)
-    validate_confirmation(confirm, "RESTORE operation - this will OVERWRITE current configuration")
+    validate_confirmation(
+        confirm, "RESTORE operation - this will OVERWRITE current configuration", dry_run
+    )
     logger = get_logger(__name__, settings.log_level)
 
     parameters = {
@@ -881,8 +883,8 @@ async def schedule_backups(
     day_of_week: int | None = None,
     day_of_month: int | None = None,
     cloud_backup_enabled: bool = False,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict[str, Any]:
     """Configure automated backup schedule for a site.
 
@@ -946,7 +948,7 @@ async def schedule_backups(
         - Cloud backup requires UniFi account and cloud access enabled
     """
     site_id = validate_site_id(site_id)
-    validate_confirmation(confirm, "backup schedule configuration")
+    validate_confirmation(confirm, "backup schedule configuration", dry_run)
     logger = get_logger(__name__, settings.log_level)
 
     # Validate backup type

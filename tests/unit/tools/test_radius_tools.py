@@ -76,7 +76,7 @@ async def test_list_radius_profiles_success(mock_settings):
         assert result[0]["id"] == "profile-1"
         assert result[0]["name"] == "Corporate RADIUS"
         assert result[1]["vlan_enabled"] is True
-        mock_client.get.assert_called_once_with("/integration/v1/sites/default/radius/profiles")
+        mock_client.get.assert_called_once_with("/ea/sites/default/rest/radiusprofile")
 
 
 @pytest.mark.asyncio
@@ -245,9 +245,7 @@ async def test_delete_radius_profile_success(mock_settings):
 
         assert result["success"] is True
         assert "deleted successfully" in result["message"]
-        mock_client.delete.assert_called_once_with(
-            "/integration/v1/sites/default/radius/profiles/profile-1"
-        )
+        mock_client.delete.assert_called_once_with("/ea/sites/default/rest/radiusprofile/profile-1")
 
 
 # =============================================================================
@@ -263,14 +261,14 @@ async def test_list_radius_accounts_success(mock_settings):
             {
                 "_id": "account-1",
                 "name": "user1",
-                "password": "password123",
+                "x_password": "password123",
                 "enabled": True,
                 "site_id": "default",
             },
             {
                 "_id": "account-2",
                 "name": "user2",
-                "password": "password456",
+                "x_password": "password456",
                 "enabled": False,
                 "site_id": "default",
             },
@@ -291,6 +289,7 @@ async def test_list_radius_accounts_success(mock_settings):
         assert len(result) == 2
         assert result[0]["name"] == "user1"
         assert result[0]["password"] == "***REDACTED***"  # Password should be redacted
+        mock_client.get.assert_called_once_with("/ea/sites/default/rest/account")
 
 
 @pytest.mark.asyncio
@@ -300,9 +299,11 @@ async def test_create_radius_account_success(mock_settings):
         "data": {
             "_id": "account-new",
             "name": "newuser",
-            "password": "newpass",
+            "x_password": "newpass",
             "enabled": True,
-            "vlan_id": 10,
+            "vlan": 10,
+            "tunnel_type": 13,
+            "tunnel_medium_type": 6,
             "site_id": "default",
         }
     }
@@ -328,6 +329,19 @@ async def test_create_radius_account_success(mock_settings):
         assert result["id"] == "account-new"
         assert result["name"] == "newuser"
         assert result["password"] == "***REDACTED***"
+        assert result["vlan_id"] == 10
+        assert result["tunnel_type"] == 13
+        assert result["tunnel_medium_type"] == 6
+
+        # Verify correct endpoint and payload
+        mock_client.post.assert_called_once()
+        call_args = mock_client.post.call_args
+        assert call_args[0][0] == "/ea/sites/default/rest/account"
+        payload = call_args[1]["json_data"]
+        assert payload["x_password"] == "newpass"
+        assert payload["vlan"] == 10
+        assert payload["tunnel_type"] == 13
+        assert payload["tunnel_medium_type"] == 6
 
 
 @pytest.mark.asyncio
@@ -347,7 +361,7 @@ async def test_delete_radius_account_success(mock_settings):
         )
 
         assert result["success"] is True
-        mock_client.delete.assert_called_once()
+        mock_client.delete.assert_called_once_with("/ea/sites/default/rest/account/account-1")
 
 
 # =============================================================================

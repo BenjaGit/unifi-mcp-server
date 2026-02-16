@@ -89,8 +89,8 @@ async def create_acl_rule(
     dst_port: int | None = None,
     priority: int = 100,
     description: str | None = None,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict:
     """Create a new ACL rule.
 
@@ -117,7 +117,7 @@ async def create_acl_rule(
     Returns:
         Created ACL rule
     """
-    validate_confirmation(confirm, "create ACL rule")
+    validate_confirmation(confirm, "create ACL rule", dry_run)
 
     async with UniFiClient(settings) as client:
         logger.info(f"Creating ACL rule '{name}' for site {site_id}")
@@ -192,8 +192,8 @@ async def update_acl_rule(
     dst_port: int | None = None,
     priority: int | None = None,
     description: str | None = None,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict:
     """Update an existing ACL rule.
 
@@ -221,7 +221,7 @@ async def update_acl_rule(
     Returns:
         Updated ACL rule
     """
-    validate_confirmation(confirm, "update ACL rule")
+    validate_confirmation(confirm, "update ACL rule", dry_run)
 
     async with UniFiClient(settings) as client:
         logger.info(f"Updating ACL rule {acl_rule_id} for site {site_id}")
@@ -286,8 +286,8 @@ async def delete_acl_rule(
     site_id: str,
     acl_rule_id: str,
     settings: Settings,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict:
     """Delete an ACL rule.
 
@@ -301,7 +301,7 @@ async def delete_acl_rule(
     Returns:
         Deletion status
     """
-    validate_confirmation(confirm, "delete ACL rule")
+    validate_confirmation(confirm, "delete ACL rule", dry_run)
 
     async with UniFiClient(settings) as client:
         logger.info(f"Deleting ACL rule {acl_rule_id} for site {site_id}")

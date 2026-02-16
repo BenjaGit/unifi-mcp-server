@@ -50,8 +50,8 @@ async def update_site_to_site_vpn(
     ipsec_peer_ip: str | None = None,
     remote_vpn_subnets: list[str] | None = None,
     x_ipsec_pre_shared_key: str | None = None,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict[str, Any]:
     """Update a site-to-site VPN configuration (requires confirm=True)."""
     site_id = validate_site_id(site_id)

@@ -108,8 +108,8 @@ async def update_zbf_policy(
     description: str | None = None,
     priority: int | None = None,
     enabled: bool = True,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict[str, Any]:
     """Modify inter-zone firewall policy.
 
@@ -160,8 +160,8 @@ async def block_application_by_zone(
     action: str = "block",
     enabled: bool = True,
     description: str | None = None,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict[str, Any]:
     """Block applications using zone-based rules.
 
@@ -286,8 +286,8 @@ async def delete_zbf_policy(
     source_zone_id: str,
     destination_zone_id: str,
     settings: Settings,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict[str, Any]:
     """Delete a zone-to-zone policy (revert to default action).
 

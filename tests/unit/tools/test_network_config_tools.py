@@ -74,6 +74,7 @@ async def test_create_network_corporate(mock_settings):
     assert json_data["name"] == "Corporate LAN"
     assert json_data["purpose"] == "corporate"
     assert json_data["vlan"] == 10
+    assert json_data["vlan_enabled"] is True
     assert json_data["ip_subnet"] == "192.168.10.0/24"
     assert json_data["dhcpd_enabled"] is True
 
@@ -139,6 +140,7 @@ async def test_create_network_dry_run(mock_settings):
     assert "would_create" in result
     assert result["would_create"]["name"] == "Test Network"
     assert result["would_create"]["vlan"] == 20
+    assert result["would_create"]["vlan_enabled"] is True
     assert result["would_create"]["ip_subnet"] == "192.168.20.0/24"
 
 

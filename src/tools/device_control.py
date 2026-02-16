@@ -19,8 +19,8 @@ async def restart_device(
     site_id: str,
     device_mac: str,
     settings: Settings,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict[str, Any]:
     """Restart a UniFi device.
 
@@ -40,7 +40,7 @@ async def restart_device(
     """
     site_id = validate_site_id(site_id)
     device_mac = validate_mac_address(device_mac)
-    validate_confirmation(confirm, "device control operation")
+    validate_confirmation(confirm, "device control operation", dry_run)
     logger = get_logger(__name__, settings.log_level)
 
     parameters = {"site_id": site_id, "device_mac": device_mac}
@@ -115,8 +115,8 @@ async def locate_device(
     device_mac: str,
     settings: Settings,
     enabled: bool = True,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict[str, Any]:
     """Enable or disable LED locate mode on a device.
 
@@ -137,7 +137,7 @@ async def locate_device(
     """
     site_id = validate_site_id(site_id)
     device_mac = validate_mac_address(device_mac)
-    validate_confirmation(confirm, "device control operation")
+    validate_confirmation(confirm, "device control operation", dry_run)
     logger = get_logger(__name__, settings.log_level)
 
     parameters = {"site_id": site_id, "device_mac": device_mac, "enabled": enabled}
@@ -220,8 +220,8 @@ async def upgrade_device(
     device_mac: str,
     settings: Settings,
     firmware_url: str | None = None,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict[str, Any]:
     """Trigger firmware upgrade for a device.
 
@@ -242,7 +242,7 @@ async def upgrade_device(
     """
     site_id = validate_site_id(site_id)
     device_mac = validate_mac_address(device_mac)
-    validate_confirmation(confirm, "device control operation")
+    validate_confirmation(confirm, "device control operation", dry_run)
     logger = get_logger(__name__, settings.log_level)
 
     parameters = {

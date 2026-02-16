@@ -16,6 +16,7 @@ services:
       UNIFI_API_TYPE: ${UNIFI_API_TYPE:-cloud}
       UNIFI_HOST: ${UNIFI_HOST:-api.ui.com}
       UNIFI_PORT: ${UNIFI_PORT:-443}
+      UNIFI_LOCAL_HOST: ${UNIFI_LOCAL_HOST:-}
       UNIFI_VERIFY_SSL: ${UNIFI_VERIFY_SSL:-true}
       UNIFI_SITE: ${UNIFI_SITE:-default}
 

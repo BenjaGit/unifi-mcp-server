@@ -63,9 +63,16 @@ async def create_wlan(
     wpa_mode: str = "wpa2",
     wpa_enc: str = "ccmp",
     vlan_id: int | None = None,
+    networkconf_id: str | None = None,
+    ap_group_ids: list[str] | None = None,
+    ap_group_mode: str | None = None,
+    wlan_bands: list[str] | None = None,
+    optimize_iot_wifi_connectivity: bool | None = None,
+    minrate_ng_enabled: bool | None = None,
+    minrate_ng_data_rate_kbps: int | None = None,
     hide_ssid: bool = False,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict[str, Any]:
     """Create a new wireless network (SSID).
 
@@ -80,6 +87,13 @@ async def create_wlan(
         wpa_mode: WPA mode (wpa, wpa2, wpa3)
         wpa_enc: WPA encryption (tkip, ccmp, ccmp-tkip)
         vlan_id: VLAN ID for network isolation
+        networkconf_id: Network configuration ID to associate this SSID with
+        ap_group_ids: List of AP group IDs to broadcast this SSID on
+        ap_group_mode: AP group mode (groups, all). Required when using ap_group_ids.
+        wlan_bands: WiFi bands as list (e.g. ["2g"], ["5g"], ["2g", "5g"])
+        optimize_iot_wifi_connectivity: Enable IoT WiFi optimizations
+        minrate_ng_enabled: Enable minimum data rate for 2.4GHz
+        minrate_ng_data_rate_kbps: Minimum 2.4GHz data rate in kbps (e.g. 1000)
         hide_ssid: Hide SSID from broadcast
         confirm: Confirmation flag (must be True to execute)
         dry_run: If True, validate but don't create the WLAN
@@ -92,7 +106,7 @@ async def create_wlan(
         ValidationError: If validation fails
     """
     site_id = validate_site_id(site_id)
-    validate_confirmation(confirm, "wifi operation")
+    validate_confirmation(confirm, "wifi operation", dry_run)
     logger = get_logger(__name__, settings.log_level)
 
     # Validate security type
@@ -138,6 +152,30 @@ async def create_wlan(
         wlan_data["vlan"] = vlan_id
         wlan_data["vlan_enabled"] = True
 
+    if networkconf_id is not None:
+        wlan_data["networkconf_id"] = networkconf_id
+
+    if ap_group_ids is not None:
+        wlan_data["ap_group_ids"] = ap_group_ids
+
+    if ap_group_mode is not None:
+        wlan_data["ap_group_mode"] = ap_group_mode
+
+    if wlan_bands is not None:
+        wlan_data["wlan_bands"] = wlan_bands
+
+    if optimize_iot_wifi_connectivity is not None:
+        wlan_data["optimize_iot_wifi_connectivity"] = optimize_iot_wifi_connectivity
+        if optimize_iot_wifi_connectivity:
+            wlan_data["b_supported"] = True
+            wlan_data["no2ghz_oui"] = False
+
+    if minrate_ng_enabled is not None:
+        wlan_data["minrate_ng_enabled"] = minrate_ng_enabled
+
+    if minrate_ng_data_rate_kbps is not None:
+        wlan_data["minrate_ng_data_rate_kbps"] = minrate_ng_data_rate_kbps
+
     # Log parameters for audit (mask password)
     parameters = {
         "site_id": site_id,
@@ -146,6 +184,9 @@ async def create_wlan(
         "enabled": enabled,
         "is_guest": is_guest,
         "vlan_id": vlan_id,
+        "networkconf_id": networkconf_id,
+        "ap_group_ids": ap_group_ids,
+        "wlan_bands": wlan_bands,
         "hide_ssid": hide_ssid,
         "password": "***MASKED***" if password else None,
     }
@@ -204,8 +245,8 @@ async def update_wlan(
     wpa_enc: str | None = None,
     vlan_id: int | None = None,
     hide_ssid: bool | None = None,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict[str, Any]:
     """Update an existing wireless network.
 
@@ -233,7 +274,7 @@ async def update_wlan(
         ResourceNotFoundError: If WLAN not found
     """
     site_id = validate_site_id(site_id)
-    validate_confirmation(confirm, "wifi operation")
+    validate_confirmation(confirm, "wifi operation", dry_run)
     logger = get_logger(__name__, settings.log_level)
 
     # Validate security type if provided
@@ -357,8 +398,8 @@ async def delete_wlan(
     site_id: str,
     wlan_id: str,
     settings: Settings,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict[str, Any]:
     """Delete a wireless network.
 
@@ -377,7 +418,7 @@ async def delete_wlan(
         ResourceNotFoundError: If WLAN not found
     """
     site_id = validate_site_id(site_id)
-    validate_confirmation(confirm, "wifi operation")
+    validate_confirmation(confirm, "wifi operation", dry_run)
     logger = get_logger(__name__, settings.log_level)
 
     parameters = {"site_id": site_id, "wlan_id": wlan_id}

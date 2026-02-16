@@ -91,6 +91,29 @@ class ValidationError(UniFiMCPException):
     pass
 
 
+class DuplicateResourceError(UniFiMCPException):
+    """Raised when attempting to create a resource that already exists."""
+
+    def __init__(self, resource_type: str, resource_name: str, existing_id: str) -> None:
+        """Initialize duplicate resource error.
+
+        Args:
+            resource_type: Type of resource (port_profile, network, etc.)
+            resource_name: Name of the duplicate resource
+            existing_id: ID of the existing resource
+        """
+        message = (
+            f"{resource_type} with name '{resource_name}' already exists " f"(id: {existing_id})"
+        )
+        super().__init__(
+            message,
+            {"resource_type": resource_type, "name": resource_name, "existing_id": existing_id},
+        )
+        self.resource_type = resource_type
+        self.resource_name = resource_name
+        self.existing_id = existing_id
+
+
 class NetworkError(UniFiMCPException):
     """Raised when network communication fails."""
 

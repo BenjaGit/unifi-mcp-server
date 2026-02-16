@@ -180,6 +180,14 @@ class UniFiClient:
         if endpoint.startswith("/proxy/network/"):
             return endpoint
 
+        # Integration API endpoints need /proxy/network prefix on local gateway
+        if endpoint.startswith("/integration/"):
+            return f"/proxy/network{endpoint}"
+
+        # V1 API endpoints need /proxy/network prefix on local gateway
+        if endpoint.startswith("/v1/"):
+            return f"/proxy/network{endpoint}"
+
         # If not recognized, return as-is and log warning
         self.logger.warning(f"Endpoint does not match known patterns: {endpoint}")
         return endpoint

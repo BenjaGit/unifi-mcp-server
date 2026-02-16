@@ -82,8 +82,8 @@ async def create_vouchers(
     upload_quota_mb: int | None = None,
     download_quota_mb: int | None = None,
     note: str | None = None,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict:
     """Create new hotspot vouchers.
 
@@ -103,7 +103,7 @@ async def create_vouchers(
     Returns:
         Created voucher codes
     """
-    validate_confirmation(confirm, "create vouchers")
+    validate_confirmation(confirm, "create vouchers", dry_run)
 
     async with UniFiClient(settings) as client:
         logger.info(f"Creating {count} vouchers for site {site_id}")
@@ -156,8 +156,8 @@ async def delete_voucher(
     site_id: str,
     voucher_id: str,
     settings: Settings,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict:
     """Delete a specific voucher.
 
@@ -171,7 +171,7 @@ async def delete_voucher(
     Returns:
         Deletion status
     """
-    validate_confirmation(confirm, "delete voucher")
+    validate_confirmation(confirm, "delete voucher", dry_run)
 
     async with UniFiClient(settings) as client:
         logger.info(f"Deleting voucher {voucher_id} for site {site_id}")
@@ -202,8 +202,8 @@ async def bulk_delete_vouchers(
     site_id: str,
     filter_expr: str,
     settings: Settings,
-    confirm: bool = False,
-    dry_run: bool = False,
+    confirm: bool | str = False,
+    dry_run: bool | str = False,
 ) -> dict:
     """Bulk delete vouchers using a filter expression.
 
@@ -217,7 +217,7 @@ async def bulk_delete_vouchers(
     Returns:
         Deletion status
     """
-    validate_confirmation(confirm, "bulk delete vouchers")
+    validate_confirmation(confirm, "bulk delete vouchers", dry_run)
 
     async with UniFiClient(settings) as client:
         logger.info(f"Bulk deleting vouchers for site {site_id} with filter: {filter_expr}")

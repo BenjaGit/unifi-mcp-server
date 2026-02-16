@@ -63,6 +63,8 @@ async def get_radius_profile(
 
         response = await client.get(f"/ea/sites/{site_id}/rest/radiusprofile/{profile_id}")
         data = response if isinstance(response, list) else response.get("data", response)
+        if isinstance(data, list):
+            data = data[0] if data else {}
 
         return RADIUSProfile(**data).model_dump()  # type: ignore[no-any-return]
 
@@ -150,6 +152,8 @@ async def create_radius_profile(
             f"/ea/sites/{site_id}/rest/radiusprofile", json_data=payload
         )
         data = response if isinstance(response, list) else response.get("data", response)
+        if isinstance(data, list):
+            data = data[0] if data else {}
 
         # Audit the action
         await audit_action(
@@ -259,6 +263,8 @@ async def update_radius_profile(
             f"/ea/sites/{site_id}/rest/radiusprofile/{profile_id}", json_data=payload
         )
         data = response if isinstance(response, list) else response.get("data", response)
+        if isinstance(data, list):
+            data = data[0] if data else {}
 
         # Audit the action
         await audit_action(
@@ -519,6 +525,8 @@ async def get_guest_portal_config(
 
         response = await client.get(f"/integration/v1/sites/{site_id}/guest-portal/config")
         data = response if isinstance(response, list) else response.get("data", response)
+        if isinstance(data, list):
+            data = data[0] if data else {}
 
         return GuestPortalConfig(**data).model_dump()  # type: ignore[no-any-return]
 
@@ -610,6 +618,8 @@ async def configure_guest_portal(
             f"/integration/v1/sites/{site_id}/guest-portal/config", json_data=payload
         )
         data = response if isinstance(response, list) else response.get("data", response)
+        if isinstance(data, list):
+            data = data[0] if data else {}
 
         # Audit the action
         await audit_action(

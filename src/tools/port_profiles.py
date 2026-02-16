@@ -708,7 +708,8 @@ async def get_device_by_mac(
         )
 
         if not devices:
-            raise ResourceNotFoundError("device", mac)
+            masked = f"{mac[:8]}:xx:xx:xx" if len(mac) >= 8 else "**:**:**:**:**:**"
+            raise ResourceNotFoundError("device", masked)
 
-        logger.info(f"Retrieved device by MAC '{mac}' in site '{site_id}'")
+        logger.info(f"Retrieved device by MAC in site '{site_id}'")
         return devices[0]

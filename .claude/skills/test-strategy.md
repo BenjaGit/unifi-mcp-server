@@ -6,9 +6,11 @@ description: Use this skill when you need to improve test coverage for a specifi
 # Test Strategy Skill
 
 ## Purpose
+
 Guide the creation of high-quality tests for UniFi MCP Server modules to achieve the 60-70% coverage target outlined in TEST_COVERAGE_ROADMAP.md. This skill provides intelligent test recommendations based on coverage analysis, UniFi API patterns, and existing test infrastructure.
 
 ## When to Use This Skill
+
 - Implementing Sprint 1-4 of TEST_COVERAGE_ROADMAP.md
 - A module has coverage below 70%
 - Writing tests for new tools or features
@@ -19,15 +21,19 @@ Guide the creation of high-quality tests for UniFi MCP Server modules to achieve
 ## Phase 1: Coverage Analysis
 
 ### Step 1: Identify Target Module
+
 Ask the user which module they want to improve, or analyze recent coverage reports to recommend priorities.
 
 **Priority Modules (from TEST_COVERAGE_ROADMAP.md Sprint 1):**
+
 - `src/tools/clients.py` - Currently 15.91%, Target: 70%
 - `src/tools/networks.py` - Currently 19.83%, Target: 70%
 - `src/tools/sites.py` - Currently 25.00%, Target: 70%
 
 ### Step 2: Analyze Current Coverage
+
 Run coverage analysis to identify:
+
 - Uncovered lines
 - Untested code paths
 - Missing edge case tests
@@ -38,7 +44,9 @@ pytest tests/unit/test_[module].py --cov=src/tools/[module] --cov-report=term-mi
 ```
 
 ### Step 3: Categorize Missing Tests
+
 Classify untested code into categories:
+
 - **Happy path tests** - Normal operation scenarios
 - **Error handling tests** - Exception and error cases
 - **Edge case tests** - Boundary conditions, empty inputs, null values
@@ -48,6 +56,7 @@ Classify untested code into categories:
 ## Phase 2: Test Scenario Design
 
 ### Design Principles
+
 Based on existing tests in the codebase:
 
 1. **Use pytest fixtures** - Leverage conftest.py fixtures
@@ -113,6 +122,7 @@ async def test_[function_name]_validates_inputs():
 ### Common Mock API Response Patterns
 
 **Device List Response:**
+
 ```python
 {
     "data": [
@@ -129,6 +139,7 @@ async def test_[function_name]_validates_inputs():
 ```
 
 **Client List Response:**
+
 ```python
 {
     "data": [
@@ -144,6 +155,7 @@ async def test_[function_name]_validates_inputs():
 ```
 
 **Network List Response:**
+
 ```python
 {
     "data": [
@@ -161,6 +173,7 @@ async def test_[function_name]_validates_inputs():
 ## Phase 3: Test Implementation Guidance
 
 ### Step 1: Create Test File Structure
+
 If test file doesn't exist, create it:
 
 ```python
@@ -192,17 +205,21 @@ class TestFunction1:
 ```
 
 ### Step 2: Implement Tests Incrementally
+
 Follow TDD cycle:
+
 1. **Red** - Write failing test
 2. **Green** - Make test pass
 3. **Refactor** - Improve code while keeping tests passing
 
 Run tests frequently:
+
 ```bash
 pytest tests/unit/test_[module].py -v
 ```
 
 ### Step 3: Verify Coverage Improvement
+
 After implementing tests, verify coverage increased:
 
 ```bash
@@ -210,6 +227,7 @@ pytest tests/unit/test_[module].py --cov=src/tools/[module] --cov-report=term-mi
 ```
 
 Check HTML report for detailed line-by-line coverage:
+
 ```bash
 open htmlcov/index.html
 ```
@@ -235,6 +253,7 @@ Before marking tests complete, verify:
 ## Phase 5: Sprint Progress Tracking
 
 ### Sprint 1 (Weeks 1-2) - Foundation Modules
+
 **Target**: 40-50% coverage increase per module
 
 - [ ] `src/tools/clients.py` (15.91% → 70%)
@@ -252,6 +271,7 @@ Before marking tests complete, verify:
   - [ ] get_site_statistics test scenarios
 
 ### Sprint 2-4
+
 See TEST_COVERAGE_ROADMAP.md for full sprint details.
 
 ## Reference Files
@@ -308,6 +328,7 @@ async def test_requires_confirmation(mock_unifi_client):
 ## Success Metrics
 
 Track progress toward goals:
+
 - **Module Coverage**: Track coverage % increase
 - **Test Count**: Number of new tests added
 - **Sprint Progress**: Modules completed per sprint

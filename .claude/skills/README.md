@@ -16,11 +16,13 @@ Think of skills as expert consultants that guide you through complex processes, 
 ### Priority 1: Immediate Value (Use Daily)
 
 #### 1. test-strategy
+
 **When to use:** Improving test coverage for any module
 
 Guides test creation for low-coverage modules to achieve the 60-70% coverage target. Analyzes coverage gaps, suggests specific test scenarios, and provides mock API response templates.
 
 **Key features:**
+
 - Coverage gap analysis
 - Test scenario recommendations
 - Mock API response templates
@@ -28,16 +30,19 @@ Guides test creation for low-coverage modules to achieve the 60-70% coverage tar
 - Pytest fixture patterns
 
 **Example usage:**
+
 ```
 I want to improve test coverage for src/tools/clients.py
 ```
 
 #### 2. tool-design-reviewer
+
 **When to use:** Before implementing any new MCP tool
 
 Pre-implementation design review ensuring tools follow best practices and maintain consistency with the existing 77+ tools. Acts as a quality gate before coding.
 
 **Key features:**
+
 - MCP best practices validation
 - Parameter and naming review
 - Safety mechanism checks
@@ -45,16 +50,19 @@ Pre-implementation design review ensuring tools follow best practices and mainta
 - Consistency verification
 
 **Example usage:**
+
 ```
 I want to create a tool to delete a QoS profile. Can you review my design?
 ```
 
 #### 3. zbf-implementation-guide
+
 **When to use:** Working on Zone-Based Firewall features (v0.2.0 P0)
 
 Comprehensive guide for implementing Zone-Based Firewall support, including architecture, data models, migration strategies, and best practices for the critical v0.2.0 feature.
 
 **Key features:**
+
 - ZBF architecture guidance
 - Data model design patterns
 - API endpoint verification
@@ -62,6 +70,7 @@ Comprehensive guide for implementing Zone-Based Firewall support, including arch
 - Zone template systems
 
 **Example usage:**
+
 ```
 I need to complete the ZBF Phase 1 implementation
 ```
@@ -69,11 +78,13 @@ I need to complete the ZBF Phase 1 implementation
 ### Priority 2: Near-Term Value (Use Weekly)
 
 #### 4. unifi-api-explorer
+
 **When to use:** Researching new UniFi API endpoints
 
 Interactive API exploration and testing to understand endpoint behavior, design Pydantic models from responses, and document API quirks before implementation.
 
 **Key features:**
+
 - Safe API endpoint testing
 - Response structure analysis
 - Pydantic model generation
@@ -81,16 +92,19 @@ Interactive API exploration and testing to understand endpoint behavior, design 
 - Tool template generation
 
 **Example usage:**
+
 ```
 I want to explore the QoS profile API endpoints for Phase 3
 ```
 
 #### 5. refactor-assistant
+
 **When to use:** Improving code quality or preparing for new features
 
 Guides code refactoring to improve testability, maintainability, and performance while preserving functionality. Particularly useful when improving test coverage.
 
 **Key features:**
+
 - Code smell detection
 - Refactoring pattern suggestions
 - Testability improvements
@@ -98,6 +112,7 @@ Guides code refactoring to improve testability, maintainability, and performance
 - Performance optimization
 
 **Example usage:**
+
 ```
 This module has 20% coverage and is hard to test. Help me refactor it.
 ```
@@ -105,11 +120,13 @@ This module has 20% coverage and is hard to test. Help me refactor it.
 ### Priority 3: Long-Term Value (Use Monthly/Quarterly)
 
 #### 6. api-doc-generator
+
 **When to use:** After implementing new tools or before releases
 
 Automates generation and maintenance of API.md documentation by extracting information from MCP tool definitions, docstrings, and type hints.
 
 **Key features:**
+
 - Automatic tool discovery
 - Metadata extraction from code
 - Consistent documentation format
@@ -117,16 +134,19 @@ Automates generation and maintenance of API.md documentation by extracting infor
 - Cross-reference generation
 
 **Example usage:**
+
 ```
 Update API.md with all the new v0.2.0 tools
 ```
 
 #### 7. release-planner
+
 **When to use:** Planning or executing version releases
 
 Comprehensive release management including checklists, validation, changelog generation, and release process orchestration for v0.2.0, v0.3.0, and beyond.
 
 **Key features:**
+
 - Release type determination
 - Pre-release validation
 - Automated changelog generation
@@ -134,16 +154,19 @@ Comprehensive release management including checklists, validation, changelog gen
 - Post-release verification
 
 **Example usage:**
+
 ```
 I want to prepare the v0.2.0 release
 ```
 
 #### 8. integration-guide
+
 **When to use:** Implementing major new features from roadmap
 
 Structured guidance for integrating major features that span multiple components (models, API, tools, tests, docs). Coordinates complex multi-component implementations.
 
 **Key features:**
+
 - Feature breakdown and phasing
 - Component coordination
 - Implementation workflow
@@ -151,6 +174,7 @@ Structured guidance for integrating major features that span multiple components
 - Documentation planning
 
 **Example usage:**
+
 ```
 Help me plan the QoS and Traffic Management implementation
 ```
@@ -173,11 +197,13 @@ Help me plan the QoS and Traffic Management implementation
 ### By Development Phase
 
 **Sprint 1 (Test Coverage Improvement):**
+
 1. `test-strategy` - Plan and implement tests
 2. `refactor-assistant` - Improve testability
 3. `tool-design-reviewer` - Review test coverage tools
 
 **New Feature Development:**
+
 1. `integration-guide` - Plan feature implementation
 2. `unifi-api-explorer` - Research API endpoints
 3. `tool-design-reviewer` - Design tools
@@ -185,6 +211,7 @@ Help me plan the QoS and Traffic Management implementation
 5. `api-doc-generator` - Update documentation
 
 **Release Preparation:**
+
 1. `release-planner` - Plan and execute release
 2. `api-doc-generator` - Update API.md
 3. `test-strategy` - Verify coverage targets
@@ -414,6 +441,7 @@ Step 5: Documentation with api-doc-generator
 ### When to Use Skills
 
 **DO use skills for:**
+
 - Complex multi-step processes
 - Decision-making and planning
 - Learning new patterns or best practices
@@ -422,6 +450,7 @@ Step 5: Documentation with api-doc-generator
 - Interactive problem-solving
 
 **DON'T use skills for:**
+
 - Simple deterministic operations (use slash commands instead)
 - Running tests, linting, formatting (use /test, /lint, /format)
 - Quick file operations (use direct tools)
@@ -493,6 +522,7 @@ Documentation to load for context
 **Problem:** Skill doesn't appear or doesn't load documentation
 
 **Solution:**
+
 1. Check skill file exists in `.claude/skills/`
 2. Verify frontmatter is correctly formatted (YAML)
 3. Ensure skill name matches filename
@@ -503,6 +533,7 @@ Documentation to load for context
 **Problem:** Skill doesn't use project-specific context
 
 **Solution:**
+
 1. Explicitly ask skill to load reference files
 2. Provide more specific context about your goal
 3. Reference specific files (e.g., "Load TODO.md for context")
@@ -512,6 +543,7 @@ Documentation to load for context
 **Problem:** Multiple skills seem relevant
 
 **Decision Tree:**
+
 - Testing/coverage work? → **test-strategy**
 - Designing a new tool? → **tool-design-reviewer**
 - Exploring API? → **unifi-api-explorer**

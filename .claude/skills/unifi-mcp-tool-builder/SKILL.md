@@ -13,6 +13,7 @@ author: UniFi MCP Server Team
 This skill guides you through adding new MCP tools to the existing UniFi MCP Server. Unlike building an MCP server from scratch, this focuses on **extending** the current 74-tool implementation with new UniFi Network Controller functionality while maintaining the project's quality standards.
 
 **Project Context:**
+
 - **Existing Tools**: 74 MCP tools across 9 feature categories
 - **Test Coverage**: 990 tests, 78.18% overall coverage
 - **Architecture**: FastMCP + Pydantic v2 + async/await patterns
@@ -28,12 +29,14 @@ This skill guides you through adding new MCP tools to the existing UniFi MCP Ser
 ### 1.1 Understand the Tool Request
 
 Before implementation, clarify:
+
 - **What UniFi feature/endpoint** needs to be exposed?
 - **Which API mode** supports it (local, cloud-v1, cloud-ea)?
 - **What workflow** does this enable for AI agents?
 - **How does this fit** into existing tool categories?
 
 **Tool Categories in UniFi MCP Server:**
+
 1. Device Management (list, control, upgrade)
 2. Client Management (block, unblock, statistics)
 3. Network Configuration (VLANs, subnets, DHCP)
@@ -56,6 +59,7 @@ Read: docs/UNIFI_API.md
 This document contains verified endpoints for UniFi Network v10.0.156+.
 
 **Critical considerations:**
+
 - **Endpoint availability**: Not all documented endpoints exist in all versions
 - **API mode differences**: Local gateway vs Cloud APIs have different capabilities
 - **Response formats**: Local API returns different structures than Cloud API
@@ -79,6 +83,7 @@ Read: tests/unit/test_devices.py
 ```
 
 **Key patterns to identify:**
+
 - How similar tools structure their inputs (Pydantic models)
 - Response formatting (JSON with TypedDict or Pydantic response models)
 - Error handling patterns
@@ -97,6 +102,7 @@ The UniFi MCP Server has discovered that many documented endpoints don't exist i
 3. **Document findings** in code comments and API.md
 
 **Known endpoint issues:**
+
 - ZBF matrix endpoints don't exist (use Firewall Policies v2 instead)
 - Some statistics endpoints are documented but not available
 - Cloud APIs have very limited endpoint support vs local gateway
@@ -106,6 +112,7 @@ The UniFi MCP Server has discovered that many documented endpoints don't exist i
 Document your plan covering:
 
 **Tool Definition:**
+
 - Tool name (follow naming convention: `{action}_{resource}`)
 - Description (one-line summary for LLMs)
 - Input parameters (with Pydantic model)
@@ -113,17 +120,20 @@ Document your plan covering:
 - Error scenarios
 
 **Data Models:**
+
 - Pydantic models for request validation
 - Response models (if complex data structure)
 - Enums for allowed values
 
 **Testing Strategy:**
+
 - Unit test scenarios (minimum 10-15 tests)
 - Mock API responses
 - Edge cases (empty results, errors, pagination)
 - Target coverage: 85%+ for new code
 
 **Documentation:**
+
 - Docstring with examples
 - API.md section update
 - README.md feature list update (if major feature)
@@ -163,6 +173,7 @@ class YourResponseModel(BaseModel):
 ```
 
 **Key requirements:**
+
 - Use Pydantic v2 syntax (`model_config` instead of `Config`)
 - `extra="forbid"` to reject unknown fields
 - Comprehensive Field descriptions for LLM understanding
@@ -283,6 +294,7 @@ async def your_tool_name(
 ```
 
 **Implementation checklist:**
+
 - [ ] FastMCP `@mcp.tool()` decorator
 - [ ] Comprehensive docstring with examples
 - [ ] Input validation (use existing validators in `src/utils/validators.py`)
@@ -449,6 +461,7 @@ class TestYourToolName:
 ```
 
 **Test coverage requirements:**
+
 - Successful operation (happy path)
 - Confirmation requirement (for mutating ops)
 - Dry-run mode
@@ -509,6 +522,7 @@ Add your tool to the appropriate section with complete documentation:
 ```
 
 **Dry-run response**:
+
 ```json
 {
   "success": true,
@@ -541,6 +555,7 @@ result = await mcp.call_tool("your_tool_name", {
 ```
 
 **Error Handling**:
+
 - `ValueError`: Invalid site_id or resource not found
 - `PermissionError`: Mutating operation requires confirm=True
 - `APIError`: UniFi API returned error (check message for details)
@@ -548,9 +563,11 @@ result = await mcp.call_tool("your_tool_name", {
 **API Endpoint**: `POST /api/s/{site}/rest/your_endpoint`
 
 **Supported API Modes**:
+
 - ✅ Local Gateway API (full support)
 - ⚠️ Cloud V1 API (limited support)
 - ❌ Cloud EA API (not supported)
+
 ```
 
 ### 4.2 Update README.md (if major feature)
@@ -641,6 +658,7 @@ If you have access to a UniFi controller:
 Before submitting:
 
 ### Code Quality
+
 - [ ] Tool follows naming convention (`{action}_{resource}`)
 - [ ] Comprehensive docstring with examples
 - [ ] Input validation using Pydantic models
@@ -653,6 +671,7 @@ Before submitting:
 - [ ] Follows existing code patterns
 
 ### Testing
+
 - [ ] TDD: Tests written before implementation
 - [ ] 85%+ coverage for new code
 - [ ] Tests cover happy path
@@ -663,6 +682,7 @@ Before submitting:
 - [ ] All tests passing
 
 ### Documentation
+
 - [ ] API.md updated with complete tool documentation
 - [ ] Examples provided in docstring and API.md
 - [ ] Error handling documented
@@ -672,12 +692,14 @@ Before submitting:
 - [ ] README.md updated (if major feature)
 
 ### Integration
+
 - [ ] Tool registered in src/main.py
 - [ ] Imports organized correctly
 - [ ] No circular dependencies
 - [ ] Compatible with existing tools
 
 ### Quality Gates
+
 - [ ] `black` formatting passes
 - [ ] `isort` import sorting passes
 - [ ] `ruff` linting passes
@@ -809,6 +831,7 @@ async def aggregate_across_sites(
 ## References
 
 ### Project Documentation
+
 - `README.md` - Project overview and quick start
 - `API.md` - Complete MCP tool reference
 - `AGENTS.md` - AI agent development guidelines
@@ -817,10 +840,12 @@ async def aggregate_across_sites(
 - `CONTRIBUTING.md` - Contribution guidelines
 
 ### UniFi API Documentation
+
 - `docs/UNIFI_API.md` - Verified endpoint documentation for v10.0.156+
 - [UniFi Network Developer Documentation](https://developer.ui.com/)
 
 ### Code Examples
+
 - `src/tools/devices.py` - Device management examples
 - `src/tools/firewall.py` - Firewall rule management patterns
 - `src/tools/zbf_tools.py` - Zone-Based Firewall implementation

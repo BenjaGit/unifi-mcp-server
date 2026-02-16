@@ -6,9 +6,11 @@ description: Use this skill for interactive UniFi API endpoint research and test
 # UniFi API Explorer Skill
 
 ## Purpose
+
 Guide interactive exploration and testing of UniFi API endpoints to accelerate development of new MCP tools. This skill helps safely test API endpoints, understand response structures, design appropriate data models, and document API quirks before full implementation.
 
 ## When to Use This Skill
+
 - Implementing new features from DEVELOPMENT_PLAN.md (QoS, SD-WAN, Backup, etc.)
 - Researching UniFi API capabilities
 - Testing endpoints before creating tools
@@ -24,12 +26,14 @@ Guide interactive exploration and testing of UniFi API endpoints to accelerate d
 Ask the user what they want to explore:
 
 **Common Exploration Scenarios:**
+
 1. New feature implementation (e.g., "QoS profiles for Phase 3")
 2. Endpoint verification (e.g., "Does /api/s/{site}/rest/qosprofile work?")
 3. Response structure analysis (e.g., "What does traffic flow data look like?")
 4. API capability discovery (e.g., "What backup endpoints are available?")
 
 **Gather Context:**
+
 - What feature are you implementing?
 - Do you have API documentation? (UniFi docs, community resources)
 - What controller version are you using?
@@ -38,6 +42,7 @@ Ask the user what they want to explore:
 ### Step 2: Load API Documentation
 
 **Primary Reference Sources:**
+
 1. **Official UniFi API Docs**: `docs/UNIFI_API.md` (if exists)
 2. **Project API Docs**: `API.md`
 3. **Development Plan**: `DEVELOPMENT_PLAN.md` (feature requirements)
@@ -47,6 +52,7 @@ Ask the user what they want to explore:
    - UniFi API Getting Started Guide
 
 **Extract Relevant Information:**
+
 - Endpoint paths and HTTP methods
 - Required/optional parameters
 - Expected response structure
@@ -56,6 +62,7 @@ Ask the user what they want to explore:
 ### Step 3: Plan Safe Testing Strategy
 
 **Testing Principles:**
+
 1. **Start with READ operations** - GET requests only
 2. **Test on non-production sites** - Use test/sandbox sites
 3. **Use dry-run when available** - Preview changes first
@@ -64,6 +71,7 @@ Ask the user what they want to explore:
 6. **Document everything** - Record findings immediately
 
 **Safety Checklist:**
+
 - [ ] Using test site or lab environment
 - [ ] Starting with GET/read-only requests
 - [ ] API key has appropriate permissions
@@ -77,6 +85,7 @@ Ask the user what they want to explore:
 **Step 1: Environment Setup**
 
 Verify environment variables:
+
 ```bash
 # Check configuration
 echo "API Type: $UNIFI_API_TYPE"
@@ -85,6 +94,7 @@ echo "Site: ${UNIFI_SITE:-default}"
 ```
 
 For local testing:
+
 ```python
 # Test script template
 import asyncio
@@ -225,6 +235,7 @@ async def test_create_qos_profile():
 **Step 1: Analyze Response Fields**
 
 Examine a sample response:
+
 ```json
 {
     "_id": "qos-profile-123",
@@ -243,6 +254,7 @@ Examine a sample response:
 **Step 2: Identify Field Types and Constraints**
 
 Create type mapping:
+
 ```python
 Field Mapping:
 - _id: str (Optional on create, required in response)
@@ -353,6 +365,7 @@ async def test_qos_model():
 Based on API exploration, generate tool templates:
 
 **Read Tool Template:**
+
 ```python
 @mcp.tool()
 async def list_qos_profiles(
@@ -385,6 +398,7 @@ async def list_qos_profiles(
 ```
 
 **Create Tool Template:**
+
 ```python
 @mcp.tool()
 async def create_qos_profile(
@@ -462,6 +476,7 @@ async def create_qos_profile(
 Create comprehensive API documentation:
 
 **Template:**
+
 ```markdown
 # [Feature Name] API Documentation
 
@@ -492,22 +507,26 @@ Create comprehensive API documentation:
 ```
 
 **Status Codes**:
+
 - 200: Success
 - 401: Authentication failed
 - 404: Site not found
 - 500: Server error
 
 **Notes**:
+
 - Empty array if no resources configured
 - Sorted by creation date (newest first)
 
 ### Create [Resource]
+
 - **Path**: `/api/s/{site}/rest/[endpoint]`
 - **Method**: POST
 - **Auth**: Required
 - **Rate Limit**: Standard
 
 **Request Body**:
+
 ```json
 {
     "name": "string (required)",
@@ -519,21 +538,26 @@ Create comprehensive API documentation:
 **Response**: Created resource with `_id`
 
 **Validation**:
+
 - `name`: 1-32 characters, alphanumeric
 - `field`: Valid values only
 
 **Quirks**:
+
 - Field X may be ignored in certain cases
 - Field Y defaults to Z if not specified
 
 ## Tested Versions
+
 - UniFi Network 9.0.156 ✅
 - UniFi Network 8.x.x ❌ (endpoint not available)
 
 ## API Behavior Notes
+
 - [Note about caching, timing, etc.]
 - [Note about permissions required]
 - [Note about dependencies]
+
 ```
 
 ## Phase 6: Common API Patterns
@@ -596,6 +620,7 @@ GET /api/s/{site}/stat/[resource]?start=X&end=Y
 ## Reference Files
 
 Load for context:
+
 - `DEVELOPMENT_PLAN.md` - Feature requirements and API endpoints
 - `API.md` - Existing API documentation patterns
 - `src/api/client.py` - UniFi API client implementation
@@ -605,6 +630,7 @@ Load for context:
 ## Success Metrics
 
 API exploration successful when:
+
 - [ ] Endpoint availability verified
 - [ ] Response structure documented
 - [ ] Pydantic model created and tested

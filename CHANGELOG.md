@@ -37,6 +37,7 @@ Fixed topology tools that were completely non-functional due to using non-existe
 ### Technical Details
 
 **Data Model Changes**:
+
 - `device._id` → `device.id`
 - `device.mac` → `device.macAddress`
 - `device.ip` → `device.ipAddress`
@@ -44,12 +45,14 @@ Fixed topology tools that were completely non-functional due to using non-existe
 - `device.state` (int) → `device.state` (string: "CONNECTED"|other)
 
 **Test Results**:
+
 - 16/16 tests PASSED on local APIs (100%)
 - 32/32 tests SKIPPED on cloud APIs (expected - topology not supported)
 - 0 FAILED
 - Total test duration: 6.97s across 6 environments
 
 **API Limitations Documented**:
+
 - Local APIs: Full topology support
 - Cloud APIs (v1 & EA): Aggregate statistics only, no device-level data
 
@@ -62,6 +65,7 @@ This is the definitive v0.2.0 release with all 7 planned feature phases complete
 ### Added
 
 **Phase 1: QoS Enhancements (11 tools)**
+
 - QoS profile management (list, get, create, update, delete)
 - Reference QoS profiles and ProAV templates
 - Traffic routing with time-based schedules
@@ -69,6 +73,7 @@ This is the definitive v0.2.0 release with all 7 planned feature phases complete
 - Coverage: 82.43% (46 tests passing)
 
 **Phase 2: Backup & Restore (8 tools)**
+
 - Manual and automated backup creation
 - Backup listing and download with checksum verification
 - Backup restore functionality
@@ -77,6 +82,7 @@ This is the definitive v0.2.0 release with all 7 planned feature phases complete
 - Coverage: 86.32% (10 tests passing)
 
 **Phase 3: Multi-Site Aggregation (4 tools)**
+
 - Cross-site device and client analytics
 - Site health monitoring and scoring
 - Side-by-side site comparison
@@ -84,6 +90,7 @@ This is the definitive v0.2.0 release with all 7 planned feature phases complete
 - Coverage: 92.95% (10 tests passing)
 
 **Phase 4: ACL & Traffic Filtering (7 tools)**
+
 - Layer 3/4 access control list management
 - Traffic matching lists (IP, MAC, domain, port groups)
 - Firewall policy automation
@@ -91,6 +98,7 @@ This is the definitive v0.2.0 release with all 7 planned feature phases complete
 - Coverage: 89.30-93.84%
 
 **Phase 5: Site Management (9 tools)**
+
 - Multi-site provisioning and configuration
 - Site-to-site VPN setup
 - Device migration between sites
@@ -99,6 +107,7 @@ This is the definitive v0.2.0 release with all 7 planned feature phases complete
 - Coverage: 92.95% (10 tests passing)
 
 **Phase 6: RADIUS & Guest Portal (6 tools)**
+
 - RADIUS profile configuration (802.1X authentication)
 - RADIUS accounting server support
 - Guest portal customization
@@ -107,6 +116,7 @@ This is the definitive v0.2.0 release with all 7 planned feature phases complete
 - Coverage: 69.77% (17 tests passing)
 
 **Phase 7: Network Topology (5 tools)**
+
 - Complete network topology graph retrieval
 - Multi-format export (JSON, GraphML, DOT)
 - Device interconnection mapping
@@ -150,7 +160,7 @@ This is the definitive v0.2.0 release with all 7 planned feature phases complete
 - Docker: ghcr.io/enuno/unifi-mcp-server:0.2.0 (multi-arch: amd64, arm64, arm/v7)
 - npm: unifi-mcp-server@0.2.0
 - PyPI: unifi-mcp-server==0.2.0
-- GitHub: https://github.com/enuno/unifi-mcp-server/releases/tag/v0.2.0
+- GitHub: <https://github.com/enuno/unifi-mcp-server/releases/tag/v0.2.0>
 
 See [VERIFICATION_REPORT.md](VERIFICATION_REPORT.md) for complete details.
 

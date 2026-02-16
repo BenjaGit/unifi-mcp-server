@@ -51,6 +51,7 @@ Test in Claude Desktop. Verify tools appear, resources load, prompts work.
 # When to Use This Skill
 
 **Use this skill when:**
+
 - Creating new MCP servers with FastMCP
 - Adding tools, resources, or prompts to existing servers
 - Integrating MCP servers with Claude Desktop
@@ -60,6 +61,7 @@ Test in Claude Desktop. Verify tools appear, resources load, prompts work.
 - Creating custom domain-specific MCP integrations
 
 **Do NOT use this skill when:**
+
 - Building MCP servers in languages other than Python or TypeScript (use official SDK)
 - You need maximum control over MCP protocol implementation (use official SDK)
 - Creating simple command-line tools without LLM integration (FastMCP is overkill)
@@ -88,6 +90,7 @@ if __name__ == "__main__":
 ```
 
 **Run it:**
+
 ```bash
 python server.py
 ```
@@ -120,6 +123,7 @@ mcp.run();
 ```
 
 **Run it:**
+
 ```bash
 npm install @fastmcp/server
 node server.js
@@ -128,11 +132,13 @@ node server.js
 ## Claude Desktop Installation
 
 **Using fastmcp CLI (Recommended):**
+
 ```bash
 fastmcp install claude-desktop server.py
 ```
 
 **Manual config** (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
+
 ```json
 {
   "mcpServers": {
@@ -615,6 +621,7 @@ fastmcp install claude-desktop server.py \
 ```
 
 **TypeScript/Node.js config:**
+
 ```json
 {
   "mcpServers": {
@@ -649,18 +656,21 @@ fastmcp install claude-desktop server.py \
 ## Troubleshooting
 
 **No hammer icon appears:**
+
 - Check config file syntax (use JSON validator)
 - Verify absolute path to server file
 - Check `uv` is installed: `which uv`
 - Look at Claude Desktop logs (Help → View Logs)
 
 **Hammer icon appears but tools don't work:**
+
 - Check environment variables are passed correctly
 - Verify dependencies are installed
 - Check server logs for errors
 - Test server standalone: `python server.py`
 
 **Environment variables not working:**
+
 - Don't rely on shell environment (it won't be loaded)
 - Pass ALL required env vars explicitly in config
 - Use `--env-file` to load from `.env` file
@@ -1066,6 +1076,7 @@ python server.py
 ```
 
 **Use when:**
+
 - Integrating with Claude Desktop
 - Building local command-line tools
 - Single-user scenarios
@@ -1084,6 +1095,7 @@ mcp.run({ transport: "http", host: "0.0.0.0", port: 8000 });
 ```
 
 **Use when:**
+
 - Multiple clients need access
 - Deploying to cloud services
 - Need RESTful interface
@@ -1096,6 +1108,7 @@ if __name__ == "__main__":
 ```
 
 **Use when:**
+
 - Need long-lived connections
 - Real-time updates/streaming
 - Better than HTTP for persistent connections
@@ -1379,11 +1392,13 @@ This FastMCP skill composes with the `creating-skills` workflow for creating cus
 ## When to Combine Both Skills
 
 **Use FastMCP skill alone when:**
+
 - Building one-off MCP servers
 - Integrating specific APIs or data sources
 - Quick prototyping
 
 **Use both skills together when:**
+
 - Creating reusable MCP patterns for your team
 - Building domain-specific skill templates (e.g., "Database MCP Skill", "API Wrapper MCP Skill")
 - Packaging MCP servers as distributable skills

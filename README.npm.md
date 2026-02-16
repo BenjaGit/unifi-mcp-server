@@ -33,7 +33,7 @@ docker run -e UNIFI_HOST=your-controller \
 
 ## Documentation
 
-Full documentation available at: https://github.com/enuno/unifi-mcp-server
+Full documentation available at: <https://github.com/enuno/unifi-mcp-server>
 
 ## Features
 

@@ -907,11 +907,13 @@ Zone-Based Firewall provides modern, scalable network security by grouping netwo
 **⚠️ CRITICAL LIMITATIONS (Verified 2025-11-18):**
 
 **API Availability:**
+
 - ZBF is **NOT available via Cloud API** - requires local gateway API access (`api_type='local'`)
 - Tested on UniFi Express 7 and UDM Pro (API v10.0.156)
 - Only **2 out of 15 implemented endpoints actually exist** in the UniFi API
 
 **What Works (✅):**
+
 - `list_firewall_zones` - List all zones
 - `create_firewall_zone` - Create new zone (untested but likely works)
 - `update_firewall_zone` - Modify zone (untested but likely works)
@@ -921,12 +923,14 @@ Zone-Based Firewall provides modern, scalable network security by grouping netwo
 - `get_zone_networks` - List networks in a zone
 
 **What Doesn't Work (❌ Endpoints Do Not Exist):**
+
 - ❌ Zone policy matrix operations (get/update/delete policies between zones)
 - ❌ Application blocking per zone
 - ❌ Zone traffic statistics
 - **These tools have been REMOVED** - configure these features in UniFi Console UI
 
 **Key Concepts (Available Features Only):**
+
 - **Zones:** Logical groups of networks (e.g., Internal, External, Gateway, VPN, Hotspot, DMZ)
 - **Network Assignment:** Assign networks to zones for organization
 - **Zone-to-Zone Policies:** Must be configured manually in UniFi Console UI
@@ -1140,6 +1144,7 @@ networks = await mcp.call_tool("get_zone_networks", {
 ```
 
 **⚠️ Important Notes:**
+
 - Zone-to-zone policies must be configured in UniFi Console UI
 - Application blocking per zone is not available via API - use DPI categories at network level
 - Zone traffic statistics are not available - use client statistics instead
@@ -2059,6 +2064,7 @@ result = await mcp.call_tool("filter_traffic_flows", {
 Retrieve and visualize your complete network topology including devices, clients, and their interconnections.
 
 **Available Tools:**
+
 - `get_network_topology`: Retrieve complete topology graph
 - `get_device_connections`: Device interconnection details
 - `get_port_mappings`: Port-level connection mapping
@@ -2194,6 +2200,7 @@ port_map = await mcp.call_tool("get_port_mappings", {
 Export network topology in multiple formats for visualization or documentation.
 
 **Supported Formats:**
+
 - `json`: JSON format for programmatic use
 - `graphml`: GraphML (XML) format for network visualization tools (Gephi, yEd, etc.)
 - `dot`: DOT format for Graphviz rendering
@@ -2472,6 +2479,7 @@ UNIFI_RATE_LIMIT=100  # EA: 100, v1 Stable: 10000
 Create a backup of the UniFi controller configuration.
 
 **Parameters:**
+
 - `site_id` (string, required): Site identifier
 - `backup_type` (string, required): Type of backup - "network" or "system"
   - `"network"`: Network settings and device configurations only (~5-10 MB)
@@ -2481,6 +2489,7 @@ Create a backup of the UniFi controller configuration.
 - `dry_run` (boolean, optional): Validate without creating backup
 
 **Returns:**
+
 ```json
 {
   "backup_id": "backup_20250129_153045",
@@ -2494,6 +2503,7 @@ Create a backup of the UniFi controller configuration.
 ```
 
 **Example:**
+
 ```python
 backup = await mcp.call_tool("trigger_backup", {
     "site_id": "default",
@@ -2509,9 +2519,11 @@ print(f"Backup created: {backup['filename']}")
 List all available backups for a site.
 
 **Parameters:**
+
 - `site_id` (string, required): Site identifier
 
 **Returns:**
+
 ```json
 [
   {
@@ -2532,6 +2544,7 @@ List all available backups for a site.
 Get detailed information about a specific backup.
 
 **Parameters:**
+
 - `site_id` (string, required): Site identifier
 - `backup_filename` (string, required): Backup filename
 
@@ -2542,12 +2555,14 @@ Get detailed information about a specific backup.
 Download a backup file to local storage.
 
 **Parameters:**
+
 - `site_id` (string, required): Site identifier
 - `backup_filename` (string, required): Backup filename
 - `output_path` (string, required): Local filesystem path to save
 - `verify_checksum` (boolean, optional): Calculate SHA-256 checksum (default: true)
 
 **Returns:**
+
 ```json
 {
   "backup_filename": "backup_2025-01-29.unf",
@@ -2559,6 +2574,7 @@ Download a backup file to local storage.
 ```
 
 **Example:**
+
 ```python
 result = await mcp.call_tool("download_backup", {
     "site_id": "default",
@@ -2575,6 +2591,7 @@ print(f"Checksum: {result['checksum']}")
 Delete a backup file from the controller (requires confirmation).
 
 **Parameters:**
+
 - `site_id` (string, required): Site identifier
 - `backup_filename` (string, required): Backup filename
 - `confirm` (boolean, required): Must be `true` to execute
@@ -2587,6 +2604,7 @@ Delete a backup file from the controller (requires confirmation).
 Restore the UniFi controller from a backup file (DESTRUCTIVE operation).
 
 **Parameters:**
+
 - `site_id` (string, required): Site identifier
 - `backup_filename` (string, required): Backup filename to restore from
 - `create_pre_restore_backup` (boolean, optional): Create safety backup first (default: true, **recommended**)
@@ -2594,6 +2612,7 @@ Restore the UniFi controller from a backup file (DESTRUCTIVE operation).
 - `dry_run` (boolean, optional): Validate without restoring
 
 **Returns:**
+
 ```json
 {
   "backup_filename": "backup_2025-01-29.unf",
@@ -2606,6 +2625,7 @@ Restore the UniFi controller from a backup file (DESTRUCTIVE operation).
 ```
 
 **Example:**
+
 ```python
 # ALWAYS use confirm=True and create_pre_restore_backup=True
 result = await mcp.call_tool("restore_backup", {
@@ -2619,6 +2639,7 @@ print(f"Pre-restore backup: {result['pre_restore_backup_id']}")
 ```
 
 **Critical Warnings:**
+
 - Controller will restart during restore process
 - All current configuration will be overwritten
 - Devices may temporarily disconnect
@@ -2629,10 +2650,12 @@ print(f"Pre-restore backup: {result['pre_restore_backup_id']}")
 Validate a backup file before restore.
 
 **Parameters:**
+
 - `site_id` (string, required): Site identifier
 - `backup_filename` (string, required): Backup filename
 
 **Returns:**
+
 ```json
 {
   "backup_id": "backup_20250129_120000",
@@ -2650,6 +2673,7 @@ Validate a backup file before restore.
 ```
 
 **Example:**
+
 ```python
 validation = await mcp.call_tool("validate_backup", {
     "site_id": "default",
@@ -2872,6 +2896,7 @@ Uses `list_radius_accounts` or authentication logs to troubleshoot access issues
 **Prompt:** "I'm setting up a new branch office. Create a site, configure basic networks, set up QoS for VoIP, enable RADIUS authentication, and schedule daily backups."
 
 The assistant will orchestrate multiple MCP tools:
+
 1. `create_site` - Provision the site
 2. `create_network` - Set up VLANs
 3. `create_qos_profile` - Configure VoIP prioritization
@@ -2881,6 +2906,7 @@ The assistant will orchestrate multiple MCP tools:
 **Prompt:** "Audit my network: show me topology depth, list all QoS policies, count clients per site, check backup status, and verify all RADIUS servers are reachable."
 
 Demonstrates complex multi-tool queries combining:
+
 - `get_topology_statistics`
 - `list_qos_profiles`
 - `aggregate_client_stats`

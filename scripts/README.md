@@ -80,6 +80,7 @@ node compare/diff-api-specs.js scraped-api-spec-v10.0.160.json scraped-api-spec-
 **Output:** `api-diff-v{old}-to-v{new}.json`
 
 The comparison will show:
+
 - New categories and endpoints
 - Removed categories and endpoints
 - Modified endpoints with detailed changes

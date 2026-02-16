@@ -57,7 +57,6 @@ warp: add async API tool for listing all VLANs in a site
 Context: See `src/tools/networks.py` for patterns, `API.md` for endpoint spec. Output should include Pydantic typing, validation, and audit logging. Add/update test in `tests/unit/test_networks.py`.
 ```
 
-
 ***
 
 ## Security \& Permissions
@@ -80,4 +79,3 @@ Context: See `src/tools/networks.py` for patterns, `API.md` for endpoint spec. O
 ## Maintenance
 
 Update this file anytime project workflows or agent integrations change, or when warp.dev agent capabilities are updated. Always version and date documentation changes for traceability.
-

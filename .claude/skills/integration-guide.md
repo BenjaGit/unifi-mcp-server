@@ -6,9 +6,11 @@ description: Use this skill when integrating major new UniFi features that span 
 # Integration Guide Skill
 
 ## Purpose
+
 Provide comprehensive guidance for integrating major new UniFi features into the MCP server. This skill coordinates the multi-component implementation process, ensuring all aspects (models, API integration, tools, tests, documentation) are properly implemented and integrated.
 
 ## When to Use This Skill
+
 - Implementing Phase 3+ features from DEVELOPMENT_PLAN.md
 - Adding major new capabilities (QoS, SD-WAN, Backup, VPN)
 - Integrating new UniFi applications (Access, Identity, Protect)
@@ -54,6 +56,7 @@ From DEVELOPMENT_PLAN.md:
 Identify all components needed:
 
 **Component Checklist:**
+
 1. **Data Models** (`src/models/`)
    - Pydantic models for API responses
    - Validation rules
@@ -91,30 +94,35 @@ Plan implementation in logical phases:
 **Example: QoS Feature Implementation**
 
 **Phase A: Data Models (2-3 days)**
+
 - Design QoSProfile model
 - Design TrafficRoute model
 - Design ProAVProfile model
 - Write model validation tests
 
 **Phase B: API Client (3-4 days)**
+
 - Test `/api/s/{site}/rest/qosprofile` endpoint
 - Test `/api/s/{site}/rest/trafficroute` endpoint
 - Document API behavior
 - Handle edge cases
 
 **Phase C: Core Tools (5-7 days)**
+
 - Implement CRUD tools for QoS profiles
 - Implement CRUD tools for traffic routes
 - Add safety mechanisms (confirm, dry_run)
 - Write comprehensive tests
 
 **Phase D: Advanced Features (2-3 days)**
+
 - ProAV profile templates
 - DSCP tagging operations
 - Bandwidth scheduling
 - Application-specific tools
 
 **Phase E: Documentation & Polish (1-2 days)**
+
 - Update API.md
 - Create QoS usage guide
 - Add examples to README
@@ -655,6 +663,7 @@ async def test_qos_workflow():
 ## Reference Files
 
 Load for context:
+
 - `DEVELOPMENT_PLAN.md` - Feature requirements and roadmap
 - `TODO.md` - Implementation progress tracking
 - `API.md` - Existing tool patterns
@@ -665,6 +674,7 @@ Load for context:
 ## Success Metrics
 
 Feature integration successful when:
+
 - [ ] All components implemented (models, API, tools, tests)
 - [ ] Test coverage ≥80% for new code
 - [ ] All quality checks pass

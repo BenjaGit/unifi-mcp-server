@@ -102,6 +102,7 @@ See [API.md](API.md#firewall-policies-v2-api) for complete documentation.
 This document tracks the implementation status of Zone-Based Firewall (ZBF) functionality in the UniFi MCP Server. ZBF is a modern firewall approach that groups networks into security zones and defines policies for traffic between zones.
 
 **Requirements:**
+
 - UniFi Network Application 9.0 or higher
 - **Local API access ONLY** (Cloud API does not support ZBF)
 - Local gateway with admin API key
@@ -122,6 +123,7 @@ This document tracks the implementation status of Zone-Based Firewall (ZBF) func
 | **Total (Legacy/Deprecated)** | **8** | **Deprecated** | **Endpoints don't exist** | **84.13%** |
 
 **Functional Tools:**
+
 - ✅ 7 Zone Management tools (2 verified, 5 untested but likely working)
 - ✅ 5 Firewall Policies v2 tools (zone-to-zone policies - **working alternative**)
 
@@ -132,6 +134,7 @@ This document tracks the implementation status of Zone-Based Firewall (ZBF) func
 ### Zone Management (7 tools)
 
 #### ✅ `list_firewall_zones` - **VERIFIED**
+
 - **Status:** Implemented, Tested & VERIFIED ✅
 - **Test Coverage:** Yes (3 tests)
 - **Endpoint:** `GET /integration/v1/sites/{site_id}/firewall/zones`
@@ -146,6 +149,7 @@ This document tracks the implementation status of Zone-Based Firewall (ZBF) func
 - **Test Result:** Returns 6 system-defined zones (Hotspot, Gateway, External, Dmz, Vpn, Internal)
 
 #### ✅ `create_firewall_zone`
+
 - **Status:** Implemented & Tested
 - **Test Coverage:** Yes (3 tests: success, error, dry-run)
 - **Endpoint:** `POST /integration/v1/sites/{site_id}/firewall/zones`
@@ -157,6 +161,7 @@ This document tracks the implementation status of Zone-Based Firewall (ZBF) func
   - Audit logging enabled
 
 #### ✅ `update_firewall_zone`
+
 - **Status:** Implemented & Tested
 - **Test Coverage:** Yes (3 tests)
 - **Endpoint:** `PUT /integration/v1/sites/{site_id}/firewall/zones/{zone_id}`
@@ -168,6 +173,7 @@ This document tracks the implementation status of Zone-Based Firewall (ZBF) func
   - Audit logging enabled
 
 #### ✅ `delete_firewall_zone`
+
 - **Status:** Implemented & Tested
 - **Test Coverage:** Yes (3 tests: success, error, dry-run)
 - **Endpoint:** `DELETE /integration/v1/sites/{site_id}/firewall/zones/{zone_id}`
@@ -179,6 +185,7 @@ This document tracks the implementation status of Zone-Based Firewall (ZBF) func
   - Audit logging enabled
 
 #### ✅ `assign_network_to_zone`
+
 - **Status:** Implemented & Tested
 - **Test Coverage:** Yes (3 tests)
 - **Endpoint:** `PUT /integration/v1/sites/{site_id}/firewall/zones/{zone_id}`
@@ -191,6 +198,7 @@ This document tracks the implementation status of Zone-Based Firewall (ZBF) func
   - Prevents duplicate assignments
 
 #### ✅ `unassign_network_from_zone`
+
 - **Status:** Implemented & Tested
 - **Test Coverage:** Yes (2 tests: success, dry-run)
 - **Endpoint:** `PUT /integration/v1/sites/{site_id}/firewall/zones/{zone_id}`
@@ -204,6 +212,7 @@ This document tracks the implementation status of Zone-Based Firewall (ZBF) func
   - Edge case validation test removed (async mock complexity)
 
 #### ✅ `get_zone_networks` - **VERIFIED**
+
 - **Status:** Implemented, Tested & VERIFIED ✅
 - **Test Coverage:** Yes (1 test)
 - **Endpoint:** `GET /integration/v1/sites/{site_id}/firewall/zones/{zone_id}`
@@ -217,6 +226,7 @@ This document tracks the implementation status of Zone-Based Firewall (ZBF) func
 - **Test Result:** Successfully retrieved zone with networkIds
 
 #### ❌ `get_zone_statistics` - **ENDPOINT DOES NOT EXIST**
+
 - **Status:** Implemented & Tested (but NON-FUNCTIONAL)
 - **Test Coverage:** Yes (1 test)
 - **Endpoint:** `GET /integration/v1/sites/{site_id}/firewall/zones/{zone_id}/statistics`
@@ -232,6 +242,7 @@ This document tracks the implementation status of Zone-Based Firewall (ZBF) func
 **⚠️ These legacy endpoints do not exist. Use Firewall Policies v2 API for zone-to-zone policies instead.**
 
 #### ❌ `get_zbf_matrix` - **ENDPOINT DOES NOT EXIST**
+
 - **Status:** Implemented & Tested (but NON-FUNCTIONAL)
 - **Test Coverage:** Yes (3 tests)
 - **Endpoint:** `GET /integration/v1/sites/{site_id}/firewall/policies/zone-matrix`
@@ -244,6 +255,7 @@ This document tracks the implementation status of Zone-Based Firewall (ZBF) func
 - **Action Required:** Remove tool or mark as unavailable
 
 #### ❌ `get_zone_policies` - **ENDPOINT DOES NOT EXIST**
+
 - **Status:** Implemented & Tested (but NON-FUNCTIONAL)
 - **Test Coverage:** Yes (1 test)
 - **Endpoint:** `GET /integration/v1/sites/{site_id}/firewall/policies/zones/{zone_id}`
@@ -255,6 +267,7 @@ This document tracks the implementation status of Zone-Based Firewall (ZBF) func
 - **Action Required:** Remove tool or mark as unavailable
 
 #### ❌ `get_zone_matrix_policy` - **ENDPOINT DOES NOT EXIST**
+
 - **Status:** Implemented & Tested (but NON-FUNCTIONAL)
 - **Test Coverage:** Yes (1 test)
 - **Endpoint:** `GET /integration/v1/sites/{site_id}/firewall/policies/zone-matrix/{source_zone_id}/{destination_zone_id}`
@@ -263,6 +276,7 @@ This document tracks the implementation status of Zone-Based Firewall (ZBF) func
 - **Action Required:** Remove tool or mark as unavailable
 
 #### ❌ `update_zbf_policy` - **ENDPOINT DOES NOT EXIST**
+
 - **Status:** Implemented & Tested (but NON-FUNCTIONAL)
 - **Test Coverage:** Yes (4 tests: accept, reject, drop, dry-run)
 - **Endpoint:** `PUT /integration/v1/sites/{site_id}/firewall/policies/zone-matrix/{source_zone_id}/{destination_zone_id}`
@@ -271,6 +285,7 @@ This document tracks the implementation status of Zone-Based Firewall (ZBF) func
 - **Action Required:** Remove tool or mark as unavailable
 
 #### ❌ `delete_zbf_policy` - **ENDPOINT DOES NOT EXIST**
+
 - **Status:** Implemented & Tested (but NON-FUNCTIONAL)
 - **Test Coverage:** Yes (2 tests: success, dry-run)
 - **Endpoint:** `DELETE /integration/v1/sites/{site_id}/firewall/policies/zone-matrix/{source_zone_id}/{destination_zone_id}`
@@ -283,6 +298,7 @@ This document tracks the implementation status of Zone-Based Firewall (ZBF) func
 **⚠️ These endpoints do not exist in the UniFi API.**
 
 #### ❌ `block_application_by_zone` - **ENDPOINT DOES NOT EXIST**
+
 - **Status:** Implemented & Tested (but NON-FUNCTIONAL)
 - **Test Coverage:** Yes (3 tests: success, error, dry-run)
 - **Endpoint:** `POST /integration/v1/sites/{site_id}/firewall/zones/{zone_id}/app-block`
@@ -294,6 +310,7 @@ This document tracks the implementation status of Zone-Based Firewall (ZBF) func
 - **Action Required:** Remove tool or mark as unavailable
 
 #### ❌ `list_blocked_applications` - **ENDPOINT DOES NOT EXIST**
+
 - **Status:** Implemented & Tested (but NON-FUNCTIONAL)
 - **Test Coverage:** Yes (1 test)
 - **Endpoint:** `GET /integration/v1/sites/{site_id}/firewall/zones/{zone_id}/app-block`
@@ -309,22 +326,26 @@ This document tracks the implementation status of Zone-Based Firewall (ZBF) func
 ### Overall Coverage: 84.13%
 
 **File Coverage:**
+
 - `src/tools/firewall_zones.py`: 85.96% (183/213 lines)
 - `src/tools/zbf_matrix.py`: 81.41% (129/158 lines)
 
 **Test Suite:**
+
 - Total Tests: 34
 - Passing: 34
 - Failed: 0
 - Coverage Target: 90% (not yet met)
 
 **Test Distribution:**
+
 - Zone Management: 18 tests
 - Zone Policy Matrix: 11 tests
 - Application Blocking: 4 tests
 - Error Handling: 1 test
 
 **Missing Coverage:**
+
 - Edge case validations (2 tests removed due to async mock complexity)
 - Some error paths in network assignment validation
 - Complex nested response parsing
@@ -336,6 +357,7 @@ This document tracks the implementation status of Zone-Based Firewall (ZBF) func
 **Reason:** Implementation based on UniFi API documentation and endpoint pattern analysis. Requires actual UniFi Network Application 9.0+ controller for verification.
 
 **Verification Plan:**
+
 1. Set up UniFi Network 9.0+ test environment
 2. Test each endpoint with curl/Postman
 3. Verify request/response formats
@@ -343,6 +365,7 @@ This document tracks the implementation status of Zone-Based Firewall (ZBF) func
 5. Update models and tools as needed
 
 **Speculative Endpoints (Require Extra Verification):**
+
 - `GET /integration/v1/sites/{site_id}/firewall/zones/{zone_id}/statistics`
 - `POST /integration/v1/sites/{site_id}/firewall/zones/{zone_id}/app-block`
 - `GET /integration/v1/sites/{site_id}/firewall/zones/{zone_id}/app-block`
@@ -350,26 +373,34 @@ This document tracks the implementation status of Zone-Based Firewall (ZBF) func
 ## Known Limitations
 
 ### 1. Unverified API Endpoints
+
 All ZBF endpoints are unverified against actual UniFi Network Application 9.0+. Implementation based on API documentation and pattern analysis.
 
 ### 2. Removed Edge Case Tests
+
 Two edge case validation tests were removed due to async mock complexity:
+
 - `test_unassign_network_not_in_zone` (firewall_zones)
 - `test_get_zone_matrix_policy_not_found` (zbf_matrix)
 
 These scenarios still have validation logic in the code but lack explicit test coverage.
 
 ### 3. Test Coverage Below Target
+
 Current coverage at 84.13% vs. target of 90%. Additional tests needed for:
+
 - Complex error scenarios
 - Nested response parsing edge cases
 - Network assignment validation paths
 
 ### 4. Application Signature Validation
+
 `block_application_by_zone` accepts application signatures but doesn't validate against available DPI signatures. Users must ensure valid signatures.
 
 ### 5. Zone Deletion Dependencies
+
 `delete_firewall_zone` doesn't check for:
+
 - Active policies referencing the zone
 - Networks still assigned to the zone
 - Active traffic flows through the zone
@@ -377,14 +408,17 @@ Current coverage at 84.13% vs. target of 90%. Additional tests needed for:
 UniFi controller should handle these validations server-side.
 
 ### 6. No Batch Operations
+
 All operations are single-item. No bulk zone creation, policy updates, or network assignments.
 
 ### 7. Statistics Endpoint Uncertainty
+
 `get_zone_statistics` endpoint path is speculative. Actual implementation may vary.
 
 ## Production Readiness Checklist
 
 ### Phase 1 (Complete) ✅
+
 - [x] Implement 15 ZBF tools
 - [x] Add Pydantic models for type safety
 - [x] Implement confirmation pattern for destructive operations
@@ -396,6 +430,7 @@ All operations are single-item. No bulk zone creation, policy updates, or networ
 - [x] Create implementation status document
 
 ### Phase 2 (Not Started) 🔲
+
 - [ ] Verify all API endpoints against UniFi Network 9.0+
 - [ ] Test with actual controller hardware/VM
 - [ ] Document any endpoint discrepancies
@@ -406,6 +441,7 @@ All operations are single-item. No bulk zone creation, policy updates, or networ
 - [ ] Performance test with large zone matrices
 
 ### Phase 3 (Not Started) 🔲
+
 - [ ] Add batch operation support
 - [ ] Implement zone dependency checking
 - [ ] Add application signature validation
@@ -416,6 +452,7 @@ All operations are single-item. No bulk zone creation, policy updates, or networ
 - [ ] Create zone backup/restore functionality
 
 ### Phase 4 (Not Started) 🔲
+
 - [ ] Add WebSocket support for real-time statistics
 - [ ] Implement caching for zone/policy lookups
 - [ ] Add rate limiting for API calls
@@ -428,6 +465,7 @@ All operations are single-item. No bulk zone creation, policy updates, or networ
 ## Security Considerations
 
 ### Implemented ✅
+
 - Confirmation required for all destructive operations
 - Audit logging for all mutating actions
 - Type-safe request validation with Pydantic
@@ -435,6 +473,7 @@ All operations are single-item. No bulk zone creation, policy updates, or networ
 - No credential exposure in responses
 
 ### Recommended 🔲
+
 - Role-based access control (RBAC) for zone operations
 - Policy change approval workflow
 - Zone policy simulation before apply
@@ -445,12 +484,14 @@ All operations are single-item. No bulk zone creation, policy updates, or networ
 ## Next Steps
 
 ### Immediate (Phase 1 Completion)
+
 1. ✅ Complete documentation (API.md, ZBF_STATUS.md)
 2. ✅ Update README.md with ZBF features
 3. 🔲 Commit and push Phase 1 changes
 4. 🔲 Create GitHub release notes for ZBF Phase 1
 
 ### Short-term (Phase 2)
+
 1. Set up UniFi Network 9.0+ test environment
 2. Verify all 15 endpoints with real controller
 3. Document actual vs. expected API behavior
@@ -459,12 +500,14 @@ All operations are single-item. No bulk zone creation, policy updates, or networ
 6. Reach 90%+ coverage target
 
 ### Medium-term (Phase 3)
+
 1. Implement batch operations
 2. Add dependency checking
 3. Create zone templates
 4. Add policy conflict detection
 
 ### Long-term (Phase 4)
+
 1. Real-time statistics via WebSocket
 2. Caching and performance optimization
 3. Advanced features (recommendations, versioning, rollback)

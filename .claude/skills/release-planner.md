@@ -6,9 +6,11 @@ description: Use this skill to plan and coordinate version releases. Creates rel
 # Release Planner Skill
 
 ## Purpose
+
 Guide the complete release process for UniFi MCP Server version releases, ensuring all requirements are met, documentation is updated, tests pass, and releases are properly tagged and published. Coordinates the multi-step release workflow from planning to deployment.
 
 ## When to Use This Skill
+
 - Planning a new version release (v0.2.0, v0.3.0, v1.0.0)
 - Before running `/unifi-mcp-release-prep` slash command
 - Quarterly release planning
@@ -23,6 +25,7 @@ Guide the complete release process for UniFi MCP Server version releases, ensuri
 Ask the user about the release:
 
 **Release Types:**
+
 1. **Major Release (X.0.0)**
    - Breaking changes
    - Major new features
@@ -47,6 +50,7 @@ Ask the user about the release:
    - Immediate deployment
 
 **Questions to Ask:**
+
 - What type of release is this?
 - What features/fixes are included?
 - Are there any breaking changes?
@@ -75,6 +79,7 @@ Overall: ~35% complete
 ```
 
 **Release Decision:**
+
 - **If <80% complete**: Consider splitting release into smaller increments
 - **If ≥80% complete**: Proceed with full release
 - **If critical features incomplete**: Delay release or remove from scope
@@ -84,6 +89,7 @@ Overall: ~35% complete
 Based on completion status, define what's included:
 
 **Example v0.2.0 Scope:**
+
 ```markdown
 ## v0.2.0 Release Scope
 
@@ -115,6 +121,7 @@ Based on completion status, define what's included:
 ### Validation Checklist
 
 **Code Quality** (Must Pass):
+
 - [ ] All tests passing: `pytest tests/unit/ -v`
 - [ ] Test coverage ≥60%: `pytest --cov=src --cov-report=term`
 - [ ] No linting errors: `ruff check src/ tests/`
@@ -124,6 +131,7 @@ Based on completion status, define what's included:
 - [ ] No security issues: `bandit -r src/`
 
 **Documentation** (Must Be Updated):
+
 - [ ] README.md updated with new features
 - [ ] API.md updated with new tools
 - [ ] CHANGELOG.md has release notes
@@ -135,12 +143,14 @@ Based on completion status, define what's included:
 - [ ] Migration guides written (if breaking changes)
 
 **CI/CD** (Must Pass):
+
 - [ ] GitHub Actions CI workflow passing
 - [ ] Security scan workflow passing
 - [ ] Docker build succeeds
 - [ ] All required checks green
 
 **Testing** (Recommended):
+
 - [ ] Integration tests run on real controller
 - [ ] Manual testing of new features completed
 - [ ] Performance benchmarks acceptable
@@ -506,6 +516,7 @@ Thanks to everyone who contributed to this release!
 
 EOF
 )"
+
 ```
 
 ## Phase 5: Post-Release
@@ -556,6 +567,7 @@ git push
 ## Reference Files
 
 Load for context:
+
 - `DEVELOPMENT_PLAN.md` - Release milestones and progress
 - `TODO.md` - Feature completion status
 - `CHANGELOG.md` - Release history
@@ -565,6 +577,7 @@ Load for context:
 ## Success Metrics
 
 Release successful when:
+
 - [ ] All pre-release validation passed
 - [ ] Documentation complete and accurate
 - [ ] GitHub release created

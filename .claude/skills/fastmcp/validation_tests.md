@@ -9,6 +9,7 @@ This file defines acceptance criteria for the FastMCP skill. All tests must pass
 **Test Method**: Manual verification with test phrases
 
 **Test Cases**:
+
 ```bash
 # Test phrase 1: "Create an MCP server"
 # Expected: Skill loads and presents checklist
@@ -24,6 +25,7 @@ This file defines acceptance criteria for the FastMCP skill. All tests must pass
 ```
 
 **Success Criteria**:
+
 - [ ] Skill description clearly indicates activation for MCP/FastMCP tasks
 - [ ] Activation triggers are documented in skill frontmatter or description
 - [ ] Checklist appears when skill is loaded
@@ -39,6 +41,7 @@ This file defines acceptance criteria for the FastMCP skill. All tests must pass
 **Test Method**: Check for required sections in SKILL.md
 
 **Required Sections**:
+
 - [ ] Frontmatter with name, description
 - [ ] `<required>` block with checklist
 - [ ] When to Use This Skill
@@ -61,6 +64,7 @@ This file defines acceptance criteria for the FastMCP skill. All tests must pass
 - [ ] Version Compatibility
 
 **Success Criteria**:
+
 - [ ] All required sections present
 - [ ] Each section has meaningful content (>100 words)
 - [ ] No placeholder text like "TODO" or "Coming soon"
@@ -78,6 +82,7 @@ This file defines acceptance criteria for the FastMCP skill. All tests must pass
 **Test Cases**:
 
 ### Python Examples
+
 ```bash
 # Extract all Python code blocks
 grep -A 50 '```python' skills/fastmcp/SKILL.md | sed '/```$/Q' > /tmp/python_examples.py
@@ -88,6 +93,7 @@ python3 -m py_compile /tmp/python_examples.py
 ```
 
 ### TypeScript Examples
+
 ```bash
 # Extract all TypeScript code blocks
 grep -A 50 '```typescript' skills/fastmcp/SKILL.md | sed '/```$/Q' > /tmp/typescript_examples.ts
@@ -98,6 +104,7 @@ tsc --noEmit /tmp/typescript_examples.ts
 ```
 
 **Success Criteria**:
+
 - [ ] All Python examples are syntactically valid
 - [ ] All TypeScript examples are syntactically valid
 - [ ] Examples include type hints (Python) or type annotations (TypeScript)
@@ -115,6 +122,7 @@ tsc --noEmit /tmp/typescript_examples.ts
 **Test Method**: Compare structure with existing skills
 
 **Comparison Checklist**:
+
 ```bash
 # Check frontmatter format
 head -5 skills/fastmcp/SKILL.md
@@ -132,6 +140,7 @@ diff -y --suppress-common-lines \
 ```
 
 **Success Criteria**:
+
 - [ ] Frontmatter matches pattern: `---\nname: ...\ndescription: ...\n---`
 - [ ] Has `<required>` block with checklist
 - [ ] Checklist items use TodoWrite format
@@ -149,6 +158,7 @@ diff -y --suppress-common-lines \
 **Test Method**: Read through skill linearly and check flow
 
 **Flow Checklist**:
+
 - [ ] Quick Start appears before Advanced Patterns
 - [ ] Core Concepts appear before Advanced Patterns
 - [ ] Examples progress from simple to complex
@@ -158,6 +168,7 @@ diff -y --suppress-common-lines \
 - [ ] Advanced patterns clearly marked as optional
 
 **Success Criteria**:
+
 - [ ] Can understand skill by reading top-to-bottom
 - [ ] No forward references to undefined concepts
 - [ ] Complexity increases gradually
@@ -174,6 +185,7 @@ diff -y --suppress-common-lines \
 **Test Method**: Run Claude with specific prompt and verify output
 
 **Test Command**:
+
 ```bash
 # This would be run via Claude CLI or API
 # Simulating: User asks Claude to create an MCP tool
@@ -181,6 +193,7 @@ echo "Create an MCP server with a tool that adds two numbers" | claude-code-cli
 ```
 
 **Expected Behavior**:
+
 1. Skill detects MCP/tool creation request
 2. Skill loads and presents checklist
 3. Skill provides Python example with @mcp.tool decorator
@@ -189,6 +202,7 @@ echo "Create an MCP server with a tool that adds two numbers" | claude-code-cli
 6. Examples are syntactically valid
 
 **Verification**:
+
 ```bash
 # Manual verification checklist
 - [ ] Skill loaded automatically
@@ -210,11 +224,13 @@ echo "Create an MCP server with a tool that adds two numbers" | claude-code-cli
 **Test Method**: Run Claude with resource request
 
 **Test Command**:
+
 ```bash
 echo "Add a resource to my MCP server that reads files" | claude-code-cli
 ```
 
 **Expected Behavior**:
+
 1. Skill provides URI template pattern guidance
 2. Skill shows security validation example
 3. Skill provides Python AND TypeScript examples
@@ -222,6 +238,7 @@ echo "Add a resource to my MCP server that reads files" | claude-code-cli
 5. Examples include error handling
 
 **Verification**:
+
 - [ ] URI template pattern explained
 - [ ] Security validation emphasized
 - [ ] Python example with path validation
@@ -239,17 +256,20 @@ echo "Add a resource to my MCP server that reads files" | claude-code-cli
 **Test Method**: Run Claude with integration question
 
 **Test Command**:
+
 ```bash
 echo "How do I integrate my MCP server with Claude Desktop?" | claude-code-cli
 ```
 
 **Expected Behavior**:
+
 1. Skill provides fastmcp CLI installation command
 2. Skill provides manual config JSON example
 3. Skill explains environment variable handling
 4. Skill provides verification steps (hammer icon check)
 
 **Verification**:
+
 - [ ] fastmcp CLI command provided
 - [ ] Manual config JSON example correct
 - [ ] Environment variable isolation explained
@@ -267,17 +287,20 @@ echo "How do I integrate my MCP server with Claude Desktop?" | claude-code-cli
 **Test Method**: Run Claude with migration request
 
 **Test Command**:
+
 ```bash
 echo "I want to migrate my FastMCP server from v2 to v3" | claude-code-cli
 ```
 
 **Expected Behavior**:
+
 1. Skill provides breaking changes list
 2. Skill provides migration steps
 3. Skill provides compatibility matrix
 4. Skill warns about v3 beta status
 
 **Verification**:
+
 - [ ] Breaking changes documented
 - [ ] Migration steps actionable
 - [ ] Compatibility matrix clear
@@ -295,11 +318,13 @@ echo "I want to migrate my FastMCP server from v2 to v3" | claude-code-cli
 **Test Method**: Run Claude with composite request
 
 **Test Command**:
+
 ```bash
 echo "Create a custom skill for working with my company's API using MCP" | claude-code-cli
 ```
 
 **Expected Behavior**:
+
 1. Creating-skills skill loads first
 2. Creating-skills delegates to fastmcp skill for MCP implementation
 3. Fastmcp skill provides MCP server structure
@@ -307,6 +332,7 @@ echo "Create a custom skill for working with my company's API using MCP" | claud
 5. Workflow is coherent and doesn't duplicate guidance
 
 **Verification**:
+
 - [ ] Skills compose correctly
 - [ ] No conflicting guidance
 - [ ] Workflow is smooth
@@ -320,6 +346,7 @@ echo "Create a custom skill for working with my company's API using MCP" | claud
 ## Test Execution Log
 
 ### Run 1: [Date]
+
 - Test 1: ❌ FAIL
 - Test 2: ❌ FAIL
 - Test 3: ❌ FAIL
@@ -334,6 +361,7 @@ echo "Create a custom skill for working with my company's API using MCP" | claud
 **Overall**: ❌ 0/10 tests passing
 
 ### Run 2: [Date after implementation]
+
 - Test 1: [Status]
 - Test 2: [Status]
 - Test 3: [Status]
@@ -442,6 +470,7 @@ echo "========================================="
 ```
 
 Make executable:
+
 ```bash
 chmod +x skills/fastmcp/run_validation_tests.sh
 ```
@@ -451,6 +480,7 @@ chmod +x skills/fastmcp/run_validation_tests.sh
 ## Success Criteria Summary
 
 **Minimum Requirements for Skill Completion**:
+
 - ✅ All 10 tests passing
 - ✅ At least 10 Python examples
 - ✅ At least 10 TypeScript examples

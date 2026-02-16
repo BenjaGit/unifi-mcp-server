@@ -24,9 +24,11 @@ version: 3.0.0
 # UniFi MCP Server - Live Environment Testing & Automated Remediation
 
 ## Purpose
+
 Automatically discover UniFi environments from `.env`, execute comprehensive tests, sanitize results, create GitHub issues for bugs, and automatically instruct the `@claude` bot to develop and submit fixes via PRs.
 
 **Key Features:**
+
 - ✅ **Portable:** No hardcoded IPs/hostnames; auto-discovers from `.env`.
 - ✅ **Secure:** Masks credentials and sanitizes IP addresses in logs.
 - ✅ **Interactive:** Prompts user to select which discovered environments to test.

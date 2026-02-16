@@ -19,7 +19,6 @@ export GEMINI_API_KEY="your-api-key"
 echo "GEMINI_API_KEY=your-api-key" >> .gemini/.env
 ```
 
-
 ### Configuration
 
 Create `.gemini/settings.json` in project root:
@@ -46,7 +45,6 @@ Create `.gemini/settings.json` in project root:
 }
 ```
 
-
 ***
 
 ## Project Context for Gemini
@@ -60,7 +58,6 @@ Create `.gemini/settings.json` in project root:
 - **Caching**: Redis (optional, with async client)
 - **Validation**: Pydantic v2 models
 - **Code Quality**: black, isort, ruff, mypy, pre-commit
-
 
 ### Architecture Overview
 
@@ -76,7 +73,6 @@ src/
 ├── webhooks/            # Event handlers
 └── utils/               # Validators and helpers
 ```
-
 
 ***
 
@@ -105,7 +101,6 @@ class FirewallRule(BaseModel):
     protocol: Optional[Literal["tcp", "udp", "icmp"]] = None
 ```
 
-
 #### Async/Await Patterns
 
 - All I/O operations MUST be async
@@ -124,7 +119,6 @@ async def get_devices(self, site_id: str) -> List[Dict]:
         logger.error(f"Failed to fetch devices: {e}")
         raise
 ```
-
 
 ### 2. MCP Tool Development
 
@@ -193,7 +187,6 @@ async def tool_name(
         raise
 ```
 
-
 #### Safety Mechanisms (CRITICAL)
 
 **All mutating operations MUST implement:**
@@ -238,7 +231,6 @@ async def test_create_firewall_rule():
     mock_api.create_rule.assert_called_once()
 ```
 
-
 #### Running Tests
 
 ```bash
@@ -254,7 +246,6 @@ pytest -k "firewall" -v
 # Run with debugging
 pytest --pdb tests/unit/test_firewall_tools.py
 ```
-
 
 ### 4. API Integration Patterns
 
@@ -284,7 +275,6 @@ async with UniFiAPI(config) as api:
     await api.delete(f"/sites/{site_id}/firewall/rules/{rule_id}")
 ```
 
-
 #### Rate Limiting
 
 The API client implements automatic rate limiting:
@@ -292,7 +282,6 @@ The API client implements automatic rate limiting:
 - Default: 10 requests per second
 - Automatic backoff on 429 responses
 - No manual rate limiting needed in tools
-
 
 ### 5. Pydantic Model Development
 
@@ -348,7 +337,6 @@ class FirewallZone(BaseModel):
         validate_assignment = True
 ```
 
-
 ### 6. Error Handling \& Logging
 
 #### Logging Standards
@@ -371,7 +359,6 @@ logger.error("API request failed", extra={"endpoint": url, "status": status}, ex
 # Debug: Detailed tracing (development only)
 logger.debug("Request payload", extra={"data": sanitize(payload)})
 ```
-
 
 #### Exception Handling
 
@@ -400,7 +387,6 @@ except UniFiAPIError as e:
     return {"error": "API request failed", "message": str(e)}
 ```
 
-
 ***
 
 ## Gemini Workflow Examples
@@ -424,7 +410,6 @@ gemini "Generate pytest unit tests for the create_vlan tool. Mock the UniFi API 
 gemini "Update API.md to document the new create_vlan tool. Include examples and parameter descriptions."
 ```
 
-
 ### Debugging Existing Code
 
 ```bash
@@ -438,7 +423,6 @@ gemini "Review src/tools/dpi.py for performance issues. The list_top_application
 gemini "Refactor src/tools/firewall_zones.py to improve readability. Reduce complexity in the assign_network_to_zone function."
 ```
 
-
 ### Code Review Assistance
 
 ```bash
@@ -448,7 +432,6 @@ gemini "Review my changes in src/tools/wifi.py. Check for: type safety, error ha
 # Security audit
 gemini "Security audit this code for potential vulnerabilities: [paste code]. Focus on input validation, authentication, and data sanitization."
 ```
-
 
 ***
 
@@ -470,7 +453,6 @@ gemini "Run pre-commit checks and fix any issues"
 gemini "Generate release notes for changes in the current branch"
 ```
 
-
 ### Testing \& Quality
 
 ```bash
@@ -484,7 +466,6 @@ gemini "Which modules have coverage below 50%? Suggest unit tests to improve cov
 gemini "Run mypy on src/ and fix type errors"
 ```
 
-
 ### Documentation
 
 ```bash
@@ -497,7 +478,6 @@ gemini "Update API.md with the latest tool signatures from src/main.py"
 # Create examples
 gemini "Create 5 practical examples of using the DPI statistics tools"
 ```
-
 
 ***
 
@@ -542,7 +522,6 @@ async def update_zbf_policy_matrix(site_id: str, source_zone_id: str, dest_zone_
     }
 ```
 
-
 ### Redis Caching
 
 **Best Practice**: Always check cache configuration:
@@ -562,7 +541,6 @@ data = await api.get_data()
 if cache:
     await cache.set(key, data, ttl=300)
 ```
-
 
 ***
 
@@ -613,7 +591,6 @@ async def batch_restart_devices(device_ids: List[str], site_id: str):
     return {"successes": len(successes), "failures": len(failures)}
 ```
 
-
 ### Caching Strategies
 
 ```python
@@ -629,7 +606,6 @@ async def get_network_topology(site_id: str) -> Dict:
     return build_topology(devices, clients, networks)
 ```
 
-
 ***
 
 ## Security Considerations
@@ -644,7 +620,6 @@ UNIFI_API_KEY = os.getenv("UNIFI_API_KEY")
 UNIFI_API_KEY = "xyz123abc"  # NEVER DO THIS
 ```
 
-
 ### Input Sanitization
 
 ```python
@@ -654,7 +629,6 @@ def sanitize_firewall_rule_name(name: str) -> str:
     # Allow alphanumeric, hyphens, underscores, spaces
     return re.sub(r'[^a-zA-Z0-9\-_ ]', '', name)
 ```
-
 
 ### Audit Logging
 
@@ -675,7 +649,6 @@ All mutating operations are logged to `audit.log`:
 }
 ```
 
-
 ***
 
 ## Troubleshooting
@@ -695,7 +668,6 @@ uv pip list | grep fastmcp
 python -c "from src.config import load_config; print(load_config())"
 ```
 
-
 #### UniFi API Connection Fails
 
 ```bash
@@ -705,7 +677,6 @@ echo $UNIFI_API_KEY
 # Test API connectivity
 curl -H "X-API-Key: $UNIFI_API_KEY" https://api.ui.com/ea/hosts
 ```
-
 
 #### Tests Failing
 
@@ -719,7 +690,6 @@ pytest -vv tests/unit/test_failing_module.py
 # Check for async issues
 pytest -k "async" --tb=short
 ```
-
 
 ***
 
@@ -746,7 +716,6 @@ feat(tools): add VLAN creation tool
 Closes #123
 ```
 
-
 ***
 
 ## Additional Resources
@@ -760,20 +729,18 @@ Closes #123
 - **Testing Strategy**: [TESTING_PLAN.md](TESTING_PLAN.md)
 - **ZBF Status**: [ZBF_STATUS.md](ZBF_STATUS.md)
 
-
 ### External Links
 
-- **UniFi API Documentation**: https://developer.ui.com/
-- **FastMCP Framework**: https://github.com/jlowin/fastmcp
-- **MCP Specification**: https://modelcontextprotocol.io/
-- **Gemini CLI Docs**: https://geminicli.com/
-
+- **UniFi API Documentation**: <https://developer.ui.com/>
+- **FastMCP Framework**: <https://github.com/jlowin/fastmcp>
+- **MCP Specification**: <https://modelcontextprotocol.io/>
+- **Gemini CLI Docs**: <https://geminicli.com/>
 
 ### Community
 
-- **GitHub Issues**: https://github.com/enuno/unifi-mcp-server/issues
-- **GitHub Discussions**: https://github.com/enuno/unifi-mcp-server/discussions
-- **UniFi Community**: https://community.ui.com/
+- **GitHub Issues**: <https://github.com/enuno/unifi-mcp-server/issues>
+- **GitHub Discussions**: <https://github.com/enuno/unifi-mcp-server/discussions>
+- **UniFi Community**: <https://community.ui.com/>
 
 ***
 
@@ -787,4 +754,3 @@ Closes #123
 **Last Updated**: November 19, 2025
 **Maintained By**: UniFi MCP Server Team
 **Review Cycle**: Monthly or upon significant Gemini CLI updates
-

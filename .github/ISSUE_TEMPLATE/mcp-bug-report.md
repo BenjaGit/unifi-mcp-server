@@ -30,6 +30,7 @@ The MCP tool `[tool_name]` failed when tested against the **[environment]** envi
 ## Steps to Reproduce
 
 1. Configure environment:
+
    ```bash
    export UNIFI_API_TYPE="..."
    export UNIFI_HOST="..." # or UNIFI_LOCAL_HOST
@@ -38,6 +39,7 @@ The MCP tool `[tool_name]` failed when tested against the **[environment]** envi
    ```
 
 2. Start MCP server:
+
    ```bash
    uv run src/main.py
    ```
@@ -79,12 +81,14 @@ The tool failed with the error message shown above.
 - **Tool Name**: `[tool_name]`
 - **Tool Category**: [ ] Site Management | [ ] Device Operations | [ ] Client Management | [ ] Network Config | [ ] Firewall | [ ] Traffic Analytics | [ ] Other
 - **Tool Parameters Used**:
+
   ```json
   {
     "site_name": "default",
     "param2": "value2"
   }
   ```
+
 - **Dry Run Mode**: [ ] Yes | [ ] No | [ ] N/A
 
 ## Related Files
@@ -136,6 +140,7 @@ during live environment testing.
 -->
 
 **Checklist for Manual Bug Reports**:
+
 - [ ] Error message included
 - [ ] Environment details provided
 - [ ] Steps to reproduce documented

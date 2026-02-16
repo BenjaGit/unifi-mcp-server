@@ -78,6 +78,7 @@ The server supports three UniFi API access modes:
 ### Current Development Focus
 
 **Version 0.2.0** (100% Complete ✅):
+
 - ✅ Zone-Based Firewall (7 working tools)
 - ✅ Traffic Flow Monitoring (15 tools)
 - ✅ Advanced QoS (11 tools)

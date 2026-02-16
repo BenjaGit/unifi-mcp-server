@@ -11,6 +11,7 @@ This document outlines the comprehensive testing strategy for the UniFi MCP Serv
 ### Recent Progress (November 26, 2025)
 
 **Test Infrastructure Improvements:**
+
 - ✅ Fixed Settings initialization in all test files (added `_env_file=None`)
 - ✅ Fixed API type references (cloud → cloud-ea)
 - ✅ Fixed HTTP header keys (X-API-Key → X-API-KEY)
@@ -18,6 +19,7 @@ This document outlines the comprehensive testing strategy for the UniFi MCP Serv
 - ✅ Increased passing tests from 167 to 247
 
 **Coverage Improvements:**
+
 - **Overall Coverage:** 27.96% → 41.73% (+13.77 percentage points, +49% relative increase)
 - **Tests Passing:** 167 → 247 (+80 tests)
 - **Test Status:** 11 failures remaining (8 in traffic_flow_tools.py, 3 in site_manager_tools.py - all test bugs)
@@ -105,6 +107,7 @@ Site Manager Coverage: 98.02% (exceeded 80% target)
 **Test File**: `tests/unit/test_site_manager_tools.py` ✅
 
 **Test Scenarios Completed**: ✅
+
 - ✅ Multi-site health monitoring
 - ✅ Cross-site statistics aggregation
 - ✅ Internet health metrics retrieval

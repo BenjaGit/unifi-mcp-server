@@ -31,6 +31,7 @@ UniFi MCP Server v0.2.0 has been fully verified and is ready for production depl
 **Coverage:** 82.43% (314/351 lines)
 
 **Tools Implemented:**
+
 - `list_qos_profiles` - List QoS profiles with priority configuration
 - `get_qos_profile` - Get specific profile details
 - `create_qos_profile` - Create new QoS profiles
@@ -45,6 +46,7 @@ UniFi MCP Server v0.2.0 has been fully verified and is ready for production depl
 
 **Test Results:** 46 tests passing
 **Key Features:**
+
 - Traffic prioritization and bandwidth management
 - ProAV mode for professional audio/video
 - Time-based routing with schedules
@@ -57,6 +59,7 @@ UniFi MCP Server v0.2.0 has been fully verified and is ready for production depl
 **Coverage:** 86.32% (219/255 lines)
 
 **Tools Implemented:**
+
 - `trigger_backup` - Manual backup creation
 - `list_backups` - List available backups
 - `get_backup_details` - Detailed backup metadata
@@ -68,6 +71,7 @@ UniFi MCP Server v0.2.0 has been fully verified and is ready for production depl
 
 **Test Results:** 10 tests passing
 **Key Features:**
+
 - Network and system backup types
 - Automated scheduling with cron expressions
 - Cloud synchronization tracking
@@ -81,6 +85,7 @@ UniFi MCP Server v0.2.0 has been fully verified and is ready for production depl
 **Coverage:** 92.95% (167/175 lines)
 
 **Tools Implemented:**
+
 - `aggregate_device_stats` - Cross-site device analytics
 - `aggregate_client_stats` - Organization-wide client metrics
 - `get_site_health` - Site health monitoring
@@ -88,6 +93,7 @@ UniFi MCP Server v0.2.0 has been fully verified and is ready for production depl
 
 **Test Results:** 10 tests passing
 **Key Features:**
+
 - Cross-site device and client aggregation
 - Health score calculation per site
 - Comparative analytics across locations
@@ -100,12 +106,14 @@ UniFi MCP Server v0.2.0 has been fully verified and is ready for production depl
 **Coverage:** 89.30% - 93.84% across modules
 
 **Tools Implemented:**
+
 - ACL Management (3 tools): list, create, update ACLs
 - Traffic Matching Lists (4 tools): manage IP, MAC, domain, port groups
 - Firewall Policies: Advanced rule management
 
 **Test Results:** Tests integrated with existing firewall test suites
 **Key Features:**
+
 - Layer 3/4 access control lists
 - Traffic classification by IP, MAC, domain, port
 - Group-based policy management
@@ -118,6 +126,7 @@ UniFi MCP Server v0.2.0 has been fully verified and is ready for production depl
 **Coverage:** 92.95% (167/175 lines)
 
 **Tools Implemented:**
+
 - `list_sites` - List all sites
 - `create_site` - Provision new sites
 - `update_site` - Modify site settings
@@ -130,6 +139,7 @@ UniFi MCP Server v0.2.0 has been fully verified and is ready for production depl
 
 **Test Results:** 10 tests passing
 **Key Features:**
+
 - Multi-site management and provisioning
 - Site-to-site VPN configuration
 - Device migration between sites
@@ -142,6 +152,7 @@ UniFi MCP Server v0.2.0 has been fully verified and is ready for production depl
 **Coverage:** 69.77% (198/251 lines)
 
 **Tools Implemented:**
+
 - `list_radius_profiles` - List RADIUS configurations
 - `create_radius_profile` - Configure RADIUS servers
 - `update_radius_profile` - Modify RADIUS settings
@@ -151,6 +162,7 @@ UniFi MCP Server v0.2.0 has been fully verified and is ready for production depl
 
 **Test Results:** 17 tests passing
 **Key Features:**
+
 - 802.1X authentication configuration
 - RADIUS accounting server support
 - Guest portal customization
@@ -158,6 +170,7 @@ UniFi MCP Server v0.2.0 has been fully verified and is ready for production depl
 - Session timeout and redirect control
 
 **Security Notes:**
+
 - All secrets properly redacted in dry-run logging
 - CodeQL false positive on taint tracking (verified safe)
 
@@ -168,6 +181,7 @@ UniFi MCP Server v0.2.0 has been fully verified and is ready for production depl
 **Coverage:** 95.83% (121/122 lines)
 
 **Tools Implemented:**
+
 - `get_network_topology` - Complete topology graph retrieval
 - `export_topology` - Export as JSON, GraphML, DOT
 - `get_device_connections` - Device interconnection details
@@ -178,6 +192,7 @@ UniFi MCP Server v0.2.0 has been fully verified and is ready for production depl
 **Model Coverage:** 100% for TopologyNode, TopologyConnection, NetworkDiagram
 
 **Key Features:**
+
 - Complete network graph with devices and clients
 - Multiple export formats for visualization tools
 - Port-level connection tracking
@@ -337,6 +352,7 @@ UniFi MCP Server v0.2.0 has been fully verified and is ready for production depl
 ### Files Changed
 
 **New Files (7):**
+
 - `src/models/topology.py` - Topology data models
 - `src/tools/qos.py` - QoS management tools
 - `src/tools/radius.py` - RADIUS authentication tools
@@ -346,6 +362,7 @@ UniFi MCP Server v0.2.0 has been fully verified and is ready for production depl
 - `tests/unit/tools/test_radius_tools.py` - RADIUS tool tests
 
 **Modified Files (19):**
+
 - Core integration files (`main.py`, `conftest.py`)
 - Model definitions (`__init__.py`, existing models)
 - Tool implementations (backups, site_manager, reference_data)

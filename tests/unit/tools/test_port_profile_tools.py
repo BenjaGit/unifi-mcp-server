@@ -15,11 +15,7 @@ from src.tools.port_profiles import (
     set_device_port_overrides,
     update_port_profile,
 )
-from src.utils.exceptions import (
-    DuplicateResourceError,
-    ResourceNotFoundError,
-    ValidationError,
-)
+from src.utils.exceptions import DuplicateResourceError, ResourceNotFoundError, ValidationError
 
 
 @pytest.fixture

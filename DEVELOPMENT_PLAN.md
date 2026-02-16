@@ -3,6 +3,7 @@
 **📋 Version Correction Notice**: v0.2.0 was published prematurely on 2025-11-17. The current stable release is v0.1.4 (identical code). The true v0.2.0 with all planned features is targeted for Q1 2025.
 
 **🆕 Recent Updates (2025-11-26)**:
+
 - ✅ Implemented comprehensive multi-API support (local, cloud-v1, cloud-ea)
 - ✅ Fixed list_vlans to return all networks including WAN, VPN, and corporate networks
 - ✅ Updated UNIFI_API.md to v10.0.156 with comprehensive endpoint documentation
@@ -324,6 +325,7 @@ UniFi provides three primary API types, all now supported:
    - Configuration: `UNIFI_API_TYPE=cloud-ea`
 
 **Response Normalization**: All three API types return consistent data structures:
+
 - Cloud V1: Extracts `{data, httpStatusCode, traceId}` wrapper
 - Local: Extracts `{data, count, totalCount}` wrapper
 - Cloud EA: Pass-through (no wrapper)

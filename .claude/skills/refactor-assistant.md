@@ -6,9 +6,11 @@ description: Use this skill when refactoring code for better testability, mainta
 # Refactor Assistant Skill
 
 ## Purpose
+
 Guide code refactoring to improve testability, maintainability, and code quality while preserving functionality. This skill helps identify refactoring opportunities, suggests improvement strategies, and ensures safe refactoring practices for the UniFi MCP Server codebase.
 
 ## When to Use This Skill
+
 - Module has low test coverage (<40%) and is hard to test
 - Code is difficult to understand or maintain
 - Functions are too long or complex
@@ -25,6 +27,7 @@ Guide code refactoring to improve testability, maintainability, and code quality
 Ask the user what needs refactoring:
 
 **Common Scenarios:**
+
 1. "This module has low test coverage" → Focus on testability
 2. "This function is too complex" → Focus on simplification
 3. "There's duplicate code" → Focus on DRY (Don't Repeat Yourself)
@@ -32,6 +35,7 @@ Ask the user what needs refactoring:
 5. "Adding new feature is hard" → Focus on extensibility
 
 **Gather Context:**
+
 - Which file/function needs refactoring?
 - What specific problems are you experiencing?
 - What's the current test coverage?
@@ -43,6 +47,7 @@ Ask the user what needs refactoring:
 Read the target file and analyze:
 
 **Code Smell Detection:**
+
 - [ ] **Long functions** (>50 lines)
 - [ ] **Deep nesting** (>3 levels)
 - [ ] **Too many parameters** (>5 parameters)
@@ -55,6 +60,7 @@ Read the target file and analyze:
 - [ ] **Poor async patterns** (blocking operations in async code)
 
 **Example Analysis:**
+
 ```python
 # Before: Hard to test function
 async def process_device_data(site_id: str):
@@ -99,6 +105,7 @@ wc -l src/tools/[module].py
 ```
 
 **Document Baseline:**
+
 - Current test coverage: X%
 - Function length: Y lines
 - Cyclomatic complexity: Z
@@ -148,6 +155,7 @@ async def process_devices(site_id: str) -> dict:
 ```
 
 **Benefits:**
+
 - Each function has single responsibility
 - Easy to test independently
 - Reusable components
@@ -294,6 +302,7 @@ Make small, focused changes:
 3. **Commit frequently** - Easy to rollback if needed
 
 **Example Incremental Refactoring:**
+
 ```bash
 # Step 1: Extract one function
 # - Extract fetch_devices()
@@ -511,6 +520,7 @@ async def get_site_overview(site_id: str):
 ## Phase 5: Refactoring Checklist
 
 ### Pre-Refactoring Checklist
+
 - [ ] Tests exist and pass
 - [ ] Coverage baseline documented
 - [ ] Complexity baseline documented
@@ -518,6 +528,7 @@ async def get_site_overview(site_id: str):
 - [ ] Refactoring goal clearly defined
 
 ### During Refactoring
+
 - [ ] Make one change at a time
 - [ ] Run tests after each change
 - [ ] Commit frequently with clear messages
@@ -527,6 +538,7 @@ async def get_site_overview(site_id: str):
 - [ ] Update docstrings
 
 ### Post-Refactoring Checklist
+
 - [ ] All tests pass
 - [ ] Coverage improved (or maintained)
 - [ ] Complexity reduced
@@ -537,6 +549,7 @@ async def get_site_overview(site_id: str):
 ## Phase 6: Risk Management
 
 ### Low-Risk Refactorings (Safe)
+
 - Extract constants
 - Rename variables/functions
 - Add type hints
@@ -545,6 +558,7 @@ async def get_site_overview(site_id: str):
 - Extract pure functions
 
 ### Medium-Risk Refactorings (Caution)
+
 - Extract functions with side effects
 - Change function signatures
 - Refactor async patterns
@@ -552,6 +566,7 @@ async def get_site_overview(site_id: str):
 - Merge duplicate code
 
 ### High-Risk Refactorings (Careful)
+
 - Change data structures
 - Modify error handling
 - Change API contracts
@@ -559,6 +574,7 @@ async def get_site_overview(site_id: str):
 - Change caching behavior
 
 **Risk Mitigation:**
+
 - High-risk refactorings require comprehensive tests first
 - Use feature flags for gradual rollout
 - Maintain backward compatibility
@@ -575,6 +591,7 @@ async def get_site_overview(site_id: str):
 ## Reference Files
 
 Load for context:
+
 - `src/tools/[module].py` - Code to refactor
 - `tests/unit/test_[module].py` - Existing tests
 - `AGENTS.md` - Code quality standards
@@ -583,6 +600,7 @@ Load for context:
 ## Success Metrics
 
 Refactoring successful when:
+
 - [ ] All tests pass
 - [ ] Coverage increased (or maintained at high level)
 - [ ] Complexity reduced (lower cyclomatic complexity)

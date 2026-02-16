@@ -6,9 +6,11 @@ description: Use this skill to generate and update API.md documentation from cod
 # API Documentation Generator Skill
 
 ## Purpose
+
 Automate the generation and maintenance of API.md documentation by extracting information from MCP tool definitions, docstrings, and type hints. Ensures API documentation remains accurate and comprehensive as the project grows from 77 to 160+ tools.
 
 ## When to Use This Skill
+
 - After implementing new MCP tools
 - After major feature releases (v0.2.0, v0.3.0)
 - When API.md is out of sync with code
@@ -28,6 +30,7 @@ rg "@mcp\.tool\(\)" src/tools/ -A 5
 ```
 
 **Tool Categories to Scan:**
+
 ```
 src/tools/
 ├── clients.py          # Client management (4 tools)
@@ -58,6 +61,7 @@ For each tool, extract:
 5. **Examples** - Usage examples from docstring
 
 **Example Extraction:**
+
 ```python
 # src/tools/devices.py
 
@@ -89,6 +93,7 @@ async def list_devices(
 ```
 
 **Extracted Metadata:**
+
 ```json
 {
     "name": "list_devices",
@@ -133,6 +138,7 @@ async def list_devices(
 Organize tools by functional category:
 
 **Categories:**
+
 1. **Site Management** (sites.py)
 2. **Device Management** (devices.py, device_control.py)
 3. **Client Management** (clients.py, client_management.py)
@@ -151,6 +157,7 @@ Organize tools by functional category:
 ### Documentation Template
 
 **API.md Structure:**
+
 ```markdown
 # UniFi MCP Server API Documentation
 
@@ -205,23 +212,28 @@ for site in sites:
 Get detailed information about a specific site.
 
 **Parameters:**
+
 - `site_id` (string, optional): Site identifier (default: "default")
 
 **Returns:**
+
 - `dict`: Site details including health metrics
 
 **Example:**
+
 ```python
 site = await mcp.call_tool("get_site", {"site_id": "default"})
 print(f"Site health: {site['health']}")
 ```
 
 **Errors:**
+
 - `RuntimeError`: If site not found or API request fails
 
 ---
 
 [... Continue for all tools in each category ...]
+
 ```
 
 ### Tool Documentation Template
@@ -255,18 +267,22 @@ result = await mcp.call_tool("[tool_name]", {
 ```
 
 **Errors:**
+
 - `ExceptionType`: When this occurs
 - [... more exceptions ...]
 
 **Notes:**
+
 - [Important usage notes]
 - [Safety considerations for mutating operations]
 - [Performance considerations]
 
 **Related Tools:**
+
 - [link to related tools]
 
 ---
+
 ```
 
 ## Phase 3: Validation and Quality Checks
@@ -358,6 +374,7 @@ await update_zbf_policy(source_zone_id=lan_zone["_id"],
 ```
 
 ---
+
 ```
 
 ### Resource URIs Section
@@ -391,6 +408,7 @@ List all devices in a site.
 **URI Pattern:** `sites://[site_id]/devices`
 
 **Example:**
+
 ```python
 devices = await mcp.read_resource("sites://default/devices")
 ```
@@ -398,6 +416,7 @@ devices = await mcp.read_resource("sites://default/devices")
 **Returns:** JSON array of device objects
 
 ---
+
 ```
 
 ## Phase 5: Cross-References and Navigation
@@ -535,6 +554,7 @@ if __name__ == "__main__":
 ## Reference Files
 
 Load for context:
+
 - `src/tools/*.py` - All tool implementations
 - `API.md` - Current API documentation
 - `README.md` - Project overview (check consistency)
@@ -543,6 +563,7 @@ Load for context:
 ## Success Metrics
 
 Documentation generation successful when:
+
 - [ ] All 77+ tools documented
 - [ ] All parameters have descriptions
 - [ ] All tools have examples

@@ -256,6 +256,7 @@ jobs:
 Before releasing a new version:
 
 1. **Run Full Regression Tests**:
+
    ```bash
    python tests/integration/run_all_tests.py --verbose --export results.json
    ```
@@ -318,6 +319,7 @@ When adding new MCP tools:
 ## Support
 
 For issues with the test framework:
+
 - Check `.env` configuration
 - Review test output with `--verbose` flag
 - Check UniFi controller connectivity

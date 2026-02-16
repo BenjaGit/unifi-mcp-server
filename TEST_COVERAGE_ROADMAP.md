@@ -12,6 +12,7 @@
 This document provides a comprehensive roadmap for achieving 60-70% test coverage for the UniFi MCP Server v0.2.0 release. The strategy focuses on high-impact tools, security-critical functionality, and quick wins to maximize coverage with minimal effort.
 
 ### Current State
+
 - **219 tests passing** (all green ✅)
 - **36.22% overall coverage** across 3,701 statements
 - **6 tools already at target** (≥70% coverage)
@@ -19,6 +20,7 @@ This document provides a comprehensive roadmap for achieving 60-70% test coverag
 - **Estimated 60-80 hours** to reach 70% coverage
 
 ### Quick Wins (Already at Target ≥70%)
+
 - ✅ `zbf_matrix.py`: 100.00% (20 stmts)
 - ✅ `helpers.py`: 96.25% (58 stmts)
 - ✅ `sites.py`: 94.64% (52 stmts)
@@ -36,6 +38,7 @@ This document provides a comprehensive roadmap for achieving 60-70% test coverag
 ### 1.1 Push Existing Tests Over 70%
 
 #### `validators.py` - 97.14% → 100%
+
 - **Current**: 97.14% (46 stmts, 1 miss)
 - **Missing**: Line 111
 - **Effort**: 15 minutes
@@ -43,6 +46,7 @@ This document provides a comprehensive roadmap for achieving 60-70% test coverag
 - **Priority**: LOW (already excellent coverage)
 
 #### `devices.py` - 53.91% → 70%
+
 - **Current**: 53.91% (110 stmts, 47 miss)
 - **Missing Lines**: 210-232, 256-288, 316-354
 - **Effort**: 2-3 hours
@@ -54,6 +58,7 @@ This document provides a comprehensive roadmap for achieving 60-70% test coverag
 - **Impact**: Large codebase, high user value
 
 #### `audit.py` - 47.78% → 70%
+
 - **Current**: 47.78% (66 stmts, 31 miss)
 - **Missing Lines**: 58, 67-68, 73, 80, 94-120, 187-200
 - **Effort**: 2-3 hours
@@ -71,6 +76,7 @@ This document provides a comprehensive roadmap for achieving 60-70% test coverag
 ### 2.1 Firewall Tools
 
 #### `firewall.py` - 4.44% → 70%
+
 - **Current**: 4.44% (130 stmts, 122 miss)
 - **Missing Lines**: 34-48, 86-170, 210-307, 333-382
 - **Effort**: 4-5 hours
@@ -87,6 +93,7 @@ This document provides a comprehensive roadmap for achieving 60-70% test coverag
 - **Impact**: Core firewall functionality
 
 #### `acls.py` - 0% → 70%
+
 - **Current**: 0.00% (117 stmts, 117 miss)
 - **Effort**: 4-5 hours
 - **Tests Needed**:
@@ -101,6 +108,7 @@ This document provides a comprehensive roadmap for achieving 60-70% test coverag
 ### 2.2 Client Management
 
 #### `client_management.py` - 5.84% → 70%
+
 - **Current**: 5.84% (132 stmts, 123 miss)
 - **Missing Lines**: 40-98, 123-171, 197-257, 288-360, 389-464
 - **Effort**: 3-4 hours
@@ -114,6 +122,7 @@ This document provides a comprehensive roadmap for achieving 60-70% test coverag
 - **Impact**: Client security management
 
 #### `device_control.py` - 6.31% → 70%
+
 - **Current**: 6.31% (93 stmts, 86 miss)
 - **Missing Lines**: 40-98, 126-193, 221-296
 - **Effort**: 2-3 hours
@@ -133,6 +142,7 @@ This document provides a comprehensive roadmap for achieving 60-70% test coverag
 ### 3.1 Traffic Analysis & Monitoring
 
 #### `traffic_flows.py` - 30.13% → 70%
+
 - **Current**: 30.13% (346 stmts, 230 miss)
 - **Missing Lines**: 343-427, 445-485, 505-581, 607-673, 708-774, 809-905, 940-985, 1003-1037
 - **Effort**: 5-6 hours
@@ -152,6 +162,7 @@ This document provides a comprehensive roadmap for achieving 60-70% test coverag
 ### 3.2 DPI & Analytics
 
 #### `dpi.py` - 0% → 70%
+
 - **Current**: 0.00% (85 stmts, 85 miss)
 - **Effort**: 3-4 hours
 - **Tests Needed**:
@@ -164,6 +175,7 @@ This document provides a comprehensive roadmap for achieving 60-70% test coverag
 - **Impact**: Network visibility
 
 #### `dpi_tools.py` - 0% → 70%
+
 - **Current**: 0.00% (37 stmts, 37 miss)
 - **Effort**: 1-2 hours
 - **Tests Needed**:
@@ -176,6 +188,7 @@ This document provides a comprehensive roadmap for achieving 60-70% test coverag
 ### 3.3 Network Configuration
 
 #### `network_config.py` - 3.72% → 70%
+
 - **Current**: 3.72% (128 stmts, 121 miss)
 - **Missing Lines**: 58-146, 192-295, 321-370
 - **Effort**: 4-5 hours
@@ -191,6 +204,7 @@ This document provides a comprehensive roadmap for achieving 60-70% test coverag
 - **Impact**: Network provisioning
 
 #### `port_forwarding.py` - 0% → 70%
+
 - **Current**: 0.00% (70 stmts, 70 miss)
 - **Effort**: 2-3 hours
 - **Tests Needed**:
@@ -211,6 +225,7 @@ This document provides a comprehensive roadmap for achieving 60-70% test coverag
 ### 4.1 Site Management
 
 #### `site_manager.py` - 0% → 65%
+
 - **Current**: 0.00% (77 stmts, 77 miss)
 - **Effort**: 4-5 hours
 - **Tests Needed**:
@@ -226,6 +241,7 @@ This document provides a comprehensive roadmap for achieving 60-70% test coverag
 ### 4.2 Utility Features
 
 #### `vouchers.py` - 0% → 70%
+
 - **Current**: 0.00% (78 stmts, 78 miss)
 - **Effort**: 2-3 hours
 - **Tests Needed**:
@@ -238,6 +254,7 @@ This document provides a comprehensive roadmap for achieving 60-70% test coverag
 - **Impact**: Guest WiFi management
 
 #### `wans.py` - 0% → 70%
+
 - **Current**: 0.00% (13 stmts, 13 miss)
 - **Effort**: 30 minutes
 - **Tests Needed**:
@@ -248,6 +265,7 @@ This document provides a comprehensive roadmap for achieving 60-70% test coverag
 - **Impact**: WAN monitoring
 
 #### `application.py` - 0% → 70%
+
 - **Current**: 0.00% (12 stmts, 12 miss)
 - **Effort**: 30 minutes
 - **Tests Needed**:
@@ -261,6 +279,7 @@ This document provides a comprehensive roadmap for achieving 60-70% test coverag
 ## Recommended Execution Order
 
 ### Sprint 1: Quick Wins & Security (Week 1-2, 15-20 hours)
+
 1. ✅ Fix failing tests (COMPLETED)
 2. `devices.py` → 70% (2-3 hours)
 3. `firewall.py` → 70% (4-5 hours)
@@ -271,6 +290,7 @@ This document provides a comprehensive roadmap for achieving 60-70% test coverag
 **Expected Coverage After Sprint 1**: ~45-48%
 
 ### Sprint 2: High-Value Features (Week 3-4, 12-15 hours)
+
 7. `traffic_flows.py` → 70% (5-6 hours)
 8. `network_config.py` → 70% (4-5 hours)
 9. `port_forwarding.py` → 70% (2-3 hours)
@@ -279,12 +299,14 @@ This document provides a comprehensive roadmap for achieving 60-70% test coverag
 **Expected Coverage After Sprint 2**: ~55-58%
 
 ### Sprint 3: Reach 60% Target (Week 5, 8-10 hours)
+
 11. `acls.py` → 70% (4-5 hours)
 12. `site_manager.py` → 65% (4-5 hours)
 
 **Expected Coverage After Sprint 3**: ~60-63%
 
 ### Sprint 4: Reach 70% Target (Optional, Week 6, 6-8 hours)
+
 13. `vouchers.py` → 70% (2-3 hours)
 14. `wans.py` → 70% (30 min)
 15. `application.py` → 70% (30 min)
@@ -416,6 +438,7 @@ For tools that only query data (LIST/GET):
 ## Risk Factors & Mitigation
 
 ### High Risk
+
 - **Traffic Flows Complexity** (346 statements)
   - Mitigation: Break into smaller test modules
   - Focus on critical paths first (filtering, aggregation)
@@ -425,6 +448,7 @@ For tools that only query data (LIST/GET):
   - May need separate integration tests
 
 ### Medium Risk
+
 - **Firewall Rule Validation** (Complex rulesets)
   - Mitigation: Use parameterized tests
   - Create comprehensive fixture data
@@ -434,6 +458,7 @@ For tools that only query data (LIST/GET):
   - Mock network dependencies
 
 ### Low Risk
+
 - **Simple CRUD Operations** (vouchers, wans)
   - Mitigation: Follow standard test template
   - Copy-paste from existing tests
@@ -443,6 +468,7 @@ For tools that only query data (LIST/GET):
 ## Success Metrics
 
 ### Quantitative
+
 - ✅ 60% overall coverage (minimum acceptable)
 - ✅ 70% overall coverage (target)
 - ✅ 100% of security-critical tools at 70%+
@@ -451,6 +477,7 @@ For tools that only query data (LIST/GET):
 - ✅ All tests run in <10 seconds
 
 ### Qualitative
+
 - ✅ All mutating operations have safety tests (confirm, dry_run)
 - ✅ All tools have validation error tests
 - ✅ All tools have "not found" error tests
@@ -463,6 +490,7 @@ For tools that only query data (LIST/GET):
 ## Maintenance Plan
 
 ### Ongoing (Post v0.2.0)
+
 1. **New Features**: Require 70% coverage before merge
 2. **Bug Fixes**: Add regression test for each bug
 3. **Refactoring**: Maintain or improve coverage
@@ -470,6 +498,7 @@ For tools that only query data (LIST/GET):
 5. **Monthly**: Review coverage report for gaps
 
 ### Coverage Gates
+
 - **PR Merge**: No decrease in coverage allowed
 - **Release**: Must be at 60%+ coverage
 - **Production**: Critical tools must be at 80%+
@@ -479,6 +508,7 @@ For tools that only query data (LIST/GET):
 ## Tools & Automation
 
 ### Current Setup
+
 - ✅ pytest with pytest-asyncio
 - ✅ pytest-cov for coverage
 - ✅ HTML coverage reports
@@ -486,6 +516,7 @@ For tools that only query data (LIST/GET):
 - ✅ CI/CD with GitHub Actions
 
 ### Recommended Additions
+
 - ⏳ Coverage badges in README
 - ⏳ Codecov integration
 - ⏳ Automated coverage comments on PRs
@@ -499,6 +530,7 @@ For tools that only query data (LIST/GET):
 Reaching 60-70% test coverage for v0.2.0 is achievable with a focused 4-6 week effort (40-50 hours). The roadmap prioritizes security-critical tools, high-value user features, and tools closest to the coverage target. Following the sprint-based approach ensures steady progress and allows for adjustment based on actual time spent.
 
 **Key Takeaways:**
+
 1. Start with security tools (firewall, acls, client management)
 2. Focus on tools with existing test infrastructure
 3. Use standard test templates to accelerate development
@@ -506,6 +538,7 @@ Reaching 60-70% test coverage for v0.2.0 is achievable with a focused 4-6 week e
 5. Maintain coverage discipline post-v0.2.0
 
 **Next Steps:**
+
 1. ✅ Review and approve roadmap
 2. Execute Sprint 1 (security & quick wins)
 3. Measure actual time vs. estimates

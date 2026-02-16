@@ -8,6 +8,7 @@
 ## ✅ Completed Automatically
 
 ### 1. Version Preparation
+
 - [x] Updated CHANGELOG.md with comprehensive v0.2.0 release notes
 - [x] Created package.json with mcpName field
 - [x] Created mcp-registry.json for MCP registry submission
@@ -15,11 +16,13 @@
 - [x] Created npm wrapper package (index.js, README.npm.md)
 
 ### 2. Git Release
+
 - [x] Committed all release preparation files
 - [x] Pushed to origin/main
 - [x] Created and pushed v0.2.0 tag
 
 ### 3. GitHub Actions Workflow
+
 - [x] Docker multi-arch build completed (35 minutes)
 - [x] Docker image pushed: `ghcr.io/enuno/unifi-mcp-server:0.2.0`
 - [x] GitHub release created with artifacts
@@ -27,7 +30,8 @@
 - ⚠️ PyPI publication failed (needs trusted publisher config or API token)
 
 ### 4. Release Artifacts Available
-- [x] GitHub Release: https://github.com/enuno/unifi-mcp-server/releases/tag/v0.2.0
+
+- [x] GitHub Release: <https://github.com/enuno/unifi-mcp-server/releases/tag/v0.2.0>
 - [x] Docker Image: `ghcr.io/enuno/unifi-mcp-server:0.2.0` (multi-arch: amd64, arm64, arm/v7)
 - [x] Source Code: Tagged at v0.2.0
 - [x] Python Packages: Attached to release (wheel + tar.gz)
@@ -41,10 +45,12 @@
 The npm package is a metadata wrapper for the Python MCP server, required for MCP registry submission.
 
 **Prerequisites:**
+
 - npm account credentials
-- Access to https://www.npmjs.com/~elvis.nuno
+- Access to <https://www.npmjs.com/~elvis.nuno>
 
 **Commands:**
+
 ```bash
 # 1. Navigate to project root
 cd /Users/elvis/Documents/Git/HomeLab-Tools/unifi-mcp-server
@@ -61,11 +67,13 @@ npm view unifi-mcp-server
 ```
 
 **Expected Output:**
+
 ```
 + unifi-mcp-server@0.2.0
 ```
 
 **Files Included in npm Package:**
+
 - `package.json` - Package metadata with mcpName field
 - `index.js` - Metadata about Python server installation
 - `README.npm.md` - Installation instructions
@@ -78,18 +86,21 @@ npm view unifi-mcp-server
 **Completed:** 2026-01-25T08:10:49Z
 
 **Publication Results:**
+
 ```
 ✓ Successfully published
 ✓ Server io.github.enuno/unifi-mcp-server version 0.2.0
 ```
 
 **Verification:**
-- Registry API: https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.enuno/unifi-mcp-server
+
+- Registry API: <https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.enuno/unifi-mcp-server>
 - Status: active
 - Published At: 2026-01-25T08:10:49.703833Z
 - Latest Version: 0.2.0
 
 **Environment Variables Published:**
+
 - UNIFI_HOST (required) - UniFi Controller hostname or IP address
 - UNIFI_USERNAME (required) - UniFi Controller username
 - UNIFI_PASSWORD (required, secret) - UniFi Controller password
@@ -104,7 +115,8 @@ npm view unifi-mcp-server
 The GitHub Actions workflow attempted PyPI publication but failed due to trusted publisher configuration.
 
 **Option A: Configure Trusted Publisher (Recommended)**
-1. Visit https://pypi.org/manage/account/publishing/
+
+1. Visit <https://pypi.org/manage/account/publishing/>
 2. Add trusted publisher for `unifi-mcp-server`:
    - Owner: `enuno`
    - Repository: `unifi-mcp-server`
@@ -113,6 +125,7 @@ The GitHub Actions workflow attempted PyPI publication but failed due to trusted
 3. Re-run the release workflow or create new tag
 
 **Option B: Manual Upload with API Token**
+
 ```bash
 # 1. Get PyPI API token from https://pypi.org/manage/account/token/
 # 2. Install twine
@@ -130,19 +143,22 @@ twine upload dist/*
 ## 📊 Release Summary
 
 ### Quality Metrics
+
 - **74 MCP Tools**: Complete UniFi network management
 - **990 Tests Passing**: 78.18% coverage
 - **Zero Security Vulnerabilities**: Clean scans
 - **18/18 CI/CD Checks**: All quality gates passed
 
 ### Distribution Channels
-- ✅ **GitHub Release**: https://github.com/enuno/unifi-mcp-server/releases/tag/v0.2.0
+
+- ✅ **GitHub Release**: <https://github.com/enuno/unifi-mcp-server/releases/tag/v0.2.0>
 - ✅ **Docker**: `ghcr.io/enuno/unifi-mcp-server:0.2.0`
-- ✅ **npm**: https://www.npmjs.com/package/unifi-mcp-server
-- ✅ **MCP Registry**: https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.enuno/unifi-mcp-server
+- ✅ **npm**: <https://www.npmjs.com/package/unifi-mcp-server>
+- ✅ **MCP Registry**: <https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.enuno/unifi-mcp-server>
 - ⚠️ **PyPI**: Optional, needs configuration (non-blocking)
 
 ### Documentation
+
 - ✅ VERIFICATION_REPORT.md - Complete verification details
 - ✅ CHANGELOG.md - Comprehensive release notes
 - ✅ API.md - 30+ AI assistant example prompts
@@ -178,12 +194,12 @@ pip install unifi-mcp-server==0.2.0
 
 ## 📚 Resources
 
-- **GitHub Repository**: https://github.com/enuno/unifi-mcp-server
-- **MCP Registry Docs**: https://github.com/modelcontextprotocol/registry
-- **MCP Publisher Quickstart**: https://github.com/modelcontextprotocol/registry/blob/main/docs/modelcontextprotocol-io/quickstart.mdx
-- **npm Profile**: https://www.npmjs.com/~elvis.nuno
-- **PyPI Trusted Publishing**: https://docs.pypi.org/trusted-publishers/
-- **Official MCP Registry**: https://registry.modelcontextprotocol.io/
+- **GitHub Repository**: <https://github.com/enuno/unifi-mcp-server>
+- **MCP Registry Docs**: <https://github.com/modelcontextprotocol/registry>
+- **MCP Publisher Quickstart**: <https://github.com/modelcontextprotocol/registry/blob/main/docs/modelcontextprotocol-io/quickstart.mdx>
+- **npm Profile**: <https://www.npmjs.com/~elvis.nuno>
+- **PyPI Trusted Publishing**: <https://docs.pypi.org/trusted-publishers/>
+- **Official MCP Registry**: <https://registry.modelcontextprotocol.io/>
 
 ---
 

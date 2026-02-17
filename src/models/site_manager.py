@@ -118,3 +118,74 @@ class CrossSiteSearchResult(BaseModel):
     results: list[dict] = Field(
         default_factory=list, description="Search results with site context"
     )
+
+
+class ISPMetrics(BaseModel):
+    """ISP metrics from Site Manager API."""
+
+    site_id: str = Field(..., description="Site identifier")
+    isp_name: str | None = Field(None, description="ISP name")
+    download_bandwidth_mbps: float | None = Field(None, description="Download bandwidth in Mbps")
+    upload_bandwidth_mbps: float | None = Field(None, description="Upload bandwidth in Mbps")
+    latency_ms: float | None = Field(None, description="Latency in milliseconds")
+    jitter_ms: float | None = Field(None, description="Jitter in milliseconds")
+    packet_loss_percent: float = Field(0.0, description="Packet loss percentage")
+    timestamp: str = Field(..., description="Measurement timestamp (ISO)")
+
+
+class SDWANConfig(BaseModel):
+    """SD-WAN configuration from Site Manager API."""
+
+    config_id: str = Field(..., description="Configuration identifier")
+    name: str = Field(..., description="Configuration name")
+    topology_type: Literal["hub-spoke", "mesh", "point-to-point"] = Field(
+        ..., description="SD-WAN topology type"
+    )
+    hub_site_ids: list[str] = Field(default_factory=list, description="Hub site identifiers")
+    spoke_site_ids: list[str] = Field(default_factory=list, description="Spoke site identifiers")
+    failover_enabled: bool = Field(False, description="Failover configuration enabled")
+    created_at: str = Field(..., description="Creation timestamp (ISO)")
+    updated_at: str = Field(..., description="Last update timestamp (ISO)")
+    status: Literal["active", "inactive", "pending"] = Field(
+        ..., description="Configuration status"
+    )
+
+
+class SDWANConfigStatus(BaseModel):
+    """SD-WAN configuration deployment status."""
+
+    config_id: str = Field(..., description="Configuration identifier")
+    deployment_status: Literal["deployed", "deploying", "failed", "pending"] = Field(
+        ..., description="Deployment status"
+    )
+    sites_deployed: int = Field(0, description="Number of sites successfully deployed")
+    sites_total: int = Field(0, description="Total number of sites in configuration")
+    last_deployment_at: str | None = Field(None, description="Last deployment timestamp (ISO)")
+    error_message: str | None = Field(None, description="Error message if deployment failed")
+
+
+class Host(BaseModel):
+    """Managed host/console from Site Manager API."""
+
+    host_id: str = Field(..., description="Host identifier")
+    hostname: str = Field(..., description="Hostname")
+    ip_address: str | None = Field(None, description="IP address")
+    mac_address: str | None = Field(None, description="MAC address")
+    model: str | None = Field(None, description="Device model")
+    version: str | None = Field(None, description="Firmware/software version")
+    site_count: int = Field(0, description="Number of associated sites")
+    status: Literal["online", "offline", "unreachable"] = Field(..., description="Host status")
+    last_seen: str = Field(..., description="Last seen timestamp (ISO)")
+
+
+class VersionControl(BaseModel):
+    """Version control information from Site Manager API."""
+
+    current_version: str = Field(..., description="Current API version")
+    latest_version: str = Field(..., description="Latest available version")
+    deprecated_versions: list[str] = Field(
+        default_factory=list, description="List of deprecated API versions"
+    )
+    changelog_url: str | None = Field(None, description="Changelog URL")
+    upgrade_recommended: bool = Field(False, description="Whether upgrade is recommended")
+    min_supported_version: str = Field(..., description="Minimum supported version")

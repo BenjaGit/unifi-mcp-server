@@ -204,3 +204,9 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
 "tests/*" = ["B011"]
+
+# UV Package Manager Configuration
+# Note: diskcache (vulnerable to CVE-2025-69872) is an optional dependency of
+# py-key-value-aio[disk] pulled in by FastMCP. We don't use the disk caching feature.
+# UV doesn't currently support excluding optional extras, so we document this as a
+# known non-impacting vulnerability. See SECURITY.md for details.

@@ -5,6 +5,7 @@
 **🆕 Recent Updates**:
 
 **2026-01-24 - API Documentation Expansion:**
+
 - 📚 Updated UNIFI_API.md with newly documented endpoints from developer.ui.com
 - ✨ **Site Manager API v1.0.0:** Added ISP Metrics, SD-WAN Config visibility, Version Control, and Host Management endpoints
 - ✨ **Network API v10.1.68:** Added Cloud Connector/Proxy endpoints, Device Adoption, and DPI Application Categories
@@ -16,6 +17,7 @@
   - Updated feature priorities and implementation scopes
 
 **2025-11-26:**
+
 - ✅ Implemented comprehensive multi-API support (local, cloud-v1, cloud-ea)
 - ✅ Fixed list_vlans to return all networks including WAN, VPN, and corporate networks
 - ✅ Updated UNIFI_API.md to v10.0.156 with comprehensive endpoint documentation

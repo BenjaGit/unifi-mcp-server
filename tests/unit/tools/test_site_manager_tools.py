@@ -1061,6 +1061,41 @@ async def test_query_isp_metrics_success(mock_settings):
         mock_client.query_isp_metrics.assert_called_once()
 
 
+@pytest.mark.asyncio
+async def test_query_isp_metrics_single_dict_return(mock_settings):
+    """Test query_isp_metrics with single dict return from API."""
+    from src.tools.site_manager import query_isp_metrics
+
+    # API returns single dict instead of list
+    mock_response = {
+        "data": {
+            "site_id": "site-1",
+            "isp_name": "Example ISP",
+            "download_bandwidth_mbps": 500.0,
+            "upload_bandwidth_mbps": 100.0,
+            "latency_ms": 15.5,
+            "jitter_ms": 2.1,
+            "packet_loss_percent": 0.05,
+            "timestamp": "2026-02-16T12:00:00Z",
+        }
+    }
+
+    with patch("src.tools.site_manager.SiteManagerClient") as mock_client_class:
+        mock_client = AsyncMock()
+        mock_client.query_isp_metrics = AsyncMock(return_value=mock_response)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock()
+        mock_client_class.return_value = mock_client
+
+        result = await query_isp_metrics(mock_settings, site_id="site-1")
+
+        # Should wrap single dict in a list
+        assert len(result) == 1
+        assert result[0]["site_id"] == "site-1"
+        assert result[0]["isp_name"] == "Example ISP"
+        mock_client.query_isp_metrics.assert_called_once()
+
+
 # =============================================================================
 # Tests for SD-WAN Configuration Tools (added 2026-02-16)
 # =============================================================================

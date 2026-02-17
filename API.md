@@ -846,6 +846,7 @@ result = await mcp.call_tool("get_site_statistics", {
 ### Site Manager API Tools (v0.3.0+)
 
 **Note:** These tools require the Site Manager API to be enabled:
+
 - Set `UNIFI_SITE_MANAGER_ENABLED=true`
 - Provide your `SITE_MANAGER_API_KEY` from [api.ui.com](https://api.ui.com/)
 - See [Site Manager API Docs](https://developer.ui.com/site-manager-api/gettingstarted) for more details

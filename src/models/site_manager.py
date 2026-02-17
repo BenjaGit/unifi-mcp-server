@@ -146,7 +146,9 @@ class SDWANConfig(BaseModel):
     failover_enabled: bool = Field(False, description="Failover configuration enabled")
     created_at: str = Field(..., description="Creation timestamp (ISO)")
     updated_at: str = Field(..., description="Last update timestamp (ISO)")
-    status: Literal["active", "inactive", "pending"] = Field(..., description="Configuration status")
+    status: Literal["active", "inactive", "pending"] = Field(
+        ..., description="Configuration status"
+    )
 
 
 class SDWANConfigStatus(BaseModel):

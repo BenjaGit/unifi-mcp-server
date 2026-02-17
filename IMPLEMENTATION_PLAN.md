@@ -10,6 +10,7 @@
 **Status**: No patched version available yet
 
 **Our Dependency Chain**:
+
 ```
 unifi-mcp-server
 └── fastmcp==2.14.5
@@ -18,6 +19,7 @@ unifi-mcp-server
 ```
 
 **Impact Assessment**:
+
 - ✅ **NOT VULNERABLE** - We don't use FastMCP's disk-based key-value store feature
 - ✅ We use Redis for optional caching
 - ✅ FastMCP's disk cache feature is unused in our codebase
@@ -47,15 +49,18 @@ Use uv's `tool.uv.override-dependencies` to exclude the `[disk]` extra.
 ### Current Status
 
 **v0.2.0 P0 features:**
+
 - ✅ Zone-Based Firewall - IMPLEMENTED (7 tools)
 - ✅ Traffic Flows Monitoring - IMPLEMENTED (15 tools)
 
 **v0.3.0 P0 features:**
+
 - ⏳ SD-WAN Management - BLOCKED by Site Manager API
 
 ### Next P0 Work: Complete Site Manager API Foundation
 
 SD-WAN Management (P0) requires Site Manager API. Recently documented endpoints:
+
 - ISP Metrics (Get/Query ISP Metrics)
 - SD-WAN Config Visibility (List/Get configs, Get status)
 - Version Control, Host Management
@@ -69,21 +74,25 @@ This is the same authentication we already use for Cloud API. No OAuth implement
 
 **Implementation Phases** (Revised):
 
-#### Phase 1: Extend API Client for Site Manager (3-5 days) ⚡ Much Faster!
+#### Phase 1: Extend API Client for Site Manager (3-5 days) ⚡ Much Faster
+
 - Extend existing `UniFiAPIClient` to support Site Manager endpoints
 - Use existing API key authentication (X-API-Key header)
 - Add Site Manager base URL: `https://api.ui.com/v1/`
 - Rate limiting: 10,000 req/min (v1 stable)
 
 #### Phase 2: ISP Metrics Endpoints (3-5 days)
+
 - `get_isp_metrics`, `query_isp_metrics` tools
 - New Pydantic models and tests
 
 #### Phase 3: SD-WAN Config Visibility (3-5 days)
+
 - `list_sdwan_configs`, `get_sdwan_config`, `get_sdwan_config_status` tools
 - Read-only visibility for now
 
 #### Phase 4: Host & Version Management (2-3 days)
+
 - `list_hosts`, `get_host`, `get_version_control` tools
 
 ### Priority Order
@@ -108,9 +117,9 @@ This is the same authentication we already use for Cloud API. No OAuth implement
 ## Decision Point
 
 Should we proceed with:
+
 - **Option A**: Part 1 only (security fix, ~1-2 hours)
 - **Option B**: Part 1 + Part 2 Phase 1 (security + OAuth foundation, ~2-3 weeks)
 - **Option C**: Complete plan (Parts 1 & 2, ~3-4 weeks total)
 
 **Recommended**: Option B - Fix security issue, then start OAuth implementation as foundation for future P0 work.
-

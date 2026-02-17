@@ -30,6 +30,7 @@ pip install unifi-mcp-server
 - 📋 **Code Quality** - Fixed all pre-commit hooks, improved type hints, Pydantic model validation
 
 **New Tools in v0.2.2:**
+
 - `list_port_profiles` - Paginated switch port profile listing
 - `get_port_profile` - Fetch port profile details by ID
 - `create_port_profile` - Create port profiles with full config (PoE, VLAN, 802.1X, LLDP-MED)

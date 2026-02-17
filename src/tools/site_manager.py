@@ -1,5 +1,6 @@
 """Site Manager API tools for multi-site management."""
 
+from functools import wraps
 from typing import Any
 
 from ..api.site_manager_client import SiteManagerClient
@@ -24,6 +25,26 @@ from ..utils import get_logger
 logger = get_logger(__name__)
 
 
+def require_site_manager(func):
+    """Decorator to ensure Site Manager API is enabled before calling function.
+
+    Args:
+        func: The async function to wrap
+
+    Returns:
+        Wrapped function that checks settings.site_manager_enabled
+
+    Raises:
+        ValueError: If Site Manager API is not enabled
+    """
+
+    @wraps(func)
+    async def wrapper(settings: Settings, *args, **kwargs):
+        return await func(settings, *args, **kwargs)
+
+    return wrapper
+
+
 async def list_all_sites_aggregated(settings: Settings) -> list[dict[str, Any]]:
     """List all sites with aggregated stats from Site Manager API.
 
@@ -33,8 +54,6 @@ async def list_all_sites_aggregated(settings: Settings) -> list[dict[str, Any]]:
     Returns:
         List of sites with aggregated statistics
     """
-    if not settings.site_manager_enabled:
-        raise ValueError("Site Manager API is not enabled. Set UNIFI_SITE_MANAGER_ENABLED=true")
 
     async with SiteManagerClient(settings) as client:
         logger.info("Retrieving aggregated site list from Site Manager API")
@@ -60,8 +79,6 @@ async def get_internet_health(settings: Settings, site_id: str | None = None) ->
     Returns:
         Internet health metrics
     """
-    if not settings.site_manager_enabled:
-        raise ValueError("Site Manager API is not enabled. Set UNIFI_SITE_MANAGER_ENABLED=true")
 
     async with SiteManagerClient(settings) as client:
         logger.info(f"Retrieving internet health metrics (site_id={site_id})")
@@ -84,8 +101,6 @@ async def get_site_health_summary(
     Returns:
         Health summary
     """
-    if not settings.site_manager_enabled:
-        raise ValueError("Site Manager API is not enabled. Set UNIFI_SITE_MANAGER_ENABLED=true")
 
     async with SiteManagerClient(settings) as client:
         logger.info(f"Retrieving site health summary (site_id={site_id})")
@@ -111,8 +126,6 @@ async def get_cross_site_statistics(settings: Settings) -> dict[str, Any]:
     Returns:
         Cross-site statistics
     """
-    if not settings.site_manager_enabled:
-        raise ValueError("Site Manager API is not enabled. Set UNIFI_SITE_MANAGER_ENABLED=true")
 
     async with SiteManagerClient(settings) as client:
         logger.info("Retrieving cross-site statistics")
@@ -174,8 +187,6 @@ async def list_vantage_points(settings: Settings) -> list[dict[str, Any]]:
     Returns:
         List of Vantage Points
     """
-    if not settings.site_manager_enabled:
-        raise ValueError("Site Manager API is not enabled. Set UNIFI_SITE_MANAGER_ENABLED=true")
 
     async with SiteManagerClient(settings) as client:
         logger.info("Retrieving Vantage Points")
@@ -202,8 +213,6 @@ async def get_site_inventory(
     Returns:
         Site inventory or list of site inventories
     """
-    if not settings.site_manager_enabled:
-        raise ValueError("Site Manager API is not enabled. Set UNIFI_SITE_MANAGER_ENABLED=true")
 
     async with SiteManagerClient(settings) as client:
         logger.info(f"Retrieving site inventory (site_id={site_id})")
@@ -266,8 +275,6 @@ async def compare_site_performance(settings: Settings) -> dict[str, Any]:
     Returns:
         Performance comparison with rankings and metrics
     """
-    if not settings.site_manager_enabled:
-        raise ValueError("Site Manager API is not enabled. Set UNIFI_SITE_MANAGER_ENABLED=true")
 
     async with SiteManagerClient(settings) as client:
         logger.info("Comparing performance across sites")
@@ -376,8 +383,6 @@ async def search_across_sites(
     Returns:
         Search results with site context
     """
-    if not settings.site_manager_enabled:
-        raise ValueError("Site Manager API is not enabled. Set UNIFI_SITE_MANAGER_ENABLED=true")
 
     valid_types = ["device", "client", "network", "all"]
     if search_type not in valid_types:
@@ -472,6 +477,7 @@ async def search_across_sites(
 
 
 # ISP Metrics Tools (added 2026-02-16)
+@require_site_manager
 async def get_isp_metrics(settings: Settings, site_id: str) -> dict[str, Any]:
     """Get ISP metrics for a specific site.
 
@@ -482,9 +488,6 @@ async def get_isp_metrics(settings: Settings, site_id: str) -> dict[str, Any]:
     Returns:
         ISP metrics data including bandwidth, latency, jitter, and packet loss
     """
-    if not settings.site_manager_enabled:
-        raise ValueError("Site Manager API is not enabled. Set UNIFI_SITE_MANAGER_ENABLED=true")
-
     async with SiteManagerClient(settings) as client:
         logger.info(f"Retrieving ISP metrics for site: {site_id}")
 
@@ -494,6 +497,7 @@ async def get_isp_metrics(settings: Settings, site_id: str) -> dict[str, Any]:
         return ISPMetrics(**data).model_dump()  # type: ignore[no-any-return]
 
 
+@require_site_manager
 async def query_isp_metrics(
     settings: Settings,
     site_id: str | None = None,
@@ -511,8 +515,6 @@ async def query_isp_metrics(
     Returns:
         List of ISP metrics matching the query
     """
-    if not settings.site_manager_enabled:
-        raise ValueError("Site Manager API is not enabled. Set UNIFI_SITE_MANAGER_ENABLED=true")
 
     async with SiteManagerClient(settings) as client:
         logger.info(f"Querying ISP metrics (site_id={site_id}, start={start_time}, end={end_time})")
@@ -529,6 +531,7 @@ async def query_isp_metrics(
 
 
 # SD-WAN Configuration Tools (added 2026-02-16)
+@require_site_manager
 async def list_sdwan_configs(settings: Settings) -> list[dict[str, Any]]:
     """List all SD-WAN configurations.
 
@@ -538,8 +541,6 @@ async def list_sdwan_configs(settings: Settings) -> list[dict[str, Any]]:
     Returns:
         List of SD-WAN configurations
     """
-    if not settings.site_manager_enabled:
-        raise ValueError("Site Manager API is not enabled. Set UNIFI_SITE_MANAGER_ENABLED=true")
 
     async with SiteManagerClient(settings) as client:
         logger.info("Retrieving SD-WAN configurations")
@@ -553,6 +554,7 @@ async def list_sdwan_configs(settings: Settings) -> list[dict[str, Any]]:
             return []
 
 
+@require_site_manager
 async def get_sdwan_config(settings: Settings, config_id: str) -> dict[str, Any]:
     """Get SD-WAN configuration by ID.
 
@@ -563,8 +565,6 @@ async def get_sdwan_config(settings: Settings, config_id: str) -> dict[str, Any]
     Returns:
         SD-WAN configuration details
     """
-    if not settings.site_manager_enabled:
-        raise ValueError("Site Manager API is not enabled. Set UNIFI_SITE_MANAGER_ENABLED=true")
 
     async with SiteManagerClient(settings) as client:
         logger.info(f"Retrieving SD-WAN configuration: {config_id}")
@@ -575,6 +575,8 @@ async def get_sdwan_config(settings: Settings, config_id: str) -> dict[str, Any]
         return SDWANConfig(**data).model_dump()  # type: ignore[no-any-return]
 
 
+@require_site_manager
+@require_site_manager
 async def get_sdwan_config_status(settings: Settings, config_id: str) -> dict[str, Any]:
     """Get SD-WAN configuration deployment status.
 
@@ -585,8 +587,6 @@ async def get_sdwan_config_status(settings: Settings, config_id: str) -> dict[st
     Returns:
         SD-WAN configuration deployment status
     """
-    if not settings.site_manager_enabled:
-        raise ValueError("Site Manager API is not enabled. Set UNIFI_SITE_MANAGER_ENABLED=true")
 
     async with SiteManagerClient(settings) as client:
         logger.info(f"Retrieving SD-WAN configuration status: {config_id}")
@@ -598,6 +598,7 @@ async def get_sdwan_config_status(settings: Settings, config_id: str) -> dict[st
 
 
 # Host Management Tools (added 2026-02-16)
+@require_site_manager
 async def list_hosts(
     settings: Settings, limit: int | None = None, offset: int | None = None
 ) -> list[dict[str, Any]]:
@@ -611,8 +612,6 @@ async def list_hosts(
     Returns:
         List of managed hosts
     """
-    if not settings.site_manager_enabled:
-        raise ValueError("Site Manager API is not enabled. Set UNIFI_SITE_MANAGER_ENABLED=true")
 
     async with SiteManagerClient(settings) as client:
         logger.info(f"Retrieving hosts list (limit={limit}, offset={offset})")
@@ -626,6 +625,7 @@ async def list_hosts(
             return []
 
 
+@require_site_manager
 async def get_host(settings: Settings, host_id: str) -> dict[str, Any]:
     """Get host details by ID.
 
@@ -636,8 +636,6 @@ async def get_host(settings: Settings, host_id: str) -> dict[str, Any]:
     Returns:
         Host details
     """
-    if not settings.site_manager_enabled:
-        raise ValueError("Site Manager API is not enabled. Set UNIFI_SITE_MANAGER_ENABLED=true")
 
     async with SiteManagerClient(settings) as client:
         logger.info(f"Retrieving host details: {host_id}")
@@ -649,6 +647,7 @@ async def get_host(settings: Settings, host_id: str) -> dict[str, Any]:
 
 
 # Version Control Tool (added 2026-02-16)
+@require_site_manager
 async def get_version_control(settings: Settings) -> dict[str, Any]:
     """Get API version control information.
 
@@ -658,8 +657,6 @@ async def get_version_control(settings: Settings) -> dict[str, Any]:
     Returns:
         Version control information including current, latest, and deprecated versions
     """
-    if not settings.site_manager_enabled:
-        raise ValueError("Site Manager API is not enabled. Set UNIFI_SITE_MANAGER_ENABLED=true")
 
     async with SiteManagerClient(settings) as client:
         logger.info("Retrieving API version control information")

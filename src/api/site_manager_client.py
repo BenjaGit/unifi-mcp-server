@@ -129,13 +129,8 @@ class SiteManagerClient:
         Returns:
             Response with sites list
         """
-        params = {}
-        if limit:
-            params["limit"] = limit
-        if offset:
-            params["offset"] = offset
-
-        return await self.get("sites", params=params)
+        params = {"limit": limit, "offset": offset}
+        return await self.get("sites", params={k: v for k, v in params.items() if v is not None})
 
     async def get_site_health(self, site_id: str | None = None) -> dict[str, Any]:
         """Get health metrics for a site or all sites.
@@ -203,15 +198,14 @@ class SiteManagerClient:
         Returns:
             ISP metrics query results
         """
-        params = {}
-        if site_id:
-            params["site_id"] = site_id
-        if start_time:
-            params["start_time"] = start_time
-        if end_time:
-            params["end_time"] = end_time
-
-        return await self.get("isp/metrics", params=params)
+        params = {
+            "site_id": site_id,
+            "start_time": start_time,
+            "end_time": end_time,
+        }
+        return await self.get(
+            "isp/metrics", params={k: v for k, v in params.items() if v is not None}
+        )
 
     # SD-WAN endpoints (added 2026-02-16)
     async def list_sdwan_configs(self) -> dict[str, Any]:
@@ -257,13 +251,8 @@ class SiteManagerClient:
         Returns:
             Response with hosts list
         """
-        params = {}
-        if limit:
-            params["limit"] = limit
-        if offset:
-            params["offset"] = offset
-
-        return await self.get("hosts", params=params)
+        params = {"limit": limit, "offset": offset}
+        return await self.get("hosts", params={k: v for k, v in params.items() if v is not None})
 
     async def get_host(self, host_id: str) -> dict[str, Any]:
         """Get host details by ID.

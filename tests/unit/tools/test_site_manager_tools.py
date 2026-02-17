@@ -19,22 +19,34 @@ from src.tools.site_manager import (
 @pytest.fixture
 def mock_settings():
     """Create mock settings for testing."""
-    settings = MagicMock()
-    settings.log_level = "INFO"
-    settings.site_manager_enabled = True
-    settings.api_key = "test-key"
-    settings.request_timeout = 30.0
-    settings.get_headers = MagicMock(return_value={"X-API-Key": "test-key"})
-    return settings
+    # Use a simple object with real attributes instead of MagicMock
+    # to avoid MagicMock comparison issues with httpx timeout handling
+    class MockSettings:
+        log_level = "INFO"
+        site_manager_enabled = True
+        api_key = "test-key"
+        request_timeout = 30.0
+
+        def get_headers(self):
+            return {"X-API-Key": "test-key"}
+
+    return MockSettings()
 
 
 @pytest.fixture
 def mock_settings_disabled():
     """Create mock settings with site manager disabled."""
-    settings = MagicMock()
-    settings.log_level = "INFO"
-    settings.site_manager_enabled = False
-    return settings
+    # Use a simple object with real attributes instead of MagicMock
+    class MockSettings:
+        log_level = "INFO"
+        site_manager_enabled = False
+        api_key = "test-key"
+        request_timeout = 30.0
+
+        def get_headers(self):
+            return {"X-API-Key": "test-key"}
+
+    return MockSettings()
 
 
 # =============================================================================

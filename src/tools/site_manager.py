@@ -40,11 +40,16 @@ def require_site_manager(func):
 
     @wraps(func)
     async def wrapper(settings: Settings, *args, **kwargs):
+        if not settings.site_manager_enabled:
+            raise ValueError(
+                "Site Manager API is not enabled. Set UNIFI_SITE_MANAGER_ENABLED=true"
+            )
         return await func(settings, *args, **kwargs)
 
     return wrapper
 
 
+@require_site_manager
 async def list_all_sites_aggregated(settings: Settings) -> list[dict[str, Any]]:
     """List all sites with aggregated stats from Site Manager API.
 
@@ -69,6 +74,7 @@ async def list_all_sites_aggregated(settings: Settings) -> list[dict[str, Any]]:
         return sites
 
 
+@require_site_manager
 async def get_internet_health(settings: Settings, site_id: str | None = None) -> dict[str, Any]:
     """Get internet health metrics across sites.
 
@@ -88,6 +94,7 @@ async def get_internet_health(settings: Settings, site_id: str | None = None) ->
 
         return InternetHealthMetrics(**data).model_dump()  # type: ignore[no-any-return]
 
+@require_site_manager
 
 async def get_site_health_summary(
     settings: Settings, site_id: str | None = None
@@ -117,6 +124,7 @@ async def get_site_health_summary(
             return [SiteHealthSummary(**summary).model_dump() for summary in summaries]
 
 
+@require_site_manager
 async def get_cross_site_statistics(settings: Settings) -> dict[str, Any]:
     """Get aggregate statistics across multiple sites.
 
@@ -178,6 +186,7 @@ async def get_cross_site_statistics(settings: Settings) -> dict[str, Any]:
         ).model_dump()
 
 
+@require_site_manager
 async def list_vantage_points(settings: Settings) -> list[dict[str, Any]]:
     """List all Vantage Points.
 
@@ -198,6 +207,7 @@ async def list_vantage_points(settings: Settings) -> list[dict[str, Any]]:
         return [VantagePoint(**vp).model_dump() for vp in data]
 
 
+@require_site_manager
 async def get_site_inventory(
     settings: Settings, site_id: str | None = None
 ) -> dict[str, Any] | list[dict[str, Any]]:
@@ -263,6 +273,7 @@ async def get_site_inventory(
             return inventories
 
 
+@require_site_manager
 async def compare_site_performance(settings: Settings) -> dict[str, Any]:
     """Compare performance metrics across all sites.
 
@@ -365,6 +376,7 @@ async def compare_site_performance(settings: Settings) -> dict[str, Any]:
         return comparison.model_dump()  # type: ignore[no-any-return]
 
 
+@require_site_manager
 async def search_across_sites(
     settings: Settings,
     query: str,

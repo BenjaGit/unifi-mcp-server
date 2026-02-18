@@ -6,7 +6,7 @@ This file provides project-specific instructions for AI coding assistants workin
 
 The UniFi MCP Server is a Model Context Protocol (MCP) server that exposes the UniFi Network Controller API, enabling AI agents and applications to interact with UniFi network infrastructure in a standardized way.
 
-**Current Version**: v0.2.2
+**Current Version**: v0.2.3
 **Python Version**: 3.10+
 **Framework**: FastMCP
 
@@ -26,7 +26,7 @@ The UniFi MCP Server is a Model Context Protocol (MCP) server that exposes the U
    - `src/api/` - UniFi API client
    - `src/models/` - Pydantic data models
    - `src/tools/` - MCP tool implementations
-   - `tests/unit/` - Unit tests (1,068 tests passing)
+   - `tests/unit/` - Unit tests (1,156 tests passing)
 
 ### Development Workflow
 
@@ -77,7 +77,12 @@ The server supports three UniFi API access modes:
 
 ### Current Development Focus
 
-**Version 0.2.2** (Current):
+**Version 0.2.3** (Current):
+
+- ✅ P1 API bug fixes (QoS audit_action, Site Manager decorator, Topology warnings, Backup client methods)
+- ✅ P2 RADIUS & Guest Portal — Complete CRUD (get/update for RADIUS accounts and hotspot packages)
+
+**Version 0.2.2** (Complete ✅):
 
 - ✅ Port Profile & Switch Port Management (8 tools)
 - ✅ Security hardening (dependency updates, PII removal)
@@ -93,10 +98,10 @@ The server supports three UniFi API access modes:
 - ✅ Multi-Site Aggregation (4 tools)
 - ✅ ACL & Traffic Filtering (7 tools)
 - ✅ Site Management (9 tools)
-- ✅ RADIUS & Guest Portal (6 tools)
+- ✅ RADIUS & Guest Portal (10 tools — full CRUD)
 - ✅ Network Topology (5 tools)
 
-**Total**: 82+ MCP tools, 1,068 tests passing
+**Total**: 86+ MCP tools, 1,156 tests passing
 
 ### Important Constraints
 
@@ -129,5 +134,5 @@ The server supports three UniFi API access modes:
 
 ---
 
-**Last Updated**: 2026-01-25
+**Last Updated**: 2026-02-18
 **Maintained By**: Development Team

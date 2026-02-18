@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.2.3] - 2026-02-18
 
+### Added
+
+**RADIUS & Guest Portal — Complete CRUD (4 new tools)**
+
+- `get_radius_account` — Retrieve a single RADIUS account by ID; password field auto-redacted
+- `update_radius_account` — Update username, password, VLAN, tunnel type, enabled status, and notes; confirm/dry-run support
+- `get_hotspot_package` — Retrieve a single hotspot package by ID
+- `update_hotspot_package` — Update name, duration, bandwidth limits, quotas, price, currency, and enabled status; confirm/dry-run support
+
+These complete full CRUD for RADIUS accounts and hotspot packages. Phase 6 (Enhanced RADIUS & Guest Portal) is now feature-complete.
+
 ### Fixed
 
 - **QoS Tools**: Fixed runtime `TypeError` in 6 `audit_action` calls in `qos.py` that incorrectly used `action=` keyword argument instead of the required `action_type=`. Affected `create_qos_profile`, `update_qos_profile`, `configure_smart_queue`, `disable_smart_queue`, `create_traffic_route`, `update_traffic_route`. Would have crashed at runtime whenever audit logging was enabled.
@@ -21,7 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Tests
 
 - Added `TestUniFiClientBackupMethods` with 5 tests covering the new backup client methods.
-- Test count: 1,133 passing (up from 1,128).
+- Test count: 1,156 passing (up from 1,128).
 - Zero `RuntimeWarning` coroutine warnings (down from 6).
 
 ## [0.2.2] - 2026-02-16

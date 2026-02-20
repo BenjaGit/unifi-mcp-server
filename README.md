@@ -12,7 +12,7 @@ A Model Context Protocol (MCP) server that exposes the UniFi Network Controller 
 
 ## 📋 Version Notice
 
-**Current Stable Release**: v0.2.2 (2026-02-16) 🎉
+**Current Stable Release**: v0.2.4 (2026-02-19) 🎉
 
 **Installation:**
 
@@ -20,31 +20,22 @@ A Model Context Protocol (MCP) server that exposes the UniFi Network Controller 
 pip install unifi-mcp-server
 ```
 
-**What's New in v0.2.2:**
+**What's New in v0.2.4 (Hotfix):**
+
+- 🚨 **Critical Startup Fix (issue #42)** - `ImportError: cannot import 'config' from 'agnost'` prevented the server from starting for all users, even when `AGNOST_ENABLED=false`. The fix moves agnost imports inside the conditional block with graceful error handling.
+- 📌 **Dependency Pin** - Excluded broken `agnost==0.1.13` from the version range (`>=0.1.12,!=0.1.13`)
+- 🧪 **1,160 Tests Passing** - 4 new regression tests covering all agnost import failure scenarios
+
+**Previous Release - v0.2.3 (2026-02-18):**
+
+- ✅ P1 API bug fixes (QoS audit_action, Site Manager decorator, Topology warnings, Backup client methods)
+- ✅ P2 RADIUS & Guest Portal — Complete CRUD (get/update for RADIUS accounts and hotspot packages)
+
+**Previous Release - v0.2.2 (2026-02-16):**
 
 - 🔌 **Port Profile Management** - 8 new tools for switch port configuration (PoE, VLAN, 802.1X, LLDP-MED)
 - 🔒 **Security Updates** - Critical dependency updates (FastMCP 2.14.5, MCP 1.26.0, cryptography 46.0.5)
-- 🐛 **API Fixes** - Corrected RADIUS, firewall, WLAN, and network configuration endpoints/payloads
-- 🛡️ **Security Hardening** - Removed PII, masked sensitive data, cleaned git history
 - 🧪 **1,068 Tests Passing** - 75 new tests, all passing across Python 3.10, 3.11, 3.12
-- 📋 **Code Quality** - Fixed all pre-commit hooks, improved type hints, Pydantic model validation
-
-**New Tools in v0.2.2:**
-
-- `list_port_profiles` - Paginated switch port profile listing
-- `get_port_profile` - Fetch port profile details by ID
-- `create_port_profile` - Create port profiles with full config (PoE, VLAN, 802.1X, LLDP-MED)
-- `update_port_profile` - Update port profiles with fetch-then-merge
-- `delete_port_profile` - Delete port profiles with verification
-- `get_device_port_overrides` - Get per-port overrides and port table for devices
-- `set_device_port_overrides` - Set port overrides with smart merge or full replace
-- `get_device_by_mac` - Look up devices by MAC address
-
-**Previous Release - v0.2.1 (2026-01-26):**
-
-- 🔧 **CI/CD Improvements** - Fixed all CI/CD pipeline failures
-- ✅ **Test Infrastructure** - Proper pytest configuration with integration markers
-- 🧪 **990 Tests Passing** - All unit tests passing across Python 3.10, 3.11, 3.12
 
 **Major Release - v0.2.0 (2026-01-25):**
 

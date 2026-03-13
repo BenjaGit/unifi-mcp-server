@@ -33,7 +33,7 @@ def test_radius_profile_without_auth_server():
     data = {
         "_id": "profile-1",
         "name": "Default",
-        "auth_servers": [{"port": 1812, "x_secret": "secret"}],
+        "auth_servers": [{"port": 1812, "x_secret": "test-placeholder"}],
         "use_usg_auth_server": True,
     }
     profile = RADIUSProfile.model_validate(data)

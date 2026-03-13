@@ -503,11 +503,10 @@ async def get_device_port_overrides(
         )
 
         # Filter by _id or MAC address
-        device = None
-        for d in all_devices:
-            if d.get("_id") == device_id or d.get("mac") == device_id:
-                device = d
-                break
+        device = next(
+            (d for d in all_devices if d.get("_id") == device_id or d.get("mac") == device_id),
+            None,
+        )
 
         if not device:
             raise ResourceNotFoundError("device", device_id)
@@ -597,11 +596,10 @@ async def set_device_port_overrides(
                 response if isinstance(response, list) else response.get("data", [])
             )
 
-            device = None
-            for d in all_devices:
-                if d.get("_id") == device_id or d.get("mac") == device_id:
-                    device = d
-                    break
+            device = next(
+                (d for d in all_devices if d.get("_id") == device_id or d.get("mac") == device_id),
+                None,
+            )
 
             if not device:
                 raise ResourceNotFoundError("device", device_id)
@@ -635,7 +633,9 @@ async def set_device_port_overrides(
 
             # PUT the full device with updated port_overrides
             device["port_overrides"] = final_overrides
-            endpoint = settings.get_site_api_path(site_id, f"rest/device/{device_id}")
+            # Use resolved _id for writes (device_id may be a MAC address)
+            resolved_id = device["_id"]
+            endpoint = settings.get_site_api_path(site_id, f"rest/device/{resolved_id}")
             response = await client.put(
                 endpoint,
                 json_data=device,

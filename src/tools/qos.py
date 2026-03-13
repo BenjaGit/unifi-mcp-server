@@ -157,7 +157,7 @@ async def create_traffic_route(
         if not client.is_authenticated:
             await client.authenticate()
 
-        response = await client.post(f"/ea/sites/{site_id}/rest/routing", json=route_data)
+        response = await client.post(f"/ea/sites/{site_id}/rest/routing", json_data=route_data)
 
         data = response if isinstance(response, list) else response.get("data", [])
         if not data:
@@ -237,7 +237,7 @@ async def update_traffic_route(
             await client.authenticate()
 
         response = await client.put(
-            f"/ea/sites/{site_id}/rest/routing/{route_id}", json=update_data
+            f"/ea/sites/{site_id}/rest/routing/{route_id}", json_data=update_data
         )
 
         data = response if isinstance(response, list) else response.get("data", [])

@@ -29,17 +29,9 @@ from .firewall_zone import FirewallZone
 from .network import Network
 from .port_profile import PortOverride, PortProfile, PortTableEntry
 from .qos_profile import (
-    DSCPValue,
     MatchCriteria,
-    ProAVProtocol,
-    ProAVTemplate,
-    QoSAction,
-    QoSPriority,
-    QoSProfile,
-    QueueAlgorithm,
     RouteAction,
     RouteSchedule,
-    SmartQueueConfig,
     TrafficRoute,
 )
 from .radius import RADIUSProfile
@@ -112,18 +104,10 @@ __all__ = [
     "BackupValidationResult",
     "RestoreOperation",
     "RestoreStatus",
-    "QoSProfile",
-    "QoSPriority",
-    "DSCPValue",
-    "QoSAction",
     "RouteAction",
-    "QueueAlgorithm",
-    "ProAVProtocol",
-    "ProAVTemplate",
     "MatchCriteria",
     "RouteSchedule",
     "TrafficRoute",
-    "SmartQueueConfig",
     "PortProfile",
     "PortOverride",
     "PortTableEntry",

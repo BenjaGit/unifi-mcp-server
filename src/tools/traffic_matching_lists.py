@@ -40,7 +40,8 @@ async def list_traffic_matching_lists(
     async with UniFiClient(settings) as client:
         await client.authenticate()
 
-        endpoint = settings.get_integration_path(f"sites/{site_id}/traffic-matching-lists")
+        resolved_site_id = await client.resolve_site_id(site_id)
+        endpoint = settings.get_integration_path(f"sites/{resolved_site_id}/traffic-matching-lists")
         response = await client.get(endpoint)
         lists_data: list[dict[str, Any]] = (
             response if isinstance(response, list) else response.get("data", [])
@@ -77,8 +78,9 @@ async def get_traffic_matching_list(
     async with UniFiClient(settings) as client:
         await client.authenticate()
 
+        resolved_site_id = await client.resolve_site_id(site_id)
         endpoint = settings.get_integration_path(
-            f"sites/{site_id}/traffic-matching-lists/{list_id}"
+            f"sites/{resolved_site_id}/traffic-matching-lists/{list_id}"
         )
         response = await client.get(endpoint)
 
@@ -159,7 +161,10 @@ async def create_traffic_matching_list(
         async with UniFiClient(settings) as client:
             await client.authenticate()
 
-            endpoint = settings.get_integration_path(f"sites/{site_id}/traffic-matching-lists")
+            resolved_site_id = await client.resolve_site_id(site_id)
+            endpoint = settings.get_integration_path(
+                f"sites/{resolved_site_id}/traffic-matching-lists"
+            )
             response = await client.post(
                 endpoint,
                 json_data=create_data.model_dump(),
@@ -255,9 +260,11 @@ async def update_traffic_matching_list(
         async with UniFiClient(settings) as client:
             await client.authenticate()
 
+            resolved_site_id = await client.resolve_site_id(site_id)
+
             # Get existing list
             endpoint = settings.get_integration_path(
-                f"sites/{site_id}/traffic-matching-lists/{list_id}"
+                f"sites/{resolved_site_id}/traffic-matching-lists/{list_id}"
             )
             response = await client.get(endpoint)
             existing_list = (
@@ -278,7 +285,7 @@ async def update_traffic_matching_list(
                 update_data["items"] = items
 
             endpoint = settings.get_integration_path(
-                f"sites/{site_id}/traffic-matching-lists/{list_id}"
+                f"sites/{resolved_site_id}/traffic-matching-lists/{list_id}"
             )
             response = await client.put(
                 endpoint,
@@ -355,9 +362,11 @@ async def delete_traffic_matching_list(
         async with UniFiClient(settings) as client:
             await client.authenticate()
 
+            resolved_site_id = await client.resolve_site_id(site_id)
+
             # Verify list exists before deleting
             endpoint = settings.get_integration_path(
-                f"sites/{site_id}/traffic-matching-lists/{list_id}"
+                f"sites/{resolved_site_id}/traffic-matching-lists/{list_id}"
             )
             try:
                 await client.get(endpoint)

@@ -59,6 +59,7 @@ async def test_list_traffic_matching_lists_success(mock_settings):
     with patch("src.tools.traffic_matching_lists.UniFiClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_client.authenticate = AsyncMock()
+        mock_client.resolve_site_id = AsyncMock(return_value="default")
         mock_client.get = AsyncMock(return_value=mock_response)
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock()
@@ -86,6 +87,7 @@ async def test_list_traffic_matching_lists_pagination(mock_settings):
     with patch("src.tools.traffic_matching_lists.UniFiClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_client.authenticate = AsyncMock()
+        mock_client.resolve_site_id = AsyncMock(return_value="default")
         mock_client.get = AsyncMock(return_value=mock_response)
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock()
@@ -105,6 +107,7 @@ async def test_list_traffic_matching_lists_empty(mock_settings):
     with patch("src.tools.traffic_matching_lists.UniFiClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_client.authenticate = AsyncMock()
+        mock_client.resolve_site_id = AsyncMock(return_value="default")
         mock_client.get = AsyncMock(return_value=mock_response)
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock()
@@ -130,6 +133,7 @@ async def test_get_traffic_matching_list_success(mock_settings):
     with patch("src.tools.traffic_matching_lists.UniFiClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_client.authenticate = AsyncMock()
+        mock_client.resolve_site_id = AsyncMock(return_value="default")
         mock_client.get = AsyncMock(return_value=mock_response)
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock()
@@ -154,6 +158,7 @@ async def test_get_traffic_matching_list_direct_response(mock_settings):
     with patch("src.tools.traffic_matching_lists.UniFiClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_client.authenticate = AsyncMock()
+        mock_client.resolve_site_id = AsyncMock(return_value="default")
         mock_client.get = AsyncMock(return_value=mock_response)
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock()
@@ -169,6 +174,7 @@ async def test_get_traffic_matching_list_direct_response(mock_settings):
 async def test_get_traffic_matching_list_not_found(mock_settings):
     mock_client = MagicMock()
     mock_client.authenticate = AsyncMock()
+    mock_client.resolve_site_id = AsyncMock(return_value="default")
     mock_client.get = AsyncMock(return_value={})
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=None)
@@ -194,6 +200,7 @@ async def test_create_traffic_matching_list_success(mock_settings):
         with patch("src.tools.traffic_matching_lists.log_audit"):
             mock_client = AsyncMock()
             mock_client.authenticate = AsyncMock()
+            mock_client.resolve_site_id = AsyncMock(return_value="default")
             mock_client.post = AsyncMock(return_value=mock_response)
             mock_client.__aenter__ = AsyncMock(return_value=mock_client)
             mock_client.__aexit__ = AsyncMock()
@@ -374,6 +381,7 @@ async def test_update_traffic_matching_list_empty_items(mock_settings):
 async def test_update_traffic_matching_list_not_found(mock_settings):
     mock_client = MagicMock()
     mock_client.authenticate = AsyncMock()
+    mock_client.resolve_site_id = AsyncMock(return_value="default")
     mock_client.get = AsyncMock(return_value={})
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=None)
@@ -455,6 +463,7 @@ async def test_delete_traffic_matching_list_no_confirm(mock_settings):
 async def test_delete_traffic_matching_list_not_found(mock_settings):
     mock_client = MagicMock()
     mock_client.authenticate = AsyncMock()
+    mock_client.resolve_site_id = AsyncMock(return_value="default")
     mock_client.get = AsyncMock(side_effect=Exception("Not found"))
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=None)

@@ -496,7 +496,8 @@ async def get_device_port_overrides(
     async with UniFiClient(settings) as client:
         await client.authenticate()
 
-        response = await client.get(f"/ea/sites/{site_id}/rest/device/{device_id}")
+        endpoint = settings.get_site_api_path(site_id, f"rest/device/{device_id}")
+        response = await client.get(endpoint)
         devices: list[dict[str, Any]] = (
             response if isinstance(response, list) else response.get("data", [])
         )
@@ -585,7 +586,8 @@ async def set_device_port_overrides(
             await client.authenticate()
 
             # Fetch existing device
-            response = await client.get(f"/ea/sites/{site_id}/rest/device/{device_id}")
+            endpoint = settings.get_site_api_path(site_id, f"rest/device/{device_id}")
+            response = await client.get(endpoint)
             devices: list[dict[str, Any]] = (
                 response if isinstance(response, list) else response.get("data", [])
             )
@@ -624,8 +626,9 @@ async def set_device_port_overrides(
 
             # PUT the full device with updated port_overrides
             device["port_overrides"] = final_overrides
+            endpoint = settings.get_site_api_path(site_id, f"rest/device/{device_id}")
             response = await client.put(
-                f"/ea/sites/{site_id}/rest/device/{device_id}",
+                endpoint,
                 json_data=device,
             )
             if isinstance(response, list):

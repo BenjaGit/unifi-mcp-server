@@ -30,6 +30,9 @@ def mock_settings():
     settings.local_host = "192.168.2.1"
     settings.local_port = 443
     settings.local_verify_ssl = False
+    settings.get_site_api_path = MagicMock(
+        side_effect=lambda site_id, endpoint: f"/proxy/network/api/s/{site_id}/{endpoint}"
+    )
     return settings
 
 
@@ -574,7 +577,7 @@ async def test_get_device_port_overrides_success(mock_settings):
     assert len(result["port_overrides"]) == 2
     assert result["port_overrides"][0]["port_idx"] == 1
     assert len(result["port_table"]) == 2
-    client.get.assert_called_once_with("/ea/sites/default/rest/device/dev1")
+    client.get.assert_called_once_with("/proxy/network/api/s/default/rest/device/dev1")
 
 
 @pytest.mark.asyncio

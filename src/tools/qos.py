@@ -38,10 +38,8 @@ async def list_qos_profiles(
         if not client.is_authenticated:
             await client.authenticate()
 
-        resolved_site_id = await client.resolve_site_id(site_id)
-        endpoint = settings.get_site_api_path(resolved_site_id, "rest/qosprofile")
-        response = await client.get(endpoint)
-        data = response.get("data", [])
+        response = await client.get(f"/ea/sites/{site_id}/rest/qosprofile")
+        data = response if isinstance(response, list) else response.get("data", [])
 
         # Apply pagination
         paginated_data = data[offset : offset + limit]
@@ -70,10 +68,8 @@ async def get_qos_profile(
         if not client.is_authenticated:
             await client.authenticate()
 
-        resolved_site_id = await client.resolve_site_id(site_id)
-        endpoint = settings.get_site_api_path(resolved_site_id, f"rest/qosprofile/{profile_id}")
-        response = await client.get(endpoint)
-        data = response.get("data", [])
+        response = await client.get(f"/ea/sites/{site_id}/rest/qosprofile/{profile_id}")
+        data = response if isinstance(response, list) else response.get("data", [])
 
         if not data:
             raise ValidationError(f"QoS profile {profile_id} not found")
@@ -190,11 +186,9 @@ async def create_qos_profile(
         if not client.is_authenticated:
             await client.authenticate()
 
-        resolved_site_id = await client.resolve_site_id(site_id)
-        endpoint = settings.get_site_api_path(resolved_site_id, "rest/qosprofile")
-        response = await client.post(endpoint, json=profile_data)
+        response = await client.post(f"/ea/sites/{site_id}/rest/qosprofile", json=profile_data)
 
-        data = response.get("data", [])
+        data = response if isinstance(response, list) else response.get("data", [])
         if not data:
             raise ValidationError("Failed to create QoS profile")
 
@@ -210,7 +204,7 @@ async def create_qos_profile(
                 "priority_level": priority_level,
                 "dscp_marking": dscp_marking,
             },
-            site_id=resolved_site_id,
+            site_id=site_id,
         )
 
         return result  # type: ignore[no-any-return]
@@ -297,11 +291,11 @@ async def update_qos_profile(
         if not client.is_authenticated:
             await client.authenticate()
 
-        resolved_site_id = await client.resolve_site_id(site_id)
-        endpoint = settings.get_site_api_path(resolved_site_id, f"rest/qosprofile/{profile_id}")
-        response = await client.put(endpoint, json=update_data)
+        response = await client.put(
+            f"/ea/sites/{site_id}/rest/qosprofile/{profile_id}", json=update_data
+        )
 
-        data = response.get("data", [])
+        data = response if isinstance(response, list) else response.get("data", [])
         if not data:
             raise ValidationError(f"Failed to update QoS profile {profile_id}")
 
@@ -313,7 +307,7 @@ async def update_qos_profile(
             resource_type="qos_profile",
             resource_id=profile_id,
             details=update_data,
-            site_id=resolved_site_id,
+            site_id=site_id,
         )
 
         return result  # type: ignore[no-any-return]
@@ -344,9 +338,7 @@ async def delete_qos_profile(
         if not client.is_authenticated:
             await client.authenticate()
 
-        resolved_site_id = await client.resolve_site_id(site_id)
-        endpoint = settings.get_site_api_path(resolved_site_id, f"rest/qosprofile/{profile_id}")
-        await client.delete(endpoint)
+        await client.delete(f"/ea/sites/{site_id}/rest/qosprofile/{profile_id}")
 
         await audit_action(
             settings,
@@ -354,7 +346,7 @@ async def delete_qos_profile(
             resource_type="qos_profile",
             resource_id=profile_id,
             details={"deleted": True},
-            site_id=resolved_site_id,
+            site_id=site_id,
         )
 
         return {  # type: ignore[no-any-return]
@@ -616,10 +608,8 @@ async def get_smart_queue_config(
         if not client.is_authenticated:
             await client.authenticate()
 
-        resolved_site_id = await client.resolve_site_id(site_id)
-        endpoint = settings.get_site_api_path(resolved_site_id, "rest/wanconf")
-        response = await client.get(endpoint)
-        data = response.get("data", [])
+        response = await client.get(f"/ea/sites/{site_id}/rest/wanconf")
+        data = response if isinstance(response, list) else response.get("data", [])
 
         if not data:
             raise ValidationError("No WAN configuration found")
@@ -708,11 +698,9 @@ async def configure_smart_queue(
         if not client.is_authenticated:
             await client.authenticate()
 
-        resolved_site_id = await client.resolve_site_id(site_id)
-        endpoint = settings.get_site_api_path(resolved_site_id, f"rest/wanconf/{wan_id}")
-        response = await client.put(endpoint, json=sqm_config)
+        response = await client.put(f"/ea/sites/{site_id}/rest/wanconf/{wan_id}", json=sqm_config)
 
-        data = response.get("data", [])
+        data = response if isinstance(response, list) else response.get("data", [])
         if not data:
             raise ValidationError(f"Failed to configure SQM for WAN {wan_id}")
 
@@ -722,7 +710,7 @@ async def configure_smart_queue(
             resource_type="wan_config",
             resource_id=wan_id,
             details=sqm_config,
-            site_id=resolved_site_id,
+            site_id=site_id,
         )
 
         result = {
@@ -760,11 +748,11 @@ async def disable_smart_queue(
         if not client.is_authenticated:
             await client.authenticate()
 
-        resolved_site_id = await client.resolve_site_id(site_id)
-        endpoint = settings.get_site_api_path(resolved_site_id, f"rest/wanconf/{wan_id}")
-        response = await client.put(endpoint, json={"sqm_enabled": False})
+        response = await client.put(
+            f"/ea/sites/{site_id}/rest/wanconf/{wan_id}", json={"sqm_enabled": False}
+        )
 
-        data = response.get("data", [])
+        data = response if isinstance(response, list) else response.get("data", [])
         if not data:
             raise ValidationError(f"Failed to disable SQM for WAN {wan_id}")
 
@@ -774,7 +762,7 @@ async def disable_smart_queue(
             resource_type="wan_config",
             resource_id=wan_id,
             details={"sqm_enabled": False},
-            site_id=resolved_site_id,
+            site_id=site_id,
         )
 
         return {  # type: ignore[no-any-return]
@@ -812,10 +800,8 @@ async def list_traffic_routes(
         if not client.is_authenticated:
             await client.authenticate()
 
-        resolved_site_id = await client.resolve_site_id(site_id)
-        endpoint = settings.get_site_api_path(resolved_site_id, "rest/routing")
-        response = await client.get(endpoint)
-        data = response.get("data", [])
+        response = await client.get(f"/ea/sites/{site_id}/rest/routing")
+        data = response if isinstance(response, list) else response.get("data", [])
 
         # Apply pagination
         paginated_data = data[offset : offset + limit]
@@ -922,11 +908,9 @@ async def create_traffic_route(
         if not client.is_authenticated:
             await client.authenticate()
 
-        resolved_site_id = await client.resolve_site_id(site_id)
-        endpoint = settings.get_site_api_path(resolved_site_id, "rest/routing")
-        response = await client.post(endpoint, json=route_data)
+        response = await client.post(f"/ea/sites/{site_id}/rest/routing", json=route_data)
 
-        data = response.get("data", [])
+        data = response if isinstance(response, list) else response.get("data", [])
         if not data:
             raise ValidationError("Failed to create traffic route")
 
@@ -938,7 +922,7 @@ async def create_traffic_route(
             resource_type="traffic_route",
             resource_id=result.get("id", "unknown"),
             details={"name": name, "action": action},
-            site_id=resolved_site_id,
+            site_id=site_id,
         )
 
         return result  # type: ignore[no-any-return]
@@ -1003,11 +987,11 @@ async def update_traffic_route(
         if not client.is_authenticated:
             await client.authenticate()
 
-        resolved_site_id = await client.resolve_site_id(site_id)
-        endpoint = settings.get_site_api_path(resolved_site_id, f"rest/routing/{route_id}")
-        response = await client.put(endpoint, json=update_data)
+        response = await client.put(
+            f"/ea/sites/{site_id}/rest/routing/{route_id}", json=update_data
+        )
 
-        data = response.get("data", [])
+        data = response if isinstance(response, list) else response.get("data", [])
         if not data:
             raise ValidationError(f"Failed to update traffic route {route_id}")
 
@@ -1019,7 +1003,7 @@ async def update_traffic_route(
             resource_type="traffic_route",
             resource_id=route_id,
             details=update_data,
-            site_id=resolved_site_id,
+            site_id=site_id,
         )
 
         return result  # type: ignore[no-any-return]
@@ -1050,9 +1034,7 @@ async def delete_traffic_route(
         if not client.is_authenticated:
             await client.authenticate()
 
-        resolved_site_id = await client.resolve_site_id(site_id)
-        endpoint = settings.get_site_api_path(resolved_site_id, f"rest/routing/{route_id}")
-        await client.delete(endpoint)
+        await client.delete(f"/ea/sites/{site_id}/rest/routing/{route_id}")
 
         await audit_action(
             settings,
@@ -1060,7 +1042,7 @@ async def delete_traffic_route(
             resource_type="traffic_route",
             resource_id=route_id,
             details={"deleted": True},
-            site_id=resolved_site_id,
+            site_id=site_id,
         )
 
         return {  # type: ignore[no-any-return]

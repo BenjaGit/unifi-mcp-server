@@ -29,6 +29,9 @@ def mock_settings():
     settings.request_timeout = 30.0
     settings.site_manager_enabled = False
     settings.get_headers = MagicMock(return_value={"X-API-Key": "test-key"})
+    settings.get_integration_path = MagicMock(
+        side_effect=lambda endpoint: f"/integration/v1/{endpoint}"
+    )
     return settings
 
 

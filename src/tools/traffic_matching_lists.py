@@ -40,8 +40,11 @@ async def list_traffic_matching_lists(
     async with UniFiClient(settings) as client:
         await client.authenticate()
 
-        response = await client.get(f"/integration/v1/sites/{site_id}/traffic-matching-lists")
-        lists_data: list[dict[str, Any]] = response.get("data", [])
+        endpoint = settings.get_integration_path(f"sites/{site_id}/traffic-matching-lists")
+        response = await client.get(endpoint)
+        lists_data: list[dict[str, Any]] = (
+            response if isinstance(response, list) else response.get("data", [])
+        )
 
         # Apply pagination
         paginated = lists_data[offset : offset + limit]
@@ -74,9 +77,10 @@ async def get_traffic_matching_list(
     async with UniFiClient(settings) as client:
         await client.authenticate()
 
-        response = await client.get(
-            f"/integration/v1/sites/{site_id}/traffic-matching-lists/{list_id}"
+        endpoint = settings.get_integration_path(
+            f"sites/{site_id}/traffic-matching-lists/{list_id}"
         )
+        response = await client.get(endpoint)
 
         if isinstance(response, dict) and "data" in response:
             list_data = response["data"]
@@ -155,11 +159,14 @@ async def create_traffic_matching_list(
         async with UniFiClient(settings) as client:
             await client.authenticate()
 
+            endpoint = settings.get_integration_path(f"sites/{site_id}/traffic-matching-lists")
             response = await client.post(
-                f"/integration/v1/sites/{site_id}/traffic-matching-lists",
+                endpoint,
                 json_data=create_data.model_dump(),
             )
-            created_list: dict[str, Any] = response.get("data", response)
+            created_list: dict[str, Any] = (
+                response if isinstance(response, list) else response.get("data", response)
+            )
 
             logger.info(f"Created traffic matching list '{name}' in site '{site_id}'")
             log_audit(
@@ -249,10 +256,13 @@ async def update_traffic_matching_list(
             await client.authenticate()
 
             # Get existing list
-            response = await client.get(
-                f"/integration/v1/sites/{site_id}/traffic-matching-lists/{list_id}"
+            endpoint = settings.get_integration_path(
+                f"sites/{site_id}/traffic-matching-lists/{list_id}"
             )
-            existing_list = response.get("data", response)
+            response = await client.get(endpoint)
+            existing_list = (
+                response if isinstance(response, list) else response.get("data", response)
+            )
 
             if not existing_list:
                 raise ResourceNotFoundError("traffic_matching_list", list_id)
@@ -267,11 +277,16 @@ async def update_traffic_matching_list(
             if items is not None:
                 update_data["items"] = items
 
+            endpoint = settings.get_integration_path(
+                f"sites/{site_id}/traffic-matching-lists/{list_id}"
+            )
             response = await client.put(
-                f"/integration/v1/sites/{site_id}/traffic-matching-lists/{list_id}",
+                endpoint,
                 json_data=update_data,
             )
-            updated_list: dict[str, Any] = response.get("data", response)
+            updated_list: dict[str, Any] = (
+                response if isinstance(response, list) else response.get("data", response)
+            )
 
             logger.info(f"Updated traffic matching list '{list_id}' in site '{site_id}'")
             log_audit(
@@ -341,14 +356,15 @@ async def delete_traffic_matching_list(
             await client.authenticate()
 
             # Verify list exists before deleting
+            endpoint = settings.get_integration_path(
+                f"sites/{site_id}/traffic-matching-lists/{list_id}"
+            )
             try:
-                await client.get(
-                    f"/integration/v1/sites/{site_id}/traffic-matching-lists/{list_id}"
-                )
+                await client.get(endpoint)
             except Exception as err:
                 raise ResourceNotFoundError("traffic_matching_list", list_id) from err
 
-            await client.delete(f"/integration/v1/sites/{site_id}/traffic-matching-lists/{list_id}")
+            await client.delete(endpoint)
 
             logger.info(f"Deleted traffic matching list '{list_id}' from site '{site_id}'")
             log_audit(

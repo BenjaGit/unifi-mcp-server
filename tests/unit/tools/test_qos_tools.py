@@ -17,7 +17,9 @@ def mock_settings():
     settings.local_host = "192.168.2.1"
     settings.local_port = 443
     settings.local_verify_ssl = False
-    settings.get_api_path = MagicMock(side_effect=lambda x: f"/api/{x}")
+    settings.get_site_api_path = MagicMock(
+        side_effect=lambda site_id, endpoint: f"/api/s/{site_id}/{endpoint}"
+    )
     return settings
 
 

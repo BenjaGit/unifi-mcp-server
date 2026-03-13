@@ -39,7 +39,7 @@ async def list_qos_profiles(
             await client.authenticate()
 
         resolved_site_id = await client.resolve_site_id(site_id)
-        endpoint = settings.get_api_path(f"s/{resolved_site_id}/rest/qosprofile")
+        endpoint = settings.get_site_api_path(resolved_site_id, "rest/qosprofile")
         response = await client.get(endpoint)
         data = response.get("data", [])
 
@@ -71,7 +71,7 @@ async def get_qos_profile(
             await client.authenticate()
 
         resolved_site_id = await client.resolve_site_id(site_id)
-        endpoint = settings.get_api_path(f"s/{resolved_site_id}/rest/qosprofile/{profile_id}")
+        endpoint = settings.get_site_api_path(resolved_site_id, f"rest/qosprofile/{profile_id}")
         response = await client.get(endpoint)
         data = response.get("data", [])
 
@@ -191,7 +191,7 @@ async def create_qos_profile(
             await client.authenticate()
 
         resolved_site_id = await client.resolve_site_id(site_id)
-        endpoint = settings.get_api_path(f"s/{resolved_site_id}/rest/qosprofile")
+        endpoint = settings.get_site_api_path(resolved_site_id, "rest/qosprofile")
         response = await client.post(endpoint, json=profile_data)
 
         data = response.get("data", [])
@@ -298,7 +298,7 @@ async def update_qos_profile(
             await client.authenticate()
 
         resolved_site_id = await client.resolve_site_id(site_id)
-        endpoint = settings.get_api_path(f"s/{resolved_site_id}/rest/qosprofile/{profile_id}")
+        endpoint = settings.get_site_api_path(resolved_site_id, f"rest/qosprofile/{profile_id}")
         response = await client.put(endpoint, json=update_data)
 
         data = response.get("data", [])
@@ -345,7 +345,7 @@ async def delete_qos_profile(
             await client.authenticate()
 
         resolved_site_id = await client.resolve_site_id(site_id)
-        endpoint = settings.get_api_path(f"s/{resolved_site_id}/rest/qosprofile/{profile_id}")
+        endpoint = settings.get_site_api_path(resolved_site_id, f"rest/qosprofile/{profile_id}")
         await client.delete(endpoint)
 
         await audit_action(
@@ -617,7 +617,7 @@ async def get_smart_queue_config(
             await client.authenticate()
 
         resolved_site_id = await client.resolve_site_id(site_id)
-        endpoint = settings.get_api_path(f"s/{resolved_site_id}/rest/wanconf")
+        endpoint = settings.get_site_api_path(resolved_site_id, "rest/wanconf")
         response = await client.get(endpoint)
         data = response.get("data", [])
 
@@ -709,7 +709,7 @@ async def configure_smart_queue(
             await client.authenticate()
 
         resolved_site_id = await client.resolve_site_id(site_id)
-        endpoint = settings.get_api_path(f"s/{resolved_site_id}/rest/wanconf/{wan_id}")
+        endpoint = settings.get_site_api_path(resolved_site_id, f"rest/wanconf/{wan_id}")
         response = await client.put(endpoint, json=sqm_config)
 
         data = response.get("data", [])
@@ -761,7 +761,7 @@ async def disable_smart_queue(
             await client.authenticate()
 
         resolved_site_id = await client.resolve_site_id(site_id)
-        endpoint = settings.get_api_path(f"s/{resolved_site_id}/rest/wanconf/{wan_id}")
+        endpoint = settings.get_site_api_path(resolved_site_id, f"rest/wanconf/{wan_id}")
         response = await client.put(endpoint, json={"sqm_enabled": False})
 
         data = response.get("data", [])
@@ -813,7 +813,7 @@ async def list_traffic_routes(
             await client.authenticate()
 
         resolved_site_id = await client.resolve_site_id(site_id)
-        endpoint = settings.get_api_path(f"s/{resolved_site_id}/rest/routing")
+        endpoint = settings.get_site_api_path(resolved_site_id, "rest/routing")
         response = await client.get(endpoint)
         data = response.get("data", [])
 
@@ -923,7 +923,7 @@ async def create_traffic_route(
             await client.authenticate()
 
         resolved_site_id = await client.resolve_site_id(site_id)
-        endpoint = settings.get_api_path(f"s/{resolved_site_id}/rest/routing")
+        endpoint = settings.get_site_api_path(resolved_site_id, "rest/routing")
         response = await client.post(endpoint, json=route_data)
 
         data = response.get("data", [])
@@ -1004,7 +1004,7 @@ async def update_traffic_route(
             await client.authenticate()
 
         resolved_site_id = await client.resolve_site_id(site_id)
-        endpoint = settings.get_api_path(f"s/{resolved_site_id}/rest/routing/{route_id}")
+        endpoint = settings.get_site_api_path(resolved_site_id, f"rest/routing/{route_id}")
         response = await client.put(endpoint, json=update_data)
 
         data = response.get("data", [])
@@ -1051,7 +1051,7 @@ async def delete_traffic_route(
             await client.authenticate()
 
         resolved_site_id = await client.resolve_site_id(site_id)
-        endpoint = settings.get_api_path(f"s/{resolved_site_id}/rest/routing/{route_id}")
+        endpoint = settings.get_site_api_path(resolved_site_id, f"rest/routing/{route_id}")
         await client.delete(endpoint)
 
         await audit_action(

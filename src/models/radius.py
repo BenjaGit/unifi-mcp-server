@@ -12,7 +12,7 @@ class RADIUSProfile(BaseModel):
     name: str = Field(..., description="Profile name")
 
     # Authentication server configuration
-    auth_server: str = Field(..., description="Authentication server IP/hostname")
+    auth_server: str | None = Field(None, description="Authentication server IP/hostname")
     auth_port: int = Field(1812, description="Authentication port")
     auth_secret: str | None = Field(None, description="Authentication server shared secret")
 

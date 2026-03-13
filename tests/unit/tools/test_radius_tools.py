@@ -26,6 +26,21 @@ from src.tools.radius import (
 from src.utils.exceptions import ValidationError
 
 
+def test_radius_profile_without_auth_server():
+    """Local API may return auth_servers (plural) instead of auth_server."""
+    from src.models.radius import RADIUSProfile
+
+    data = {
+        "_id": "profile-1",
+        "name": "Default",
+        "auth_servers": [{"port": 1812, "x_secret": "secret"}],
+        "use_usg_auth_server": True,
+    }
+    profile = RADIUSProfile.model_validate(data)
+    assert profile.name == "Default"
+    assert profile.auth_server is None
+
+
 @pytest.fixture
 def mock_settings():
     """Create mock settings for testing."""

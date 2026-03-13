@@ -44,7 +44,7 @@ class PortOverride(BaseModel):
     """Device port override configuration."""
 
     port_idx: int = Field(..., description="Port index (1-based)")
-    portconf_id: str = Field(..., description="Port profile configuration ID")
+    portconf_id: str | None = Field(None, description="Port profile configuration ID")
     name: str | None = Field(None, description="Port name/label")
     poe_mode: str | None = Field(None, description="PoE mode override")
     autoneg: bool | None = Field(None, description="Auto-negotiation override")

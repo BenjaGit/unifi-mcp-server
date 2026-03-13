@@ -577,7 +577,7 @@ async def test_get_device_port_overrides_success(mock_settings):
     assert len(result["port_overrides"]) == 2
     assert result["port_overrides"][0]["port_idx"] == 1
     assert len(result["port_table"]) == 2
-    client.get.assert_called_once_with("/proxy/network/api/s/default/rest/device/dev1")
+    client.get.assert_called_once_with("/ea/sites/default/stat/device")
 
 
 @pytest.mark.asyncio

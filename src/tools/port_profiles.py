@@ -496,16 +496,22 @@ async def get_device_port_overrides(
     async with UniFiClient(settings) as client:
         await client.authenticate()
 
-        endpoint = settings.get_site_api_path(site_id, f"rest/device/{device_id}")
-        response = await client.get(endpoint)
-        devices: list[dict[str, Any]] = (
+        # Use stat/device to read device data (rest/device/{id} GET is not supported)
+        response = await client.get(f"/ea/sites/{site_id}/stat/device")
+        all_devices: list[dict[str, Any]] = (
             response if isinstance(response, list) else response.get("data", [])
         )
 
-        if not devices:
+        # Filter by _id or MAC address
+        device = None
+        for d in all_devices:
+            if d.get("_id") == device_id or d.get("mac") == device_id:
+                device = d
+                break
+
+        if not device:
             raise ResourceNotFoundError("device", device_id)
 
-        device = devices[0]
         logger.info(f"Retrieved port overrides for device '{device_id}' in site '{site_id}'")
 
         overrides = [
@@ -585,17 +591,20 @@ async def set_device_port_overrides(
         async with UniFiClient(settings) as client:
             await client.authenticate()
 
-            # Fetch existing device
-            endpoint = settings.get_site_api_path(site_id, f"rest/device/{device_id}")
-            response = await client.get(endpoint)
-            devices: list[dict[str, Any]] = (
+            # Use stat/device to read device data (rest/device/{id} GET is not supported)
+            response = await client.get(f"/ea/sites/{site_id}/stat/device")
+            all_devices: list[dict[str, Any]] = (
                 response if isinstance(response, list) else response.get("data", [])
             )
 
-            if not devices:
-                raise ResourceNotFoundError("device", device_id)
+            device = None
+            for d in all_devices:
+                if d.get("_id") == device_id or d.get("mac") == device_id:
+                    device = d
+                    break
 
-            device = devices[0]
+            if not device:
+                raise ResourceNotFoundError("device", device_id)
 
             if merge:
                 # Merge by port_idx: new overrides take precedence

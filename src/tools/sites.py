@@ -36,7 +36,11 @@ async def get_site_details(site_id: str, settings: Settings) -> dict[str, Any]:
             sites_data = response.get("data", [])
 
         for site_data in sites_data:
-            if site_data.get("_id") == site_id or site_data.get("name") == site_id:
+            if (
+                site_data.get("_id") == site_id
+                or site_data.get("name") == site_id
+                or site_data.get("internalReference") == site_id
+            ):
                 site = Site(**site_data)
                 logger.info(f"Retrieved site details for {site_id}")
                 return site.model_dump()  # type: ignore[no-any-return]

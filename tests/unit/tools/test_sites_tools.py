@@ -88,6 +88,25 @@ class TestGetSiteDetails:
             assert result["id"] == "site-123"
 
     @pytest.mark.asyncio
+    async def test_get_site_details_success_by_internal_reference(self, mock_settings):
+        """Local API returns internalReference instead of matching name."""
+        mock_response = [
+            {
+                "_id": "88f7af54-98f8-306a-a1c7-c9349722b1f6",
+                "name": "Default",
+                "desc": None,
+                "internalReference": "default",
+            },
+        ]
+
+        with patch("src.tools.sites.UniFiClient") as mock_client_class:
+            mock_client_class.return_value = create_mock_client(mock_response)
+
+            result = await get_site_details("default", mock_settings)
+
+            assert result["name"] == "Default"
+
+    @pytest.mark.asyncio
     async def test_get_site_details_not_found(self, mock_settings):
         mock_response = [
             {"_id": "site-abc", "name": "OtherSite", "desc": "Another site"},

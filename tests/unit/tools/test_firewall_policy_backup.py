@@ -150,7 +150,7 @@ class TestConflictStrategy:
         assert ConflictStrategy.OVERWRITE == "OVERWRITE"
         assert ConflictStrategy.FAIL == "FAIL"
 
-    def test_case_insensitive_lookup(self) -> None:
+    def test_uppercase_lookup(self) -> None:
         from src.models.firewall_policy import ConflictStrategy
 
         assert ConflictStrategy("SKIP") == ConflictStrategy.SKIP

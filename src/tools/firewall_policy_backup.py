@@ -267,7 +267,9 @@ async def restore_firewall_policies(
                 skipped += 1
                 continue
             elif strategy == ConflictStrategy.OVERWRITE:
-                existing_id = existing_by_name[name].get("_id", "")
+                existing_id = existing_by_name[name].get(
+                    "_id", existing_by_name[name].get("id", "")
+                )
                 put_endpoint = client.v2_path(site.name, f"firewall-policies/{existing_id}")
                 try:
                     await client.put(put_endpoint, json_data=policy)

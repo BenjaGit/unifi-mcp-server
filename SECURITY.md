@@ -487,7 +487,7 @@ We appreciate the security research community and recognize contributors who res
 
 ---
 
-**Last Updated:** 2026-02-16
+**Last Updated:** 2026-03-17
 
 Thank you for helping keep UniFi MCP Server and its users safe!
 

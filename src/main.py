@@ -25,6 +25,7 @@ from .tools.dpi_tools import provider as dpi_tools_provider
 from .tools.events import provider as events_provider
 from .tools.firewall import provider as firewall_provider
 from .tools.firewall_policies import provider as firewall_policies_provider
+from .tools.firewall_policy_backup import provider as firewall_policy_backup_provider
 from .tools.firewall_policy_details import provider as firewall_policy_details_provider
 from .tools.firewall_zones import provider as firewall_zones_provider
 from .tools.groups import provider as groups_provider
@@ -84,6 +85,7 @@ mcp = FastMCP(
         firewall_provider,
         firewall_policies_provider,
         firewall_policy_details_provider,
+        firewall_policy_backup_provider,
         firewall_zones_provider,
         groups_provider,
         wans_provider,

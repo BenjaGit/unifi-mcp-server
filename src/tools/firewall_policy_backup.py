@@ -10,7 +10,7 @@ from ..config import APIType, Settings
 from ..models.firewall_policy import ConflictStrategy, PolicyBackup
 from ..utils import get_logger, log_audit
 from ..utils.helpers import get_iso_timestamp
-from ..utils.validators import coerce_bool, validate_confirmation
+from ..utils.validators import coerce_bool, validate_confirmation, validate_site_id
 
 logger = get_logger(__name__)
 provider = LocalProvider()
@@ -75,6 +75,8 @@ async def backup_firewall_policies(
         PolicyBackup envelope as a dict. If output_file is set, also
         includes the file path under the ``output_file`` key.
     """
+
+    validate_site_id(site_id)
 
     client = get_network_client()
     _ensure_local_api(client.settings)
@@ -153,6 +155,8 @@ async def restore_firewall_policies(
         Summary dict with created/updated/skipped/failed/total_processed counts.
     """
 
+    validate_site_id(site_id)
+
     client = get_network_client()
     _ensure_local_api(client.settings)
 
@@ -184,9 +188,9 @@ async def restore_firewall_policies(
         except (OSError, json.JSONDecodeError) as exc:
             raise ValueError(f"Failed to read backup file: {exc}") from exc
 
-        if "policies" not in backup_data:
+        if "version" not in backup_data or "policies" not in backup_data:
             raise ValueError(
-                "Invalid backup format: missing 'policies' key. "
+                "Invalid backup format: missing 'version' or 'policies' key. "
                 "Expected a file produced by backup_firewall_policies."
             )
 

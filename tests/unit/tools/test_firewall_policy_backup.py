@@ -604,6 +604,27 @@ class TestRestoreFirewallPolicies:
         finally:
             Path(tmp_path).unlink(missing_ok=True)
 
+    def test_restore_invalid_backup_missing_version(self, firewall_client: AsyncMock) -> None:
+        from src.tools.firewall_policy_backup import restore_firewall_policies
+
+        bad_data = {"policies": []}
+
+        with tempfile.NamedTemporaryFile(suffix=".json", mode="w", delete=False) as f:
+            json.dump(bad_data, f)
+            tmp_path = f.name
+
+        try:
+            with pytest.raises(ValueError, match="Invalid backup"):
+                run(
+                    restore_firewall_policies(
+                        site_id="default",
+                        input_file=tmp_path,
+                        confirm=True,
+                    )
+                )
+        finally:
+            Path(tmp_path).unlink(missing_ok=True)
+
     def test_restore_file_io_error(self, firewall_client: AsyncMock) -> None:
         from src.tools.firewall_policy_backup import restore_firewall_policies
 

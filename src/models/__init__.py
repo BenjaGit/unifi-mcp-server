@@ -16,6 +16,7 @@ from .device import Device
 from .dns_policy import DNSPolicy
 from .dpi import Country, DPIApplication, DPICategory
 from .firewall_policy import (
+    ConflictStrategy,
     ConnectionStateType,
     FirewallPolicy,
     FirewallPolicyCreate,
@@ -24,6 +25,7 @@ from .firewall_policy import (
     MatchingTarget,
     MatchTarget,
     PolicyAction,
+    PolicyBackup,
     Schedule,
 )
 from .firewall_zone import FirewallZone
@@ -63,6 +65,8 @@ __all__ = [
     "IPVersion",
     "MatchTarget",
     "Schedule",
+    "ConflictStrategy",
+    "PolicyBackup",
     "WANConnection",
     "DPICategory",
     "DPIApplication",

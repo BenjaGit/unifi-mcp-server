@@ -1,6 +1,6 @@
 ---
 name: integration-guide
-description: Use this skill when integrating major new UniFi features that span multiple components (models, API client, tools, tests, documentation). Provides structured guidance for complex features like QoS, SD-WAN, Backup, and other roadmap items from DEVELOPMENT_PLAN.md.
+description: Use this skill when integrating major new UniFi features that span multiple components (models, API client, tools, tests, documentation). Provides structured guidance for complex features like QoS, SD-WAN, Backup, and other roadmap items from CHANGELOG.md.
 ---
 
 # Integration Guide Skill
@@ -11,7 +11,7 @@ Provide comprehensive guidance for integrating major new UniFi features into the
 
 ## When to Use This Skill
 
-- Implementing Phase 3+ features from DEVELOPMENT_PLAN.md
+- Implementing Phase 3+ features from CHANGELOG.md
 - Adding major new capabilities (QoS, SD-WAN, Backup, VPN)
 - Integrating new UniFi applications (Access, Identity, Protect)
 - Large-scale feature additions spanning multiple files
@@ -22,12 +22,12 @@ Provide comprehensive guidance for integrating major new UniFi features into the
 
 ### Step 1: Understand Feature Requirements
 
-Load feature requirements from DEVELOPMENT_PLAN.md:
+Load feature requirements from CHANGELOG.md:
 
 **Example: Advanced QoS and Traffic Management (Phase 3)**
 
 ```markdown
-From DEVELOPMENT_PLAN.md:
+From CHANGELOG.md:
 
 **Feature**: Advanced QoS and Traffic Management
 **Priority**: P1 (High)
@@ -78,7 +78,7 @@ Identify all components needed:
    - Mock API responses
    - Error handling tests
 
-5. **Documentation** (`docs/`, `API.md`)
+5. **Documentation** (`docs/`, `docs/api/mcp-tools.md`)
    - Tool documentation
    - Usage examples
    - Best practices guide
@@ -123,7 +123,7 @@ Plan implementation in logical phases:
 
 **Phase E: Documentation & Polish (1-2 days)**
 
-- Update API.md
+- Update docs/api/mcp-tools.md
 - Create QoS usage guide
 - Add examples to README
 - Final testing and cleanup
@@ -552,7 +552,7 @@ async def apply_proav_template(
 
 ### Documentation Workflow
 
-**Step 1: Update API.md**
+**Step 1: Update docs/api/mcp-tools.md**
 
 Use `api-doc-generator` skill to generate documentation.
 
@@ -657,16 +657,15 @@ async def test_qos_workflow():
 - **API Exploration**: Use `unifi-api-explorer` during Phase 3
 - **Tool Design**: Use `tool-design-reviewer` before implementing tools
 - **Testing**: Use `test-strategy` for comprehensive test coverage
-- **Documentation**: Use `api-doc-generator` for API.md updates
+- **Documentation**: Use `api-doc-generator` for docs/api/mcp-tools.md updates
 - **Release**: Use `release-planner` when feature is complete
 
 ## Reference Files
 
 Load for context:
 
-- `DEVELOPMENT_PLAN.md` - Feature requirements and roadmap
-- `TODO.md` - Implementation progress tracking
-- `API.md` - Existing tool patterns
+- `CHANGELOG.md` - Feature history and roadmap
+- `docs/api/mcp-tools.md` - Existing tool patterns
 - `src/models/*.py` - Existing model patterns
 - `src/tools/*.py` - Existing tool implementations
 - `tests/unit/*.py` - Existing test patterns

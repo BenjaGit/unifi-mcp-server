@@ -1,42 +1,35 @@
 """Application information tools."""
 
-from ..api.client import UniFiClient
-from ..config import Settings
+from fastmcp.server.providers import LocalProvider
+
+from ..api.pool import get_network_client
 from ..utils import get_logger
 
 logger = get_logger(__name__)
+provider = LocalProvider()
+
+__all__ = ["provider", "get_application_info"]
 
 
-async def get_application_info(settings: Settings) -> dict:
-    """Get UniFi Network application information.
+@provider.tool()
+async def get_application_info() -> dict:
+    """Get UniFi Network application information."""
+    client = get_network_client()
+    logger.info("Fetching application information")
 
-    Args:
-        settings: Application settings
+    if not client.is_authenticated:
+        await client.authenticate()
 
-    Returns:
-        Application information dictionary
+    response = await client.get(client.integration_base_path("info"))
 
-    Example:
-        >>> info = await get_application_info(settings)
-        >>> print(info["version"])
-    """
-    async with UniFiClient(settings) as client:
-        logger.info("Fetching application information")
-
-        # Authenticate if not already done
-        if not client.is_authenticated:
-            await client.authenticate()
-
-        # Get application info
-        response = await client.get("/integration/v1/application/info")
-
-        # Extract data from response
+    if isinstance(response, dict):
         data = response.get("data", response)
-
-        return {
-            "version": data.get("version"),
-            "build": data.get("build"),
-            "deployment_type": data.get("deploymentType"),
-            "capabilities": data.get("capabilities", []),
-            "system_info": data.get("systemInfo", {}),
-        }
+        if isinstance(data, dict):
+            return {
+                "version": data.get("version"),
+                "build": data.get("build"),
+                "deployment_type": data.get("deploymentType"),
+                "capabilities": data.get("capabilities", []),
+                "system_info": data.get("systemInfo", {}),
+            }
+    return {"raw": response}

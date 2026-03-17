@@ -9,13 +9,13 @@ This npm package provides metadata for the MCP registry. The actual server is Py
 ### Python Installation (Recommended)
 
 ```bash
-pip install unifi-mcp-server==0.2.0
+pip install unifi-mcp-server==0.2.4
 ```
 
 ### Docker Installation
 
 ```bash
-docker pull ghcr.io/enuno/unifi-mcp-server:0.2.0
+docker pull ghcr.io/enuno/unifi-mcp-server:0.2.4
 ```
 
 ## Usage
@@ -25,10 +25,9 @@ docker pull ghcr.io/enuno/unifi-mcp-server:0.2.0
 python -m unifi_mcp_server
 
 # Or using Docker
-docker run -e UNIFI_HOST=your-controller \
-  -e UNIFI_USERNAME=admin \
-  -e UNIFI_PASSWORD=password \
-  ghcr.io/enuno/unifi-mcp-server:0.2.0
+docker run -e UNIFI_REMOTE_API_KEY=your-remote-api-key \
+  -e UNIFI_API_TYPE=cloud-ea \
+  ghcr.io/enuno/unifi-mcp-server:0.2.4
 ```
 
 ## Documentation
@@ -37,7 +36,7 @@ Full documentation available at: <https://github.com/enuno/unifi-mcp-server>
 
 ## Features
 
-- 74 MCP tools for comprehensive UniFi network management
+- Comprehensive MCP tools for UniFi network management
 - Multi-site support
 - QoS and traffic management
 - Backup and restore operations

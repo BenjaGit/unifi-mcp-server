@@ -32,7 +32,6 @@ async def test_list_port_forwards(settings, env: TestEnvironment) -> dict[str, A
     try:
         result = await port_forwarding.list_port_forwards(
             site_id=env.site_id,
-            settings=settings,
         )
 
         # Validate response structure
@@ -74,7 +73,6 @@ async def test_list_port_forwards_pagination(settings, env: TestEnvironment) -> 
         # Get all rules
         all_rules = await port_forwarding.list_port_forwards(
             site_id=env.site_id,
-            settings=settings,
         )
 
         if not all_rules:
@@ -83,7 +81,6 @@ async def test_list_port_forwards_pagination(settings, env: TestEnvironment) -> 
         # Test with limit
         limited = await port_forwarding.list_port_forwards(
             site_id=env.site_id,
-            settings=settings,
             limit=1,
         )
 
@@ -121,7 +118,6 @@ async def test_create_port_forward_without_confirmation(
             dst_port=TEST_PORT,
             fwd_ip="192.0.2.100",  # TEST-NET-1 (RFC 5737)
             fwd_port=8080,
-            settings=settings,
             confirm=False,  # Should raise error
         )
 
@@ -161,7 +157,6 @@ async def test_create_and_delete_port_forward(settings, env: TestEnvironment) ->
             dst_port=TEST_PORT,
             fwd_ip="192.0.2.100",  # TEST-NET-1 (RFC 5737)
             fwd_port=8080,
-            settings=settings,
             protocol="tcp",
             enabled=False,  # Keep disabled for safety
             confirm=True,
@@ -174,7 +169,6 @@ async def test_create_and_delete_port_forward(settings, env: TestEnvironment) ->
         # Verify rule exists in list
         rules = await port_forwarding.list_port_forwards(
             site_id=env.site_id,
-            settings=settings,
         )
         assert any(r.get("_id") == rule_id for r in rules), "Created rule must be in list"
 
@@ -182,7 +176,6 @@ async def test_create_and_delete_port_forward(settings, env: TestEnvironment) ->
         delete_result = await port_forwarding.delete_port_forward(
             site_id=env.site_id,
             rule_id=rule_id,
-            settings=settings,
             confirm=True,
         )
 
@@ -192,7 +185,6 @@ async def test_create_and_delete_port_forward(settings, env: TestEnvironment) ->
         # Verify rule no longer exists
         rules_after = await port_forwarding.list_port_forwards(
             site_id=env.site_id,
-            settings=settings,
         )
         assert not any(
             r.get("_id") == rule_id for r in rules_after
@@ -218,7 +210,6 @@ async def test_create_and_delete_port_forward(settings, env: TestEnvironment) ->
                 await port_forwarding.delete_port_forward(
                     site_id=env.site_id,
                     rule_id=rule_id,
-                    settings=settings,
                     confirm=True,
                 )
                 print(f"Cleanup: Deleted test port forward {rule_id}")
@@ -238,7 +229,6 @@ async def test_delete_port_forward_missing(settings, env: TestEnvironment) -> di
         await port_forwarding.delete_port_forward(
             site_id=env.site_id,
             rule_id=fake_id,
-            settings=settings,
             confirm=True,
         )
 
@@ -275,7 +265,6 @@ async def test_create_port_forward_dry_run(settings, env: TestEnvironment) -> di
             dst_port=TEST_PORT,
             fwd_ip="192.0.2.100",
             fwd_port=8080,
-            settings=settings,
             confirm=True,
             dry_run=True,  # Should not create rule
         )
@@ -287,7 +276,6 @@ async def test_create_port_forward_dry_run(settings, env: TestEnvironment) -> di
         # Verify rule was NOT created
         rules = await port_forwarding.list_port_forwards(
             site_id=env.site_id,
-            settings=settings,
         )
         assert not any(
             r.get("name") == f"{TEST_PREFIX}DRY_RUN_TEST" for r in rules
@@ -318,7 +306,6 @@ async def test_create_port_forward_invalid_ip(settings, env: TestEnvironment) ->
             dst_port=TEST_PORT,
             fwd_ip="invalid.ip.address",  # Invalid IP
             fwd_port=8080,
-            settings=settings,
             confirm=True,
         )
 

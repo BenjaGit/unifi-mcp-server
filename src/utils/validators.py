@@ -7,6 +7,9 @@ from .exceptions import ValidationError
 
 logger = logging.getLogger(__name__)
 
+_OBJECT_ID_RE = re.compile(r"^[a-f0-9]{24}$")
+_UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+
 
 def validate_mac_address(mac: str) -> str:
     """Validate and normalize MAC address.
@@ -113,11 +116,12 @@ def validate_device_id(device_id: str) -> str:
     if not device_id or not isinstance(device_id, str):
         raise ValidationError("Device ID cannot be empty")
 
-    # Device IDs are typically 24-character hex strings (MongoDB ObjectId)
-    if not re.match(r"^[a-f0-9]{24}$", device_id.lower()):
-        raise ValidationError(f"Invalid device ID format: {device_id}")
+    normalized = device_id.lower()
 
-    return device_id.lower()
+    if _OBJECT_ID_RE.match(normalized) or _UUID_RE.match(normalized):
+        return normalized
+
+    raise ValidationError(f"Invalid device ID format: {device_id}")
 
 
 def coerce_bool(value: bool | str | None) -> bool:

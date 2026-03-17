@@ -6,7 +6,8 @@ We release patches for security vulnerabilities in the following versions:
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 0.1.x   | :white_check_mark: |
+| 0.2.x   | :white_check_mark: |
+| 0.1.x   | :x:                |
 | < 0.1   | :x:                |
 
 **Note:** As this project is in early development (pre-1.0), we recommend always using the latest version.
@@ -140,14 +141,14 @@ api_key = "abc123def456..."
 logging.debug(f"Using API key: {api_key}")
 
 # ✅ DO load from environment
-api_key = os.getenv("UNIFI_API_KEY")
+api_key = os.getenv("UNIFI_LOCAL_API_KEY")
 
 # ✅ DO mask in logs (show first 8 chars only)
 logging.debug(f"Using API key: {api_key[:8]}..." if api_key else "not set")
 
 # ✅ DO use SecretStr for automatic masking
 from pydantic import SecretStr
-api_key = SecretStr(os.getenv("UNIFI_API_KEY"))
+api_key = SecretStr(os.getenv("UNIFI_LOCAL_API_KEY"))
 ```
 
 **API Key Rotation:**
@@ -272,7 +273,9 @@ logging.error(f"Failed to connect with API key: {api_key}")
 logging.error(f"Auth failed with key: {api_key[:16]}...")
 
 # ✅ GOOD - No key exposure
-logging.error(f"Authentication failed for host '{host}'. Check your UNIFI_API_KEY.")
+logging.error(
+    f"Authentication failed for host '{host}'. Check your UNIFI_LOCAL_API_KEY/UNIFI_REMOTE_API_KEY."
+)
 
 # ✅ GOOD - Redacted for debugging
 logging.debug(f"API key configured: {'yes' if api_key else 'no'}")
@@ -325,7 +328,7 @@ When using AI coding assistants:
 4. **Audit AI Permissions:** Limit AI assistant access to only necessary resources
 5. **Monitor AI Changes:** Track and review all AI-contributed changes in version control
 
-See `AI_GIT_PRACTICES.md` and `AGENTS.md` for additional AI security guidelines.
+See `CONTRIBUTING.md` for additional AI security guidelines.
 
 ### Docker Security
 
@@ -348,8 +351,8 @@ RUN useradd -m -u 1000 mcpuser
 WORKDIR /app
 
 # Copy and install dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY pyproject.toml .
+RUN pip install --no-cache-dir .
 
 # Copy application code
 COPY --chown=mcpuser:mcpuser . .
@@ -482,7 +485,7 @@ We appreciate the security research community and recognize contributors who res
 
 - [OWASP Python Security](https://owasp.org/www-project-python-security/)
 - [Python Security Best Practices](https://python.readthedocs.io/en/stable/library/security_warnings.html)
-- [FastAPI Security](https://fastapi.tiangolo.com/tutorial/security/)
+- [FastMCP Documentation](https://github.com/jlowin/fastmcp)
 - [GitHub Security Best Practices](https://docs.github.com/en/code-security)
 
 ---

@@ -1,19 +1,19 @@
 ---
 name: api-doc-generator
-description: Use this skill to generate and update API.md documentation from code. Automatically extracts tool definitions, parameters, and examples from source code to keep documentation in sync with implementation. Ensures comprehensive and accurate API documentation.
+description: Use this skill to generate and update docs/api/mcp-tools.md documentation from code. Automatically extracts tool definitions, parameters, and examples from source code to keep documentation in sync with implementation. Ensures comprehensive and accurate API documentation.
 ---
 
 # API Documentation Generator Skill
 
 ## Purpose
 
-Automate the generation and maintenance of API.md documentation by extracting information from MCP tool definitions, docstrings, and type hints. Ensures API documentation remains accurate and comprehensive as the project grows from 77 to 160+ tools.
+Automate the generation and maintenance of docs/api/mcp-tools.md documentation by extracting information from MCP tool definitions, docstrings, and type hints. Ensures API documentation remains accurate and comprehensive as the project grows from 77 to 160+ tools.
 
 ## When to Use This Skill
 
 - After implementing new MCP tools
 - After major feature releases (v0.2.0, v0.3.0)
-- When API.md is out of sync with code
+- When docs/api/mcp-tools.md is out of sync with code
 - Before creating release documentation
 - After refactoring tool signatures
 - Quarterly documentation review
@@ -156,7 +156,7 @@ Organize tools by functional category:
 
 ### Documentation Template
 
-**API.md Structure:**
+**docs/api/mcp-tools.md Structure:**
 
 ```markdown
 # UniFi MCP Server API Documentation
@@ -534,8 +534,8 @@ def main():
     # Generate markdown
     markdown = generate_markdown(all_tools)
 
-    # Write to API.md
-    with open("API.md", "w") as f:
+    # Write to docs/api/mcp-tools.md
+    with open("docs/api/mcp-tools.md", "w") as f:
         f.write(markdown)
 
     print(f"✅ Generated documentation for {len(all_tools)} tools")
@@ -547,7 +547,7 @@ if __name__ == "__main__":
 ## Integration with Other Skills
 
 - **After implementation**: Use `tool-design-reviewer` to ensure tool is documented
-- **During development**: Use this skill to keep API.md updated
+- **During development**: Use this skill to keep docs/api/mcp-tools.md updated
 - **Before release**: Use `release-planner` which calls this skill
 - **Quality check**: Use `/docs` slash command to review documentation
 
@@ -556,7 +556,7 @@ if __name__ == "__main__":
 Load for context:
 
 - `src/tools/*.py` - All tool implementations
-- `API.md` - Current API documentation
+- `docs/api/mcp-tools.md` - Current API documentation
 - `README.md` - Project overview (check consistency)
 - `CHANGELOG.md` - Version history
 
@@ -572,4 +572,4 @@ Documentation generation successful when:
 - [ ] Quick reference tables accurate
 - [ ] No broken internal links
 - [ ] Consistent formatting throughout
-- [ ] README.md and API.md in sync
+- [ ] README.md and docs/api/mcp-tools.md in sync

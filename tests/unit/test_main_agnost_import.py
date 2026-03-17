@@ -7,11 +7,12 @@ The server must start even when agnost is not installed or has API changes.
 import importlib
 import sys
 from types import ModuleType
+from typing import Any, cast
 from unittest.mock import MagicMock, patch
 
 # Minimum env vars required by Settings() at module load time
 _BASE_ENV = {
-    "UNIFI_API_KEY": "test-key",
+    "UNIFI_NETWORK_API_KEY": "test-key",
     "UNIFI_API_TYPE": "cloud-ea",
     "AGNOST_ENABLED": "false",
 }
@@ -35,7 +36,7 @@ class TestAgnostImportHandling:
         """Server must start when agnost package lacks the 'config' export (issue #42)."""
         broken_agnost = ModuleType("agnost")
         # Deliberately omit 'config' — simulating the breaking API change in v0.1.13
-        broken_agnost.track = MagicMock()
+        cast(Any, broken_agnost).track = MagicMock()
 
         orig = sys.modules.get("agnost")
         sys.modules["agnost"] = broken_agnost
@@ -91,7 +92,7 @@ class TestAgnostImportHandling:
         """
         broken_agnost = ModuleType("agnost")
         # 'config' is absent — exact API break from agnost v0.1.13
-        broken_agnost.track = MagicMock()
+        cast(Any, broken_agnost).track = MagicMock()
 
         orig = sys.modules.get("agnost")
         sys.modules["agnost"] = broken_agnost

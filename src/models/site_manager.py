@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class SiteHealthSummary(BaseModel):
@@ -48,31 +48,21 @@ class CrossSiteStatistics(BaseModel):
     )
 
 
-class VantagePoint(BaseModel):
-    """Vantage Point information."""
-
-    vantage_point_id: str = Field(..., description="Vantage Point identifier")
-    name: str = Field(..., description="Vantage Point name")
-    location: str | None = Field(None, description="Location")
-    latitude: float | None = Field(None, description="Latitude")
-    longitude: float | None = Field(None, description="Longitude")
-    status: Literal["active", "inactive"] = Field(..., description="Status")
-    site_ids: list[str] = Field(default_factory=list, description="Associated site IDs")
-
-
 class SiteInventory(BaseModel):
-    """Comprehensive inventory for a single site."""
+    """Inventory for a single site, derived from /v1/sites statistics."""
 
     site_id: str = Field(..., description="Site identifier")
     site_name: str = Field(..., description="Site name")
-    device_count: int = Field(0, description="Total devices")
-    device_types: dict[str, int] = Field(default_factory=dict, description="Count by device type")
-    client_count: int = Field(0, description="Total active clients")
-    network_count: int = Field(0, description="Total networks/VLANs")
-    ssid_count: int = Field(0, description="Total SSIDs")
-    uplink_count: int = Field(0, description="Total WAN uplinks")
-    vpn_tunnel_count: int = Field(0, description="Total VPN tunnels")
-    firewall_rule_count: int = Field(0, description="Total firewall rules")
+    total_devices: int = Field(0, description="Total number of devices")
+    wifi_devices: int = Field(0, description="Number of WiFi devices")
+    wired_devices: int = Field(0, description="Number of wired devices")
+    offline_devices: int = Field(0, description="Number of offline devices")
+    total_clients: int = Field(0, description="Total active clients")
+    wifi_clients: int = Field(0, description="Number of WiFi clients")
+    wired_clients: int = Field(0, description="Number of wired clients")
+    lan_configurations: int = Field(0, description="Number of LAN configurations")
+    wifi_configurations: int = Field(0, description="Number of WiFi configurations")
+    wan_configurations: int = Field(0, description="Number of WAN configurations")
     last_updated: str = Field(..., description="Inventory timestamp (ISO)")
 
 
@@ -81,9 +71,6 @@ class SitePerformanceMetrics(BaseModel):
 
     site_id: str = Field(..., description="Site identifier")
     site_name: str = Field(..., description="Site name")
-    avg_latency_ms: float | None = Field(None, description="Average latency")
-    avg_bandwidth_up_mbps: float | None = Field(None, description="Average upload bandwidth")
-    avg_bandwidth_down_mbps: float | None = Field(None, description="Average download bandwidth")
     uptime_percentage: float = Field(0.0, description="Uptime percentage")
     device_online_percentage: float = Field(0.0, description="Percentage of devices online")
     client_count: int = Field(0, description="Active clients")
@@ -101,7 +88,6 @@ class CrossSitePerformanceComparison(BaseModel):
         None, description="Site with worst overall performance"
     )
     average_uptime: float = Field(0.0, description="Average uptime across all sites")
-    average_latency_ms: float | None = Field(None, description="Average latency across sites")
     site_metrics: list[SitePerformanceMetrics] = Field(
         default_factory=list, description="Metrics for each site"
     )
@@ -112,52 +98,35 @@ class CrossSiteSearchResult(BaseModel):
 
     total_results: int = Field(0, description="Total number of results found")
     search_query: str = Field(..., description="Original search query")
-    result_type: Literal["device", "client", "network", "all"] = Field(
-        ..., description="Type of results"
-    )
+    result_type: str = Field(..., description="Type of results (device)")
     results: list[dict] = Field(
         default_factory=list, description="Search results with site context"
     )
 
 
-class ISPMetrics(BaseModel):
-    """ISP metrics from Site Manager API."""
-
-    site_id: str = Field(..., description="Site identifier")
-    isp_name: str | None = Field(None, description="ISP name")
-    download_bandwidth_mbps: float | None = Field(None, description="Download bandwidth in Mbps")
-    upload_bandwidth_mbps: float | None = Field(None, description="Upload bandwidth in Mbps")
-    latency_ms: float | None = Field(None, description="Latency in milliseconds")
-    jitter_ms: float | None = Field(None, description="Jitter in milliseconds")
-    packet_loss_percent: float = Field(0.0, description="Packet loss percentage")
-    timestamp: str = Field(..., description="Measurement timestamp (ISO)")
-
-
 class SDWANConfig(BaseModel):
     """SD-WAN configuration from Site Manager API."""
 
-    config_id: str = Field(..., description="Configuration identifier")
-    name: str = Field(..., description="Configuration name")
-    topology_type: Literal["hub-spoke", "mesh", "point-to-point"] = Field(
-        ..., description="SD-WAN topology type"
-    )
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
+
+    config_id: str = Field(..., alias="id", description="Configuration identifier")
+    name: str | None = Field(None, description="Configuration name")
+    topology_type: str | None = Field(None, description="SD-WAN topology type")
     hub_site_ids: list[str] = Field(default_factory=list, description="Hub site identifiers")
     spoke_site_ids: list[str] = Field(default_factory=list, description="Spoke site identifiers")
     failover_enabled: bool = Field(False, description="Failover configuration enabled")
-    created_at: str = Field(..., description="Creation timestamp (ISO)")
-    updated_at: str = Field(..., description="Last update timestamp (ISO)")
-    status: Literal["active", "inactive", "pending"] = Field(
-        ..., description="Configuration status"
-    )
+    created_at: str | None = Field(None, description="Creation timestamp (ISO)")
+    updated_at: str | None = Field(None, description="Last update timestamp (ISO)")
+    status: str | None = Field(None, description="Configuration status")
 
 
 class SDWANConfigStatus(BaseModel):
     """SD-WAN configuration deployment status."""
 
-    config_id: str = Field(..., description="Configuration identifier")
-    deployment_status: Literal["deployed", "deploying", "failed", "pending"] = Field(
-        ..., description="Deployment status"
-    )
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
+
+    config_id: str = Field(..., alias="id", description="Configuration identifier")
+    deployment_status: str | None = Field(None, description="Deployment status")
     sites_deployed: int = Field(0, description="Number of sites successfully deployed")
     sites_total: int = Field(0, description="Total number of sites in configuration")
     last_deployment_at: str | None = Field(None, description="Last deployment timestamp (ISO)")
@@ -167,25 +136,18 @@ class SDWANConfigStatus(BaseModel):
 class Host(BaseModel):
     """Managed host/console from Site Manager API."""
 
-    host_id: str = Field(..., description="Host identifier")
-    hostname: str = Field(..., description="Hostname")
-    ip_address: str | None = Field(None, description="IP address")
-    mac_address: str | None = Field(None, description="MAC address")
-    model: str | None = Field(None, description="Device model")
-    version: str | None = Field(None, description="Firmware/software version")
-    site_count: int = Field(0, description="Number of associated sites")
-    status: Literal["online", "offline", "unreachable"] = Field(..., description="Host status")
-    last_seen: str = Field(..., description="Last seen timestamp (ISO)")
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
 
-
-class VersionControl(BaseModel):
-    """Version control information from Site Manager API."""
-
-    current_version: str = Field(..., description="Current API version")
-    latest_version: str = Field(..., description="Latest available version")
-    deprecated_versions: list[str] = Field(
-        default_factory=list, description="List of deprecated API versions"
+    host_id: str = Field(..., alias="id", description="Host identifier")
+    hostname: str = Field("", alias="name", description="Hostname")
+    ip_address: str | None = Field(None, alias="ipAddress", description="IP address")
+    mac_address: str | None = Field(None, alias="macAddress", description="MAC address")
+    hardware_id: str | None = Field(None, alias="hardwareId", description="Hardware identifier")
+    type: str | None = Field(None, description="Device type")
+    status: str = Field("unknown", description="Host status")
+    last_seen: str = Field(
+        "", alias="lastConnectionStateChange", description="Last connection state change (ISO)"
     )
-    changelog_url: str | None = Field(None, description="Changelog URL")
-    upgrade_recommended: bool = Field(False, description="Whether upgrade is recommended")
-    min_supported_version: str = Field(..., description="Minimum supported version")
+    registration_time: str | None = Field(
+        None, alias="registrationTime", description="Registration timestamp (ISO)"
+    )

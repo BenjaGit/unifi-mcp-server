@@ -248,10 +248,10 @@ Before submitting a PR, verify:
 Required environment variables (see `.env.example`):
 ```bash
 # Required
-UNIFI_API_KEY=your-api-key-here
-UNIFI_API_TYPE=cloud  # or "local"
-UNIFI_HOST=api.ui.com  # or local gateway IP
-UNIFI_SITE=default
+UNIFI_NETWORK_API_KEY=your-network-api-key-here
+UNIFI_API_TYPE=cloud-v1  # or "cloud-ea" or "local"
+UNIFI_CLOUD_API_URL=https://api.ui.com
+UNIFI_DEFAULT_SITE=default
 
 # Optional
 REDIS_HOST=localhost  # Enable caching

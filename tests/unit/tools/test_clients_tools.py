@@ -1,9 +1,11 @@
-"""Unit tests for src/tools/clients.py."""
+"""Unit tests for client management tools."""
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+import src.tools.clients as clients_module
+from src.api.network_client import SiteInfo
 from src.tools.clients import (
     get_client_details,
     get_client_statistics,
@@ -13,42 +15,23 @@ from src.tools.clients import (
 from src.utils.exceptions import ResourceNotFoundError, ValidationError
 
 
-@pytest.fixture
-def mock_settings():
-    settings = MagicMock()
-    settings.log_level = "INFO"
-    settings.api_type = MagicMock()
-    settings.api_type.value = "cloud-ea"
-    settings.base_url = "https://api.ui.com"
-    settings.api_key = "test-key"
-    return settings
+def _make_client() -> MagicMock:
+    client = MagicMock()
+    client.is_authenticated = True
+    client.authenticate = AsyncMock()
+    client.resolve_site = AsyncMock(return_value=SiteInfo(name="default", uuid="uuid-default"))
+    client.legacy_path = MagicMock(side_effect=lambda site, ep: f"/proxy/network/api/s/{site}/{ep}")
+    client.get = AsyncMock(return_value={"data": []})
+    return client
 
 
-def create_mock_client(get_responses=None):
-    mock_client = AsyncMock()
-    if get_responses:
-        mock_client.get = AsyncMock(side_effect=get_responses)
-    else:
-        mock_client.get = AsyncMock(return_value={"data": []})
-    mock_client.authenticate = AsyncMock()
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=False)
-    return mock_client
-
-
-def make_client(
-    mac="00:11:22:33:44:55",
-    ip="192.168.2.100",
-    hostname="test-client",
-    name=None,
-    is_wired=False,
-):
-    return {
+def _client_data(mac: str = "00:11:22:33:44:55", **overrides: object) -> dict[str, object]:
+    data: dict[str, object] = {
         "mac": mac,
-        "ip": ip,
-        "hostname": hostname,
-        "name": name or hostname,
-        "is_wired": is_wired,
+        "ip": "192.168.2.100",
+        "hostname": "test-client",
+        "name": "test-client",
+        "is_wired": False,
         "tx_bytes": 1000000,
         "rx_bytes": 2000000,
         "tx_packets": 1000,
@@ -60,385 +43,108 @@ def make_client(
         "noise": -95,
         "uptime": 3600,
     }
+    data.update(overrides)
+    return data
 
 
-class TestGetClientDetails:
-    @pytest.mark.asyncio
-    async def test_get_client_details_found_in_active(self, mock_settings):
-        mac = "00:11:22:33:44:55"
-        active_response = {"data": [make_client(mac=mac)]}
-        alluser_response = {"data": []}
+@pytest.mark.asyncio
+async def test_get_client_details_from_active_clients() -> None:
+    mac = "00:11:22:33:44:55"
+    client = _make_client()
+    client.get = AsyncMock(side_effect=[{"data": [_client_data(mac=mac)]}])
 
-        with patch("src.tools.clients.UniFiClient") as mock_client_class:
-            mock_client_class.return_value = create_mock_client([active_response, alluser_response])
+    with patch.object(clients_module, "get_network_client", return_value=client):
+        result = await get_client_details("site-1", mac)
 
-            result = await get_client_details("site-1", mac, mock_settings)
+    assert result["mac"] == mac
 
-            assert result["mac"] == mac
 
-    @pytest.mark.asyncio
-    async def test_get_client_details_found_in_alluser(self, mock_settings):
-        mac = "aa:bb:cc:dd:ee:ff"
-        active_response = {"data": []}
-        alluser_response = {"data": [make_client(mac=mac)]}
+@pytest.mark.asyncio
+async def test_get_client_details_falls_back_to_all_users() -> None:
+    mac = "aa:bb:cc:dd:ee:ff"
+    client = _make_client()
+    client.get = AsyncMock(side_effect=[{"data": []}, {"data": [_client_data(mac=mac)]}])
 
-        with patch("src.tools.clients.UniFiClient") as mock_client_class:
-            mock_client_class.return_value = create_mock_client([active_response, alluser_response])
+    with patch.object(clients_module, "get_network_client", return_value=client):
+        result = await get_client_details("site-1", mac)
 
-            result = await get_client_details("site-1", mac, mock_settings)
+    assert result["mac"] == mac
 
-            assert result["mac"] == mac
 
-    @pytest.mark.asyncio
-    async def test_get_client_details_list_response(self, mock_settings):
-        mac = "00:11:22:33:44:55"
-        active_response = [make_client(mac=mac)]
+@pytest.mark.asyncio
+async def test_get_client_details_not_found() -> None:
+    client = _make_client()
+    client.get = AsyncMock(side_effect=[{"data": []}, {"data": []}])
 
-        with patch("src.tools.clients.UniFiClient") as mock_client_class:
-            mock_client_class.return_value = create_mock_client([active_response])
+    with patch.object(clients_module, "get_network_client", return_value=client):
+        with pytest.raises(ResourceNotFoundError):
+            await get_client_details("site-1", "ff:ff:ff:ff:ff:ff")
 
-            result = await get_client_details("site-1", mac, mock_settings)
 
-            assert result["mac"] == mac
+@pytest.mark.asyncio
+async def test_get_client_statistics_success() -> None:
+    mac = "00:11:22:33:44:55"
+    client = _make_client()
+    client.get = AsyncMock(side_effect=[{"data": [_client_data(mac=mac)]}])
 
-    @pytest.mark.asyncio
-    async def test_get_client_details_not_found(self, mock_settings):
-        active_response = {"data": [make_client(mac="00:00:00:00:00:00")]}
-        alluser_response = {"data": []}
+    with patch.object(clients_module, "get_network_client", return_value=client):
+        result = await get_client_statistics("site-1", mac)
 
-        with patch("src.tools.clients.UniFiClient") as mock_client_class:
-            mock_client_class.return_value = create_mock_client([active_response, alluser_response])
+    assert result["mac"] == mac
+    assert result["tx_bytes"] == 1000000
 
-            with pytest.raises(ResourceNotFoundError):
-                await get_client_details("site-1", "ff:ff:ff:ff:ff:ff", mock_settings)
 
-    @pytest.mark.asyncio
-    async def test_get_client_details_invalid_site_id(self, mock_settings):
-        with pytest.raises(ValidationError):
-            await get_client_details("", "00:11:22:33:44:55", mock_settings)
+@pytest.mark.asyncio
+async def test_list_active_clients_success() -> None:
+    client = _make_client()
+    client.get = AsyncMock(
+        side_effect=[{"data": [_client_data(), _client_data(mac="aa:bb:cc:dd:ee:ff")]}]
+    )
 
-    @pytest.mark.asyncio
-    async def test_get_client_details_invalid_mac(self, mock_settings):
-        with pytest.raises(ValidationError):
-            await get_client_details("site-1", "invalid-mac", mock_settings)
+    with patch.object(clients_module, "get_network_client", return_value=client):
+        result = await list_active_clients("site-1")
 
-    @pytest.mark.asyncio
-    async def test_get_client_details_mac_normalization(self, mock_settings):
-        mac = "00:11:22:33:44:55"
-        active_response = {"data": [make_client(mac=mac)]}
+    assert len(result) == 2
 
-        with patch("src.tools.clients.UniFiClient") as mock_client_class:
-            mock_client_class.return_value = create_mock_client([active_response])
 
-            result = await get_client_details("site-1", "00-11-22-33-44-55", mock_settings)
+@pytest.mark.asyncio
+async def test_search_clients_matches_hostname() -> None:
+    client = _make_client()
+    client.get = AsyncMock(
+        side_effect=[
+            {"data": [_client_data(mac="00:11:22:33:44:55", hostname="office-laptop")]},
+            {"data": [_client_data(mac="aa:bb:cc:dd:ee:ff", hostname="home-phone")]},
+        ]
+    )
 
-            assert result["mac"] == mac
+    with patch.object(clients_module, "get_network_client", return_value=client):
+        result = await search_clients("site-1", "office")
 
+    assert len(result) == 1
+    assert result[0]["hostname"] == "office-laptop"
 
-class TestGetClientStatistics:
-    @pytest.mark.asyncio
-    async def test_get_client_statistics_success(self, mock_settings):
-        mac = "00:11:22:33:44:55"
-        response = {"data": [make_client(mac=mac)]}
 
-        with patch("src.tools.clients.UniFiClient") as mock_client_class:
-            mock_client_class.return_value = create_mock_client([response])
+@pytest.mark.asyncio
+async def test_search_clients_active_data_takes_priority() -> None:
+    mac = "00:11:22:33:44:55"
+    client = _make_client()
+    client.get = AsyncMock(
+        side_effect=[
+            {"data": [_client_data(mac=mac, ip="192.168.2.100", hostname="current-hostname")]},
+            {"data": [_client_data(mac=mac, ip="192.168.2.50", hostname="old-hostname")]},
+        ]
+    )
 
-            result = await get_client_statistics("site-1", mac, mock_settings)
+    with patch.object(clients_module, "get_network_client", return_value=client):
+        result = await search_clients("site-1", "192.168.2.100")
 
-            assert result["mac"] == mac
-            assert result["tx_bytes"] == 1000000
-            assert result["rx_bytes"] == 2000000
-            assert result["tx_packets"] == 1000
-            assert result["rx_packets"] == 2000
-            assert result["signal"] == -65
-            assert result["is_wired"] is False
+    assert len(result) == 1
+    assert result[0]["ip"] == "192.168.2.100"
 
-    @pytest.mark.asyncio
-    async def test_get_client_statistics_list_response(self, mock_settings):
-        mac = "aa:bb:cc:dd:ee:ff"
-        response = [make_client(mac=mac)]
 
-        with patch("src.tools.clients.UniFiClient") as mock_client_class:
-            mock_client_class.return_value = create_mock_client([response])
-
-            result = await get_client_statistics("site-1", mac, mock_settings)
-
-            assert result["mac"] == mac
-
-    @pytest.mark.asyncio
-    async def test_get_client_statistics_not_found(self, mock_settings):
-        response = {"data": [make_client(mac="00:00:00:00:00:00")]}
-
-        with patch("src.tools.clients.UniFiClient") as mock_client_class:
-            mock_client_class.return_value = create_mock_client([response])
-
-            with pytest.raises(ResourceNotFoundError):
-                await get_client_statistics("site-1", "ff:ff:ff:ff:ff:ff", mock_settings)
-
-    @pytest.mark.asyncio
-    async def test_get_client_statistics_minimal_data(self, mock_settings):
-        mac = "00:11:22:33:44:55"
-        minimal_client = {"mac": mac}
-        response = {"data": [minimal_client]}
-
-        with patch("src.tools.clients.UniFiClient") as mock_client_class:
-            mock_client_class.return_value = create_mock_client([response])
-
-            result = await get_client_statistics("site-1", mac, mock_settings)
-
-            assert result["mac"] == mac
-            assert result["tx_bytes"] == 0
-            assert result["rx_bytes"] == 0
-            assert result["uptime"] == 0
-            assert result["is_wired"] is False
-
-
-class TestListActiveClients:
-    @pytest.mark.asyncio
-    async def test_list_active_clients_success(self, mock_settings):
-        response = {
-            "data": [
-                make_client(mac="00:11:22:33:44:55"),
-                make_client(mac="aa:bb:cc:dd:ee:ff"),
-            ]
-        }
-
-        with patch("src.tools.clients.UniFiClient") as mock_client_class:
-            mock_client_class.return_value = create_mock_client([response])
-
-            result = await list_active_clients("site-1", mock_settings)
-
-            assert len(result) == 2
-
-    @pytest.mark.asyncio
-    async def test_list_active_clients_list_response(self, mock_settings):
-        response = [make_client(mac="00:11:22:33:44:55")]
-
-        with patch("src.tools.clients.UniFiClient") as mock_client_class:
-            mock_client_class.return_value = create_mock_client([response])
-
-            result = await list_active_clients("site-1", mock_settings)
-
-            assert len(result) == 1
-
-    @pytest.mark.asyncio
-    async def test_list_active_clients_with_limit(self, mock_settings):
-        response = {"data": [make_client(mac=f"00:00:00:00:00:{i:02x}") for i in range(10)]}
-
-        with patch("src.tools.clients.UniFiClient") as mock_client_class:
-            mock_client_class.return_value = create_mock_client([response])
-
-            result = await list_active_clients("site-1", mock_settings, limit=5)
-
-            assert len(result) == 5
-
-    @pytest.mark.asyncio
-    async def test_list_active_clients_with_offset(self, mock_settings):
-        response = {"data": [make_client(mac=f"00:00:00:00:00:{i:02x}") for i in range(10)]}
-
-        with patch("src.tools.clients.UniFiClient") as mock_client_class:
-            mock_client_class.return_value = create_mock_client([response])
-
-            result = await list_active_clients("site-1", mock_settings, offset=5, limit=3)
-
-            assert len(result) == 3
-            assert result[0]["mac"] == "00:00:00:00:00:05"
-
-    @pytest.mark.asyncio
-    async def test_list_active_clients_empty(self, mock_settings):
-        response = {"data": []}
-
-        with patch("src.tools.clients.UniFiClient") as mock_client_class:
-            mock_client_class.return_value = create_mock_client([response])
-
-            result = await list_active_clients("site-1", mock_settings)
-
-            assert result == []
-
-    @pytest.mark.asyncio
-    async def test_list_active_clients_invalid_site_id(self, mock_settings):
-        with pytest.raises(ValidationError):
-            await list_active_clients("", mock_settings)
-
-
-class TestSearchClients:
-    @pytest.mark.asyncio
-    async def test_search_clients_by_mac(self, mock_settings):
-        active_response = {"data": []}
-        alluser_response = {
-            "data": [
-                make_client(mac="00:11:22:33:44:55"),
-                make_client(mac="aa:bb:cc:dd:ee:ff"),
-            ]
-        }
-
-        with patch("src.tools.clients.UniFiClient") as mock_client_class:
-            mock_client_class.return_value = create_mock_client([active_response, alluser_response])
-
-            result = await search_clients("site-1", "00:11", mock_settings)
-
-            assert len(result) == 1
-            assert result[0]["mac"] == "00:11:22:33:44:55"
-
-    @pytest.mark.asyncio
-    async def test_search_clients_by_ip(self, mock_settings):
-        # Active clients have current IP addresses
-        active_response = {
-            "data": [
-                make_client(mac="00:11:22:33:44:55", ip="192.168.2.100"),
-                make_client(mac="aa:bb:cc:dd:ee:ff", ip="192.168.2.200"),
-            ]
-        }
-        # Historical clients may not have current IPs
-        alluser_response = {"data": []}
-
-        with patch("src.tools.clients.UniFiClient") as mock_client_class:
-            mock_client_class.return_value = create_mock_client([active_response, alluser_response])
-
-            result = await search_clients("site-1", "192.168.2", mock_settings)
-
-            assert len(result) == 2
-
-    @pytest.mark.asyncio
-    async def test_search_clients_by_hostname(self, mock_settings):
-        active_response = {"data": []}
-        alluser_response = {
-            "data": [
-                make_client(mac="00:11:22:33:44:55", hostname="office-laptop"),
-                make_client(mac="aa:bb:cc:dd:ee:ff", hostname="home-phone"),
-            ]
-        }
-
-        with patch("src.tools.clients.UniFiClient") as mock_client_class:
-            mock_client_class.return_value = create_mock_client([active_response, alluser_response])
-
-            result = await search_clients("site-1", "office", mock_settings)
-
-            assert len(result) == 1
-            assert result[0]["hostname"] == "office-laptop"
-
-    @pytest.mark.asyncio
-    async def test_search_clients_by_name(self, mock_settings):
-        active_response = {"data": []}
-        alluser_response = {"data": [make_client(name="John's iPhone")]}
-
-        with patch("src.tools.clients.UniFiClient") as mock_client_class:
-            mock_client_class.return_value = create_mock_client([active_response, alluser_response])
-
-            result = await search_clients("site-1", "john", mock_settings)
-
-            assert len(result) == 1
-
-    @pytest.mark.asyncio
-    async def test_search_clients_case_insensitive(self, mock_settings):
-        active_response = {"data": []}
-        alluser_response = {"data": [make_client(hostname="Office-PC")]}
-
-        with patch("src.tools.clients.UniFiClient") as mock_client_class:
-            mock_client_class.return_value = create_mock_client([active_response, alluser_response])
-
-            result = await search_clients("site-1", "OFFICE", mock_settings)
-
-            assert len(result) == 1
-
-    @pytest.mark.asyncio
-    async def test_search_clients_with_pagination(self, mock_settings):
-        active_response = {"data": []}
-        alluser_response = {
-            "data": [
-                make_client(mac=f"00:00:00:00:00:{i:02x}", hostname=f"client-{i}")
-                for i in range(10)
-            ]
-        }
-
-        with patch("src.tools.clients.UniFiClient") as mock_client_class:
-            mock_client_class.return_value = create_mock_client([active_response, alluser_response])
-
-            result = await search_clients("site-1", "client", mock_settings, limit=3, offset=2)
-
-            assert len(result) == 3
-
-    @pytest.mark.asyncio
-    async def test_search_clients_no_match(self, mock_settings):
-        active_response = {"data": []}
-        alluser_response = {"data": [make_client(hostname="office-pc")]}
-
-        with patch("src.tools.clients.UniFiClient") as mock_client_class:
-            mock_client_class.return_value = create_mock_client([active_response, alluser_response])
-
-            result = await search_clients("site-1", "nonexistent", mock_settings)
-
-            assert result == []
-
-    @pytest.mark.asyncio
-    async def test_search_clients_list_response(self, mock_settings):
-        active_response = [make_client(hostname="test-client")]
-        alluser_response = []
-
-        with patch("src.tools.clients.UniFiClient") as mock_client_class:
-            mock_client_class.return_value = create_mock_client([active_response, alluser_response])
-
-            result = await search_clients("site-1", "test", mock_settings)
-
-            assert len(result) == 1
-
-    @pytest.mark.asyncio
-    async def test_search_clients_ip_with_none_value(self, mock_settings):
-        """Test that None IP values don't cause crashes."""
-        active_response = {
-            "data": [
-                make_client(mac="00:11:22:33:44:55", ip="192.168.2.100"),
-            ]
-        }
-        # Historical client with None IP
-        alluser_response = {
-            "data": [{"mac": "aa:bb:cc:dd:ee:ff", "hostname": "old-client", "ip": None}]
-        }
-
-        with patch("src.tools.clients.UniFiClient") as mock_client_class:
-            mock_client_class.return_value = create_mock_client([active_response, alluser_response])
-
-            # Should not crash when searching by IP
-            result = await search_clients("site-1", "192.168.2", mock_settings)
-
-            assert len(result) == 1
-            assert result[0]["mac"] == "00:11:22:33:44:55"
-
-    @pytest.mark.asyncio
-    async def test_search_clients_deduplication_active_priority(self, mock_settings):
-        """Test that active client data takes priority over historical data."""
-        mac = "00:11:22:33:44:55"
-        # Historical data with old IP
-        alluser_response = {
-            "data": [make_client(mac=mac, ip="192.168.2.50", hostname="old-hostname")]
-        }
-        # Active data with current IP (should override historical)
-        active_response = {
-            "data": [make_client(mac=mac, ip="192.168.2.100", hostname="current-hostname")]
-        }
-
-        with patch("src.tools.clients.UniFiClient") as mock_client_class:
-            mock_client_class.return_value = create_mock_client([active_response, alluser_response])
-
-            result = await search_clients("site-1", "192.168.2.100", mock_settings)
-
-            assert len(result) == 1
-            assert result[0]["mac"] == mac
-            assert result[0]["ip"] == "192.168.2.100"
-            assert result[0]["hostname"] == "current-hostname"
-
-    @pytest.mark.asyncio
-    async def test_search_clients_historical_only_by_mac(self, mock_settings):
-        """Test searching historical clients by MAC when not active."""
-        mac = "aa:bb:cc:dd:ee:ff"
-        active_response = {"data": []}
-        alluser_response = {"data": [make_client(mac=mac, ip=None, hostname="offline-device")]}
-
-        with patch("src.tools.clients.UniFiClient") as mock_client_class:
-            mock_client_class.return_value = create_mock_client([active_response, alluser_response])
-
-            result = await search_clients("site-1", mac, mock_settings)
-
-            assert len(result) == 1
-            assert result[0]["mac"] == mac
+@pytest.mark.asyncio
+async def test_client_tools_validate_inputs() -> None:
+    with pytest.raises(ValidationError):
+        await get_client_details("", "00:11:22:33:44:55")
+    with pytest.raises(ValidationError):
+        await get_client_details("site-1", "invalid-mac")

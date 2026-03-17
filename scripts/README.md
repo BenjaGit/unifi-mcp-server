@@ -88,7 +88,7 @@ The comparison will show:
 
 ### 3. Update Documentation
 
-Generate updated `docs/UNIFI_API.md`:
+Generate updated `docs/api/unifi-api-reference.md`:
 
 ```bash
 # Using version shorthand (auto-finds matching diff)
@@ -98,7 +98,7 @@ npm run update-docs 10.1.68
 node update/update-docs.js scraped-api-spec-v10.1.68.json api-diff-v10.0.160-to-v10.1.68.json
 ```
 
-**Output:** `docs/UNIFI_API.md`
+**Output:** `docs/api/unifi-api-reference.md`
 
 ## Complete Workflow
 
@@ -115,10 +115,10 @@ npm run compare 10.0.160 10.1.68
 npm run update-docs 10.1.68
 
 # 4. Review changes
-git diff docs/UNIFI_API.md
+git diff docs/api/unifi-api-reference.md
 
 # 5. Commit if satisfied
-git add docs/UNIFI_API.md
+git add docs/api/unifi-api-reference.md
 git commit -m "docs: update UNIFI_API.md to v10.1.68"
 ```
 
@@ -172,7 +172,7 @@ scripts/
 5. Documentation Generation
    ├─> Load spec & diff
    ├─> Generate markdown sections
-   └─> Write to docs/UNIFI_API.md
+   └─> Write to docs/api/unifi-api-reference.md
 ```
 
 ## Troubleshooting

@@ -476,16 +476,17 @@ Reference `.env.example` for all configuration options:
 
 ### Required Variables
 ```
-UNIFI_API_KEY=<required>              # UniFi API key from unifi.ui.com
+UNIFI_NETWORK_API_KEY=<required>              # UniFi API key from unifi.ui.com
 ```
 
 ### UniFi API Configuration
 ```
-UNIFI_API_TYPE=cloud                  # or "local" for gateway proxy
-UNIFI_HOST=api.ui.com                 # or local gateway IP (e.g., 192.168.2.1)
-UNIFI_PORT=443                        # API port
-UNIFI_VERIFY_SSL=true                 # SSL verification (false for self-signed)
-UNIFI_SITE=default                    # Default site identifier
+UNIFI_API_TYPE=cloud-v1               # or "cloud-ea" or "local" for gateway proxy
+UNIFI_CLOUD_API_URL=https://api.ui.com # Cloud API base URL
+UNIFI_LOCAL_HOST=                      # Local gateway IP when api_type=local
+UNIFI_LOCAL_PORT=443                  # API port
+UNIFI_LOCAL_VERIFY_SSL=true           # SSL verification (false for self-signed)
+UNIFI_DEFAULT_SITE=default            # Default site identifier
 UNIFI_RATE_LIMIT=100                  # Max requests per minute (Early Access: 100)
 UNIFI_TIMEOUT=30                      # Request timeout in seconds
 UNIFI_MAX_RETRIES=3                   # Maximum retry attempts
@@ -542,8 +543,8 @@ docker-compose up -d
 
 # Standalone Docker container
 docker run -i \
-  -e UNIFI_API_KEY=your-key \
-  -e UNIFI_API_TYPE=cloud \
+  -e UNIFI_NETWORK_API_KEY=your-network-key \
+  -e UNIFI_API_TYPE=cloud-v1 \
   ghcr.io/enuno/unifi-mcp-server:latest
 
 # Note: Don't use -d flag for MCP client integration (needs stdin/stdout)

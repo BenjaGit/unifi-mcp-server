@@ -123,7 +123,7 @@ This module has 20% coverage and is hard to test. Help me refactor it.
 
 **When to use:** After implementing new tools or before releases
 
-Automates generation and maintenance of API.md documentation by extracting information from MCP tool definitions, docstrings, and type hints.
+Automates generation and maintenance of docs/api/mcp-tools.md documentation by extracting information from MCP tool definitions, docstrings, and type hints.
 
 **Key features:**
 
@@ -136,7 +136,7 @@ Automates generation and maintenance of API.md documentation by extracting infor
 **Example usage:**
 
 ```
-Update API.md with all the new v0.2.0 tools
+Update docs/api/mcp-tools.md with all the new v0.2.0 tools
 ```
 
 #### 7. release-planner
@@ -213,7 +213,7 @@ Help me plan the QoS and Traffic Management implementation
 **Release Preparation:**
 
 1. `release-planner` - Plan and execute release
-2. `api-doc-generator` - Update API.md
+2. `api-doc-generator` - Update docs/api/mcp-tools.md
 3. `test-strategy` - Verify coverage targets
 
 ## Usage Examples
@@ -278,7 +278,7 @@ Step 4: Create tests with test-strategy
 → Achieve 80%+ coverage
 
 Step 5: Update docs with api-doc-generator
-> Update API.md with new QoS tools
+> Update docs/api/mcp-tools.md with new QoS tools
 
 → Automatic documentation generation
 → Consistent format
@@ -320,7 +320,7 @@ Step 4: Testing with test-strategy
 → Achieve 86% coverage ✅
 
 Step 5: Documentation with api-doc-generator
-→ Generate API.md sections
+→ Generate docs/api/mcp-tools.md sections
 → Create usage examples
 → Update README.md
 ```
@@ -425,7 +425,7 @@ Step 5: Documentation with api-doc-generator
               ▼
 ┌─────────────────────────────────────────────────────────┐
 │ 5. Invoke api-doc-generator                            │
-│    → Update API.md                                     │
+│    → Update docs/api/mcp-tools.md                                     │
 │    → Add usage examples                                │
 │    → Verify documentation complete                     │
 └─────────────┬───────────────────────────────────────────┘
@@ -536,7 +536,7 @@ Documentation to load for context
 
 1. Explicitly ask skill to load reference files
 2. Provide more specific context about your goal
-3. Reference specific files (e.g., "Load TODO.md for context")
+3. Reference specific files (e.g., "Load CHANGELOG.md for context")
 
 ### Unclear Which Skill to Use
 

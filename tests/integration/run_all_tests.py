@@ -93,11 +93,18 @@ def load_test_environments() -> list[TestEnvironment]:
 
     import os
 
+    def first_env(*keys: str) -> str | None:
+        for key in keys:
+            value = os.getenv(key)
+            if value:
+                return value
+        return None
+
     environments = []
 
     # Load unifi-lab environment
-    lab_key = os.getenv("UNIFI_LAB_API_KEY") or os.getenv("UNIFI_API_KEY")
-    lab_host = os.getenv("UNIFI_LAB_HOST") or os.getenv("UNIFI_LOCAL_HOST")
+    lab_key = first_env("UNIFI_LAB_API_KEY", "UNIFI_LOCAL_API_KEY", "UNIFI_NETWORK_API_KEY")
+    lab_host = first_env("UNIFI_LAB_HOST", "UNIFI_LOCAL_HOST")
     if lab_key and lab_host:
         environments.append(
             TestEnvironment(
@@ -118,7 +125,7 @@ def load_test_environments() -> list[TestEnvironment]:
         )
 
     # Load unifi-home environment
-    home_key = os.getenv("UNIFI_HOME_API_KEY")
+    home_key = first_env("UNIFI_HOME_API_KEY", "UNIFI_LOCAL_API_KEY", "UNIFI_NETWORK_API_KEY")
     home_host = os.getenv("UNIFI_HOME_HOST")
     if home_key and home_host:
         environments.append(
@@ -133,7 +140,14 @@ def load_test_environments() -> list[TestEnvironment]:
         )
 
     # Load cloud-v1 environment (lab site)
-    cloud_v1_key = os.getenv("UNIFI_CLOUD_V1_API_KEY") or os.getenv("UNIFI_CLOUD_API_KEY")
+    # Preference: explicit cloud override -> REMOTE key -> LOCAL key
+    cloud_v1_key = first_env(
+        "UNIFI_CLOUD_V1_API_KEY",
+        "UNIFI_REMOTE_API_KEY",
+        "UNIFI_SITE_MANAGER_API_KEY",
+        "UNIFI_LOCAL_API_KEY",
+        "UNIFI_NETWORK_API_KEY",
+    )
     cloud_site_lab = os.getenv("UNIFI_CLOUD_SITE_LAB", "63be0605bc01d21891cef8df")
     if cloud_v1_key:
         environments.append(
@@ -146,7 +160,14 @@ def load_test_environments() -> list[TestEnvironment]:
         )
 
     # Load cloud-ea environment (lab site)
-    cloud_ea_key = os.getenv("UNIFI_CLOUD_EA_API_KEY") or os.getenv("UNIFI_CLOUD_API_KEY")
+    # Preference: explicit cloud override -> REMOTE key -> LOCAL key
+    cloud_ea_key = first_env(
+        "UNIFI_CLOUD_EA_API_KEY",
+        "UNIFI_REMOTE_API_KEY",
+        "UNIFI_SITE_MANAGER_API_KEY",
+        "UNIFI_LOCAL_API_KEY",
+        "UNIFI_NETWORK_API_KEY",
+    )
     if cloud_ea_key:
         environments.append(
             TestEnvironment(
@@ -218,7 +239,7 @@ async def main():
     )
     parser.add_argument(
         "--env",
-        help="Run tests only on specific environment (unifi-lab, unifi-home, unifi-cloud)",
+        help="Run tests only on specific environment (unifi-lab, unifi-home, unifi-cloud-v1-lab, unifi-cloud-ea-lab, unifi-cloud-v1-home, unifi-cloud-ea-home)",
     )
     parser.add_argument(
         "--suite",

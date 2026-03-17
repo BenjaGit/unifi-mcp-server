@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # UniFi MCP Server
   unifi-mcp:
@@ -8,26 +6,40 @@ services:
       dockerfile: Dockerfile
     container_name: unifi-mcp-server
     restart: unless-stopped
-    stdin_open: true  # -i flag for STDIO transport
-    tty: false
+    ports:
+      - "${FASTMCP_PORT:-3000}:${FASTMCP_PORT:-3000}"
     environment:
       # UniFi API Configuration
-      UNIFI_API_KEY: ${UNIFI_API_KEY:?UNIFI_API_KEY required}
-      UNIFI_API_TYPE: ${UNIFI_API_TYPE:-cloud}
-      UNIFI_HOST: ${UNIFI_HOST:-api.ui.com}
-      UNIFI_PORT: ${UNIFI_PORT:-443}
+      UNIFI_LOCAL_API_KEY: ${UNIFI_LOCAL_API_KEY:-}
+      UNIFI_REMOTE_API_KEY: ${UNIFI_REMOTE_API_KEY:-}
+      UNIFI_API_TYPE: ${UNIFI_API_TYPE:-cloud-v1}
+      UNIFI_CLOUD_API_URL: ${UNIFI_CLOUD_API_URL:-https://api.ui.com}
       UNIFI_LOCAL_HOST: ${UNIFI_LOCAL_HOST:-}
-      UNIFI_VERIFY_SSL: ${UNIFI_VERIFY_SSL:-true}
-      UNIFI_SITE: ${UNIFI_SITE:-default}
+      UNIFI_LOCAL_PORT: ${UNIFI_LOCAL_PORT:-443}
+      UNIFI_LOCAL_VERIFY_SSL: ${UNIFI_LOCAL_VERIFY_SSL:-false}
+      UNIFI_DEFAULT_SITE: ${UNIFI_DEFAULT_SITE:-default}
 
-      # MCP Server Configuration
-      MCP_SERVER_PORT: ${MCP_SERVER_PORT:-3000}
-      MCP_LOG_LEVEL: ${MCP_LOG_LEVEL:-INFO}
+      # FastMCP transport (recommended for Docker)
+      FASTMCP_TRANSPORT: ${FASTMCP_TRANSPORT:-streamable-http}
+      FASTMCP_HOST: ${FASTMCP_HOST:-0.0.0.0}
+      FASTMCP_PORT: ${FASTMCP_PORT:-3000}
+      FASTMCP_STREAMABLE_HTTP_PATH: ${FASTMCP_STREAMABLE_HTTP_PATH:-/mcp}
+      FASTMCP_SHOW_SERVER_BANNER: ${FASTMCP_SHOW_SERVER_BANNER:-false}
+
+      # Logging
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
 
       # Optional: Rate Limiting
-      UNIFI_RATE_LIMIT: ${UNIFI_RATE_LIMIT:-100}
-      UNIFI_TIMEOUT: ${UNIFI_TIMEOUT:-30}
+      UNIFI_RATE_LIMIT_REQUESTS: ${UNIFI_RATE_LIMIT_REQUESTS:-100}
+      UNIFI_RATE_LIMIT_PERIOD: ${UNIFI_RATE_LIMIT_PERIOD:-60}
+      UNIFI_REQUEST_TIMEOUT: ${UNIFI_REQUEST_TIMEOUT:-30}
       UNIFI_MAX_RETRIES: ${UNIFI_MAX_RETRIES:-3}
+      UNIFI_RETRY_BACKOFF_FACTOR: ${UNIFI_RETRY_BACKOFF_FACTOR:-2.0}
+
+      # Optional: Cache and audit behavior
+      UNIFI_CACHE_ENABLED: ${UNIFI_CACHE_ENABLED:-true}
+      UNIFI_CACHE_TTL: ${UNIFI_CACHE_TTL:-300}
+      UNIFI_AUDIT_LOG_ENABLED: ${UNIFI_AUDIT_LOG_ENABLED:-true}
 
       # Optional: Agnost Performance Tracking
       AGNOST_ENABLED: ${AGNOST_ENABLED:-false}
@@ -47,12 +59,17 @@ services:
     networks:
       - mcp-network
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
     volumes:
       - ./logs:/app/logs
       - ./audit.log:/app/audit.log
     healthcheck:
-      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:3000/health')"]
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import os,socket; s=socket.create_connection(('127.0.0.1', int(os.getenv('FASTMCP_PORT', '3000'))), 2); s.close()\"",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -63,6 +80,7 @@ services:
     image: us-central1-docker.pkg.dev/database-toolbox/toolbox/toolbox:${TOOLBOX_VERSION:-0.14.0}
     container_name: mcp-toolbox
     restart: unless-stopped
+    profiles: ["toolbox"]
     ports:
       - "${TOOLBOX_PORT:-8080}:8080"
     command:
@@ -88,18 +106,27 @@ services:
     image: redis:7-alpine
     container_name: unifi-mcp-redis
     restart: unless-stopped
-    command: >
-      redis-server
-      --appendonly yes
-      --requirepass ${REDIS_PASSWORD:-}
-      --maxmemory 256mb
-      --maxmemory-policy allkeys-lru
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    command:
+      - sh
+      - -ec
+      - |
+        if [ -n "$${REDIS_PASSWORD:-}" ]; then
+          exec redis-server --appendonly yes --requirepass "$${REDIS_PASSWORD}" --maxmemory 256mb --maxmemory-policy allkeys-lru
+        else
+          exec redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+        fi
     volumes:
       - redis-data:/data
     networks:
       - mcp-network
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test:
+        [
+          "CMD-SHELL",
+          "if [ -n \"$REDIS_PASSWORD\" ]; then redis-cli -a \"$REDIS_PASSWORD\" ping; else redis-cli ping; fi",
+        ]
       interval: 10s
       timeout: 3s
       retries: 3

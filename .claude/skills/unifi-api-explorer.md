@@ -11,7 +11,7 @@ Guide interactive exploration and testing of UniFi API endpoints to accelerate d
 
 ## When to Use This Skill
 
-- Implementing new features from DEVELOPMENT_PLAN.md (QoS, SD-WAN, Backup, etc.)
+- Implementing new features from CHANGELOG.md (QoS, SD-WAN, Backup, etc.)
 - Researching UniFi API capabilities
 - Testing endpoints before creating tools
 - Designing Pydantic models from API responses
@@ -43,9 +43,9 @@ Ask the user what they want to explore:
 
 **Primary Reference Sources:**
 
-1. **Official UniFi API Docs**: `docs/UNIFI_API.md` (if exists)
-2. **Project API Docs**: `API.md`
-3. **Development Plan**: `DEVELOPMENT_PLAN.md` (feature requirements)
+1. **Official UniFi API Docs**: `docs/api/unifi-api-reference.md` (if exists)
+2. **Project API Docs**: `docs/api/mcp-tools.md`
+3. **Development Plan**: `CHANGELOG.md` (feature requirements)
 4. **Community Resources**:
    - Art-of-WiFi UniFi API client (GitHub)
    - Ubiquiti Community Wiki
@@ -615,16 +615,16 @@ GET /api/s/{site}/stat/[resource]?start=X&end=Y
 - **Before exploration**: Use `tool-design-reviewer` to plan tool design
 - **During exploration**: Use this skill to test and document API
 - **After exploration**: Use `test-strategy` to create comprehensive tests
-- **Documentation**: Use `api-doc-generator` to update API.md
+- **Documentation**: Use `api-doc-generator` to update docs/api/mcp-tools.md
 
 ## Reference Files
 
 Load for context:
 
-- `DEVELOPMENT_PLAN.md` - Feature requirements and API endpoints
-- `API.md` - Existing API documentation patterns
+- `CHANGELOG.md` - Feature requirements and API endpoints
+- `docs/api/mcp-tools.md` - Existing API documentation patterns
 - `src/api/client.py` - UniFi API client implementation
-- `docs/UNIFI_API.md` - UniFi API reference (if exists)
+- `docs/api/unifi-api-reference.md` - UniFi API reference (if exists)
 - `.env.example` - Environment configuration
 
 ## Success Metrics

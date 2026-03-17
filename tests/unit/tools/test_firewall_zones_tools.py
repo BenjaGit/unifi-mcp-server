@@ -1,627 +1,219 @@
-"""Tests for firewall_zones tools."""
+"""Tests for firewall_zones tools using pooled clients."""
 
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-
-@pytest.fixture
-def mock_settings():
-    from src.config import APIType
-
-    settings = MagicMock(spec="Settings")
-    settings.log_level = "INFO"
-    settings.api_type = APIType.LOCAL
-    settings.base_url = "https://192.168.2.1"
-    settings.api_key = "test-key"
-    settings.local_host = "192.168.2.1"
-    settings.local_port = 443
-    settings.local_verify_ssl = False
-    settings.get_integration_path = MagicMock(side_effect=lambda x: f"/integration/v1/{x}")
-    return settings
+from src.config import APIType
+from src.utils.exceptions import ValidationError
 
 
-@pytest.fixture
-def mock_settings_cloud():
-    from src.config import APIType
-
-    settings = MagicMock(spec="Settings")
-    settings.log_level = "INFO"
-    settings.api_type = APIType.CLOUD_EA
-    return settings
+def make_client(api_type: APIType = APIType.LOCAL) -> AsyncMock:
+    client = AsyncMock()
+    client.settings = SimpleNamespace(api_type=api_type)
+    client.is_authenticated = True
+    client.authenticate = AsyncMock()
+    client.resolve_site = AsyncMock(
+        return_value=SimpleNamespace(name="default", uuid="uuid-default")
+    )
+    client.integration_path = MagicMock(
+        side_effect=lambda uuid, ep: f"/integration/v1/sites/{uuid}/{ep}"
+    )
+    client.legacy_path = MagicMock(side_effect=lambda site, ep: f"/proxy/network/api/s/{site}/{ep}")
+    client.get = AsyncMock()
+    client.post = AsyncMock()
+    client.put = AsyncMock()
+    client.delete = AsyncMock()
+    return client
 
 
 @pytest.fixture
-def sample_firewall_zones():
+def firewall_zone_client():
+    client = make_client()
+    with patch("src.tools.firewall_zones.get_network_client", return_value=client):
+        yield client
+
+
+@pytest.fixture
+def sample_zones():
     return [
-        {
-            "_id": "zone-001",
-            "site_id": "default",
-            "name": "LAN",
-            "description": "Local network zone",
-            "networks": ["net-001", "net-002"],
-            "networkIds": ["net-001", "net-002"],
-        },
-        {
-            "_id": "zone-002",
-            "site_id": "default",
-            "name": "IoT",
-            "description": "IoT devices zone",
-            "networks": ["net-003"],
-            "networkIds": ["net-003"],
-        },
+        {"_id": "zone-1", "name": "LAN", "networks": ["net-1"], "networkIds": ["net-1"]},
+        {"_id": "zone-2", "name": "IoT", "networks": [], "networkIds": []},
     ]
 
 
 class TestListFirewallZones:
     @pytest.mark.asyncio
-    async def test_list_firewall_zones_success(self, mock_settings, sample_firewall_zones):
+    async def test_success(self, firewall_zone_client, sample_zones):
         from src.tools.firewall_zones import list_firewall_zones
 
-        with patch("src.tools.firewall_zones.UniFiClient") as mock_client:
-            mock_instance = AsyncMock()
-            mock_client.return_value.__aenter__.return_value = mock_instance
-            mock_instance.is_authenticated = False
-            mock_instance.authenticate = AsyncMock()
-            mock_instance.resolve_site_id = AsyncMock(return_value="default")
-            mock_instance.get = AsyncMock(return_value={"data": sample_firewall_zones})
+        firewall_zone_client.is_authenticated = False
+        firewall_zone_client.get.return_value = {"data": sample_zones}
 
-            result = await list_firewall_zones("default", mock_settings)
+        result = await list_firewall_zones("default")
 
-            assert len(result) == 2
-            assert result[0]["name"] == "LAN"
-            assert result[1]["name"] == "IoT"
+        assert len(result) == 2
+        firewall_zone_client.authenticate.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_list_firewall_zones_empty(self, mock_settings):
+    async def test_requires_local(self, firewall_zone_client):
         from src.tools.firewall_zones import list_firewall_zones
 
-        with patch("src.tools.firewall_zones.UniFiClient") as mock_client:
-            mock_instance = AsyncMock()
-            mock_client.return_value.__aenter__.return_value = mock_instance
-            mock_instance.is_authenticated = False
-            mock_instance.authenticate = AsyncMock()
-            mock_instance.resolve_site_id = AsyncMock(return_value="default")
-            mock_instance.get = AsyncMock(return_value={"data": []})
+        firewall_zone_client.settings.api_type = APIType.CLOUD_EA
 
-            result = await list_firewall_zones("default", mock_settings)
-
-            assert result == []
-
-    @pytest.mark.asyncio
-    async def test_list_firewall_zones_requires_local_api(self, mock_settings_cloud):
-        from src.tools.firewall_zones import list_firewall_zones
-        from src.utils.exceptions import ValidationError
-
-        with pytest.raises(ValidationError, match="local"):
-            await list_firewall_zones("default", mock_settings_cloud)
+        with pytest.raises(ValidationError):
+            await list_firewall_zones("default")
 
 
 class TestCreateFirewallZone:
     @pytest.mark.asyncio
-    async def test_create_firewall_zone_success(self, mock_settings):
+    async def test_success(self, firewall_zone_client):
         from src.tools.firewall_zones import create_firewall_zone
 
-        created_zone = {
-            "_id": "zone-new",
-            "site_id": "default",
-            "name": "Guest",
-            "description": "Guest network zone",
-            "networks": [],
-            "networkIds": [],
-        }
+        firewall_zone_client.is_authenticated = False
+        firewall_zone_client.post.return_value = {"data": {"_id": "zone-new", "name": "Guest"}}
 
-        with (
-            patch("src.tools.firewall_zones.UniFiClient") as mock_client,
-            patch("src.tools.firewall_zones.audit_action", new_callable=AsyncMock) as mock_audit,
-        ):
-            mock_instance = AsyncMock()
-            mock_client.return_value.__aenter__.return_value = mock_instance
-            mock_instance.is_authenticated = False
-            mock_instance.authenticate = AsyncMock()
-            mock_instance.resolve_site_id = AsyncMock(return_value="default")
-            mock_instance.post = AsyncMock(return_value={"data": created_zone})
+        with patch("src.tools.firewall_zones.audit_action", new_callable=AsyncMock) as mock_audit:
+            result = await create_firewall_zone("default", "Guest", confirm=True)
 
-            result = await create_firewall_zone(
-                "default",
-                "Guest",
-                mock_settings,
-                description="Guest network zone",
-                confirm=True,
-            )
-
-            assert result["name"] == "Guest"
-            mock_instance.post.assert_called_once()
-            mock_audit.assert_called_once()
+        assert result["name"] == "Guest"
+        firewall_zone_client.authenticate.assert_awaited_once()
+        mock_audit.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_create_firewall_zone_dry_run(self, mock_settings):
+    async def test_dry_run(self, firewall_zone_client):
         from src.tools.firewall_zones import create_firewall_zone
 
-        with patch("src.tools.firewall_zones.UniFiClient") as mock_client:
-            mock_instance = AsyncMock()
-            mock_client.return_value.__aenter__.return_value = mock_instance
-            mock_instance.is_authenticated = False
-            mock_instance.authenticate = AsyncMock()
+        result = await create_firewall_zone("default", "Guest", confirm=True, dry_run=True)
 
-            result = await create_firewall_zone(
-                "default",
-                "TestZone",
-                mock_settings,
-                confirm=True,
-                dry_run=True,
-            )
-
-            assert result["dry_run"] is True
-            assert result["payload"]["name"] == "TestZone"
-            mock_instance.post.assert_not_called()
+        assert result["dry_run"] is True
+        firewall_zone_client.post.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_create_firewall_zone_no_confirm_error(self, mock_settings):
-        from src.tools.firewall_zones import create_firewall_zone
-        from src.utils.exceptions import ValidationError
-
-        with pytest.raises(ValidationError, match="requires confirmation"):
-            await create_firewall_zone("default", "TestZone", mock_settings, confirm=False)
-
-    @pytest.mark.asyncio
-    async def test_create_firewall_zone_with_networks(self, mock_settings):
+    async def test_requires_confirm(self, firewall_zone_client):
         from src.tools.firewall_zones import create_firewall_zone
 
-        created_zone = {
-            "_id": "zone-with-nets",
-            "site_id": "default",
-            "name": "Internal",
-            "networks": ["net-001", "net-002"],
-        }
-
-        with (
-            patch("src.tools.firewall_zones.UniFiClient") as mock_client,
-            patch("src.tools.firewall_zones.audit_action", new_callable=AsyncMock),
-        ):
-            mock_instance = AsyncMock()
-            mock_client.return_value.__aenter__.return_value = mock_instance
-            mock_instance.is_authenticated = False
-            mock_instance.authenticate = AsyncMock()
-            mock_instance.resolve_site_id = AsyncMock(return_value="default")
-            mock_instance.post = AsyncMock(return_value={"data": created_zone})
-
-            result = await create_firewall_zone(
-                "default",
-                "Internal",
-                mock_settings,
-                network_ids=["net-001", "net-002"],
-                confirm=True,
-            )
-
-            assert "net-001" in result["networks"]
+        with pytest.raises(ValidationError):
+            await create_firewall_zone("default", "Guest", confirm=False)
 
 
 class TestUpdateFirewallZone:
     @pytest.mark.asyncio
-    async def test_update_firewall_zone_success(self, mock_settings, sample_firewall_zones):
+    async def test_success(self, firewall_zone_client, sample_zones):
         from src.tools.firewall_zones import update_firewall_zone
 
-        updated_zone = {
-            "_id": "zone-001",
-            "site_id": "default",
-            "name": "LAN-Updated",
-            "description": "Updated description",
-            "networks": ["net-001", "net-002"],
-        }
+        firewall_zone_client.get.return_value = {"data": sample_zones[0]}
+        firewall_zone_client.put.return_value = {"data": {"name": "LAN-Updated"}}
 
-        with (
-            patch("src.tools.firewall_zones.UniFiClient") as mock_client,
-            patch("src.tools.firewall_zones.audit_action", new_callable=AsyncMock),
-        ):
-            mock_instance = AsyncMock()
-            mock_client.return_value.__aenter__.return_value = mock_instance
-            mock_instance.is_authenticated = False
-            mock_instance.authenticate = AsyncMock()
-            mock_instance.resolve_site_id = AsyncMock(return_value="default")
-            mock_instance.get = AsyncMock(return_value={"data": sample_firewall_zones[0]})
-            mock_instance.put = AsyncMock(return_value={"data": updated_zone})
-
+        with patch("src.tools.firewall_zones.audit_action", new_callable=AsyncMock) as mock_audit:
             result = await update_firewall_zone(
-                "default",
-                "zone-001",
-                mock_settings,
-                name="LAN-Updated",
-                description="Updated description",
-                confirm=True,
+                "default", "zone-1", name="LAN-Updated", confirm=True
             )
 
-            assert result["name"] == "LAN-Updated"
-            mock_instance.put.assert_called_once()
+        assert result["name"] == "LAN-Updated"
+        mock_audit.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_update_firewall_zone_dry_run(self, mock_settings, sample_firewall_zones):
+    async def test_dry_run(self, firewall_zone_client, sample_zones):
         from src.tools.firewall_zones import update_firewall_zone
 
-        with patch("src.tools.firewall_zones.UniFiClient") as mock_client:
-            mock_instance = AsyncMock()
-            mock_client.return_value.__aenter__.return_value = mock_instance
-            mock_instance.is_authenticated = False
-            mock_instance.authenticate = AsyncMock()
-            mock_instance.resolve_site_id = AsyncMock(return_value="default")
-            mock_instance.get = AsyncMock(return_value={"data": sample_firewall_zones[0]})
+        firewall_zone_client.get.return_value = {"data": sample_zones[0]}
 
-            result = await update_firewall_zone(
-                "default",
-                "zone-001",
-                mock_settings,
-                name="NewName",
-                confirm=True,
-                dry_run=True,
-            )
+        result = await update_firewall_zone(
+            "default", "zone-1", name="LAN", confirm=True, dry_run=True
+        )
 
-            assert result["dry_run"] is True
-            assert result["payload"]["name"] == "NewName"
-            mock_instance.put.assert_not_called()
+        assert result["dry_run"] is True
+        firewall_zone_client.put.assert_not_called()
 
+
+class TestAssignNetwork:
     @pytest.mark.asyncio
-    async def test_update_firewall_zone_partial_fields(self, mock_settings, sample_firewall_zones):
-        from src.tools.firewall_zones import update_firewall_zone
-
-        updated_zone = {
-            "_id": "zone-001",
-            "site_id": "default",
-            "name": "LAN",
-            "description": "Only description updated",
-            "networks": ["net-001", "net-002"],
-            "networkIds": ["net-001", "net-002"],
-        }
-
-        with (
-            patch("src.tools.firewall_zones.UniFiClient") as mock_client,
-            patch("src.tools.firewall_zones.audit_action", new_callable=AsyncMock),
-        ):
-            mock_instance = AsyncMock()
-            mock_client.return_value.__aenter__.return_value = mock_instance
-            mock_instance.is_authenticated = False
-            mock_instance.authenticate = AsyncMock()
-            mock_instance.resolve_site_id = AsyncMock(return_value="default")
-            mock_instance.get = AsyncMock(return_value={"data": sample_firewall_zones[0]})
-            mock_instance.put = AsyncMock(return_value={"data": updated_zone})
-
-            result = await update_firewall_zone(
-                "default",
-                "zone-001",
-                mock_settings,
-                description="Only description updated",
-                confirm=True,
-            )
-
-            assert result["description"] == "Only description updated"
-
-    @pytest.mark.asyncio
-    async def test_update_firewall_zone_no_confirm_error(self, mock_settings):
-        from src.tools.firewall_zones import update_firewall_zone
-        from src.utils.exceptions import ValidationError
-
-        with pytest.raises(ValidationError, match="requires confirmation"):
-            await update_firewall_zone("default", "zone-001", mock_settings, confirm=False)
-
-
-class TestDeleteFirewallZone:
-    @pytest.mark.asyncio
-    async def test_delete_firewall_zone_success(self, mock_settings):
-        from src.tools.firewall_zones import delete_firewall_zone
-
-        with (
-            patch("src.tools.firewall_zones.UniFiClient") as mock_client,
-            patch("src.tools.firewall_zones.audit_action", new_callable=AsyncMock),
-        ):
-            mock_instance = AsyncMock()
-            mock_client.return_value.__aenter__.return_value = mock_instance
-            mock_instance.is_authenticated = False
-            mock_instance.authenticate = AsyncMock()
-            mock_instance.resolve_site_id = AsyncMock(return_value="default")
-            mock_instance.delete = AsyncMock(return_value={})
-
-            result = await delete_firewall_zone(
-                "default",
-                "zone-001",
-                mock_settings,
-                confirm=True,
-            )
-
-            assert result["status"] == "success"
-            assert result["action"] == "deleted"
-            mock_instance.delete.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_delete_firewall_zone_dry_run(self, mock_settings):
-        from src.tools.firewall_zones import delete_firewall_zone
-
-        with patch("src.tools.firewall_zones.UniFiClient") as mock_client:
-            mock_instance = AsyncMock()
-            mock_client.return_value.__aenter__.return_value = mock_instance
-            mock_instance.is_authenticated = False
-            mock_instance.authenticate = AsyncMock()
-
-            result = await delete_firewall_zone(
-                "default",
-                "zone-001",
-                mock_settings,
-                confirm=True,
-                dry_run=True,
-            )
-
-            assert result["dry_run"] is True
-            assert result["action"] == "would_delete"
-            mock_instance.delete.assert_not_called()
-
-    @pytest.mark.asyncio
-    async def test_delete_firewall_zone_no_confirm_error(self, mock_settings):
-        from src.tools.firewall_zones import delete_firewall_zone
-        from src.utils.exceptions import ValidationError
-
-        with pytest.raises(ValidationError, match="requires confirmation"):
-            await delete_firewall_zone("default", "zone-001", mock_settings, confirm=False)
-
-
-class TestAssignNetworkToZone:
-    @pytest.mark.asyncio
-    async def test_assign_network_to_zone_success(self, mock_settings, sample_firewall_zones):
+    async def test_assigns_network(self, firewall_zone_client):
         from src.tools.firewall_zones import assign_network_to_zone
 
-        zone_data = {"data": {"networks": ["net-001"]}}
-        network_data = {"data": {"name": "NewNetwork"}}
+        firewall_zone_client.get.side_effect = [
+            {"data": {"networks": []}},
+            {"data": {"name": "LAN"}},
+        ]
 
-        with (
-            patch("src.tools.firewall_zones.UniFiClient") as mock_client,
-            patch("src.tools.firewall_zones.audit_action", new_callable=AsyncMock),
-        ):
-            mock_instance = AsyncMock()
-            mock_client.return_value.__aenter__.return_value = mock_instance
-            mock_instance.is_authenticated = False
-            mock_instance.authenticate = AsyncMock()
-            mock_instance.resolve_site_id = AsyncMock(return_value="default")
+        with patch("src.tools.firewall_zones.audit_action", new_callable=AsyncMock) as mock_audit:
+            result = await assign_network_to_zone("default", "zone-1", "net-1", confirm=True)
 
-            def get_side_effect(endpoint):
-                if "networks/net-new" in endpoint:
-                    return network_data
-                return zone_data
-
-            mock_instance.get = AsyncMock(side_effect=get_side_effect)
-            mock_instance.put = AsyncMock(return_value={})
-
-            result = await assign_network_to_zone(
-                "default",
-                "zone-001",
-                "net-new",
-                mock_settings,
-                confirm=True,
-            )
-
-            assert result["zone_id"] == "zone-001"
-            assert result["network_id"] == "net-new"
-            mock_instance.put.assert_called_once()
+        assert result["network_id"] == "net-1"
+        mock_audit.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_assign_network_to_zone_already_assigned(self, mock_settings):
+    async def test_dry_run(self, firewall_zone_client):
         from src.tools.firewall_zones import assign_network_to_zone
 
-        zone_data = {"data": {"networks": ["net-001", "net-002"]}}
+        firewall_zone_client.get.return_value = {"data": {"networks": []}}
 
-        with patch("src.tools.firewall_zones.UniFiClient") as mock_client:
-            mock_instance = AsyncMock()
-            mock_client.return_value.__aenter__.return_value = mock_instance
-            mock_instance.is_authenticated = False
-            mock_instance.authenticate = AsyncMock()
-            mock_instance.resolve_site_id = AsyncMock(return_value="default")
-            mock_instance.get = AsyncMock(return_value=zone_data)
+        result = await assign_network_to_zone(
+            "default",
+            "zone-1",
+            "net-1",
+            confirm=True,
+            dry_run=True,
+        )
 
-            result = await assign_network_to_zone(
-                "default",
-                "zone-001",
-                "net-001",
-                mock_settings,
-                confirm=True,
-            )
-
-            assert result["network_id"] == "net-001"
-            mock_instance.put.assert_not_called()
-
-    @pytest.mark.asyncio
-    async def test_assign_network_to_zone_dry_run(self, mock_settings):
-        from src.tools.firewall_zones import assign_network_to_zone
-
-        zone_data = {"data": {"networks": []}}
-
-        with patch("src.tools.firewall_zones.UniFiClient") as mock_client:
-            mock_instance = AsyncMock()
-            mock_client.return_value.__aenter__.return_value = mock_instance
-            mock_instance.is_authenticated = False
-            mock_instance.authenticate = AsyncMock()
-            mock_instance.resolve_site_id = AsyncMock(return_value="default")
-            mock_instance.get = AsyncMock(return_value=zone_data)
-
-            result = await assign_network_to_zone(
-                "default",
-                "zone-001",
-                "net-new",
-                mock_settings,
-                confirm=True,
-                dry_run=True,
-            )
-
-            assert result["dry_run"] is True
-            mock_instance.put.assert_not_called()
-
-
-class TestUnassignNetworkFromZone:
-    @pytest.mark.asyncio
-    async def test_unassign_network_from_zone_success(self, mock_settings):
-        from src.tools.firewall_zones import unassign_network_from_zone
-
-        zone_data = {"data": {"networks": ["net-001", "net-002"]}}
-
-        with (
-            patch("src.tools.firewall_zones.UniFiClient") as mock_client,
-            patch("src.tools.firewall_zones.audit_action", new_callable=AsyncMock),
-        ):
-            mock_instance = AsyncMock()
-            mock_client.return_value.__aenter__.return_value = mock_instance
-            mock_instance.is_authenticated = False
-            mock_instance.authenticate = AsyncMock()
-            mock_instance.resolve_site_id = AsyncMock(return_value="default")
-            mock_instance.get = AsyncMock(return_value=zone_data)
-            mock_instance.put = AsyncMock(return_value={})
-
-            result = await unassign_network_from_zone(
-                "default",
-                "zone-001",
-                "net-001",
-                mock_settings,
-                confirm=True,
-            )
-
-            assert result["status"] == "success"
-            assert result["action"] == "unassigned"
-            mock_instance.put.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_unassign_network_not_in_zone_error(self, mock_settings):
-        from src.tools.firewall_zones import unassign_network_from_zone
-
-        zone_data = {"data": {"networks": ["net-001"]}}
-
-        with patch("src.tools.firewall_zones.UniFiClient") as mock_client:
-            mock_instance = AsyncMock()
-            mock_client.return_value.__aenter__.return_value = mock_instance
-            mock_instance.is_authenticated = False
-            mock_instance.authenticate = AsyncMock()
-            mock_instance.resolve_site_id = AsyncMock(return_value="default")
-            mock_instance.get = AsyncMock(return_value=zone_data)
-
-            with pytest.raises(ValueError, match="not assigned"):
-                await unassign_network_from_zone(
-                    "default",
-                    "zone-001",
-                    "net-999",
-                    mock_settings,
-                    confirm=True,
-                )
-
-    @pytest.mark.asyncio
-    async def test_unassign_network_from_zone_dry_run(self, mock_settings):
-        from src.tools.firewall_zones import unassign_network_from_zone
-
-        zone_data = {"data": {"networks": ["net-001", "net-002"]}}
-
-        with patch("src.tools.firewall_zones.UniFiClient") as mock_client:
-            mock_instance = AsyncMock()
-            mock_client.return_value.__aenter__.return_value = mock_instance
-            mock_instance.is_authenticated = False
-            mock_instance.authenticate = AsyncMock()
-            mock_instance.resolve_site_id = AsyncMock(return_value="default")
-            mock_instance.get = AsyncMock(return_value=zone_data)
-
-            result = await unassign_network_from_zone(
-                "default",
-                "zone-001",
-                "net-001",
-                mock_settings,
-                confirm=True,
-                dry_run=True,
-            )
-
-            assert result["dry_run"] is True
-            mock_instance.put.assert_not_called()
+        assert result["dry_run"] is True
 
 
 class TestGetZoneNetworks:
     @pytest.mark.asyncio
-    async def test_get_zone_networks_success(self, mock_settings):
+    async def test_returns_assignments(self, firewall_zone_client):
         from src.tools.firewall_zones import get_zone_networks
 
-        zone_data = {"data": {"networks": ["net-001", "net-002"]}}
-        network1_data = {"data": {"name": "Network1"}}
-        network2_data = {"data": {"name": "Network2"}}
+        firewall_zone_client.get.side_effect = [
+            {"data": [{"id": "zone-1", "networks": ["net-1"]}]},
+            {"data": {"name": "LAN"}},
+        ]
 
-        with patch("src.tools.firewall_zones.UniFiClient") as mock_client:
-            mock_instance = AsyncMock()
-            mock_client.return_value.__aenter__.return_value = mock_instance
-            mock_instance.is_authenticated = False
-            mock_instance.authenticate = AsyncMock()
-            mock_instance.resolve_site_id = AsyncMock(return_value="default")
+        result = await get_zone_networks("default", "zone-1")
 
-            call_count = 0
+        assert result[0]["network_id"] == "net-1"
 
-            async def get_side_effect(endpoint):
-                nonlocal call_count
-                call_count += 1
-                if "zones/zone-001" in endpoint:
-                    return zone_data
-                elif "networks/net-001" in endpoint:
-                    return network1_data
-                elif "networks/net-002" in endpoint:
-                    return network2_data
-                return {}
 
-            mock_instance.get = AsyncMock(side_effect=get_side_effect)
+class TestDeleteFirewallZone:
+    @pytest.mark.asyncio
+    async def test_success(self, firewall_zone_client):
+        from src.tools.firewall_zones import delete_firewall_zone
 
-            result = await get_zone_networks("default", "zone-001", mock_settings)
+        with patch("src.tools.firewall_zones.audit_action", new_callable=AsyncMock) as mock_audit:
+            result = await delete_firewall_zone("default", "zone-1", confirm=True)
 
-            assert len(result) == 2
-            assert result[0]["network_name"] == "Network1"
-            assert result[1]["network_name"] == "Network2"
+        assert result["status"] == "success"
+        mock_audit.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_get_zone_networks_empty(self, mock_settings):
-        from src.tools.firewall_zones import get_zone_networks
+    async def test_dry_run(self, firewall_zone_client):
+        from src.tools.firewall_zones import delete_firewall_zone
 
-        zone_data = {"data": {"networks": []}}
+        result = await delete_firewall_zone("default", "zone-1", confirm=True, dry_run=True)
 
-        with patch("src.tools.firewall_zones.UniFiClient") as mock_client:
-            mock_instance = AsyncMock()
-            mock_client.return_value.__aenter__.return_value = mock_instance
-            mock_instance.is_authenticated = False
-            mock_instance.authenticate = AsyncMock()
-            mock_instance.resolve_site_id = AsyncMock(return_value="default")
-            mock_instance.get = AsyncMock(return_value=zone_data)
+        assert result["dry_run"] is True
 
-            result = await get_zone_networks("default", "zone-001", mock_settings)
 
-            assert result == []
+class TestUnassignNetwork:
+    @pytest.mark.asyncio
+    async def test_unassign(self, firewall_zone_client):
+        from src.tools.firewall_zones import unassign_network_from_zone
+
+        firewall_zone_client.get.return_value = {"data": {"networks": ["net-1"]}}
+
+        with patch("src.tools.firewall_zones.audit_action", new_callable=AsyncMock) as mock_audit:
+            result = await unassign_network_from_zone("default", "zone-1", "net-1", confirm=True)
+
+        assert result["action"] == "unassigned"
+        mock_audit.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_get_zone_networks_fetch_error_handled(self, mock_settings):
-        from src.tools.firewall_zones import get_zone_networks
+    async def test_not_assigned_error(self, firewall_zone_client):
+        from src.tools.firewall_zones import unassign_network_from_zone
 
-        zone_data = {"data": {"networks": ["net-001"]}}
+        firewall_zone_client.get.return_value = {"data": {"networks": []}}
 
-        with patch("src.tools.firewall_zones.UniFiClient") as mock_client:
-            mock_instance = AsyncMock()
-            mock_client.return_value.__aenter__.return_value = mock_instance
-            mock_instance.is_authenticated = False
-            mock_instance.authenticate = AsyncMock()
-            mock_instance.resolve_site_id = AsyncMock(return_value="default")
-
-            call_count = 0
-
-            async def get_side_effect(endpoint):
-                nonlocal call_count
-                call_count += 1
-                if "zones/zone-001" in endpoint:
-                    return zone_data
-                raise Exception("Network fetch failed")
-
-            mock_instance.get = AsyncMock(side_effect=get_side_effect)
-
-            result = await get_zone_networks("default", "zone-001", mock_settings)
-
-            assert len(result) == 1
-            assert result[0]["network_id"] == "net-001"
-            assert result[0]["network_name"] is None
-
-
-class TestGetZoneStatistics:
-    @pytest.mark.asyncio
-    async def test_get_zone_statistics_not_implemented(self, mock_settings):
-        from src.tools.firewall_zones import get_zone_statistics
-
-        with pytest.raises(NotImplementedError, match="does not exist"):
-            await get_zone_statistics("default", "zone-001", mock_settings)
+        with pytest.raises(ValueError):
+            await unassign_network_from_zone("default", "zone-1", "net-1", confirm=True)

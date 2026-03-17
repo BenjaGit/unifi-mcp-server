@@ -4,9 +4,13 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class DPICategory(BaseModel):
-    """DPI category model."""
+    """DPI category model.
 
-    id: str = Field(..., alias="_id", description="Category identifier")
+    The Integration API (/v1/dpi/categories) returns integer IDs,
+    not string UUIDs like most other UniFi objects.
+    """
+
+    id: int | str = Field(..., description="Category identifier")
     name: str = Field(..., description="Category name")
     description: str | None = Field(None, description="Category description")
 
@@ -17,11 +21,15 @@ class DPICategory(BaseModel):
 
 
 class DPIApplication(BaseModel):
-    """DPI application model."""
+    """DPI application model.
 
-    id: str = Field(..., alias="_id", description="Application identifier")
+    The Integration API (/v1/dpi/applications) returns minimal objects
+    with integer IDs. The category_id may not be present.
+    """
+
+    id: int | str = Field(..., description="Application identifier")
     name: str = Field(..., description="Application name")
-    category_id: str = Field(..., description="Category identifier")
+    category_id: int | str | None = Field(None, description="Category identifier")
     category_name: str | None = Field(None, description="Category name")
 
     # Application metadata

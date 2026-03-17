@@ -119,7 +119,7 @@ if grep -q "^UNIFI_LOCAL_HOST=" .env; then
 fi
 
 # Check Auth
-if (grep -q "^UNIFI_API_KEY=" .env && [ $(grep "^UNIFI_API_KEY=" .env | cut -d= -f2 | wc -c) -gt 5 ]) || \
+if (grep -q "^UNIFI_LOCAL_API_KEY=" .env && [ $(grep "^UNIFI_LOCAL_API_KEY=" .env | cut -d= -f2 | wc -c) -gt 5 ]) || \
    (grep -q "^UNIFI_USERNAME=" .env && grep -q "^UNIFI_PASSWORD=" .env); then
   echo "✅ Authentication configured"
   HAS_AUTH=true
@@ -229,7 +229,7 @@ async def run_tests():
     ]
 
     # Add Cloud-specific tests
-    if settings.api_type == APIType.CLOUD:
+    if settings.api_type in (APIType.CLOUD_V1, APIType.CLOUD_EA):
         from src.tools import site_manager, networks
         tools.extend([
             ("list_all_sites", site_manager.list_all_sites_aggregated, {}),

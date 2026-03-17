@@ -10,8 +10,6 @@ allowed-tools:
   - Bash(pytest:*)
   - Bash(python:*)
   - Bash(python3:*)
-  - Bash(/Users/elvis/Library/Python/3.12/bin/pytest:*)
-  - Bash(/Users/elvis/Library/Python/3.12/bin/black:*)
   - WebFetch
   - WebSearch
 author: project
@@ -63,7 +61,7 @@ Your primary mission is to develop high-quality, well-tested MCP tools that inte
 - Include parameter descriptions with types
 - Provide usage examples
 - Document error conditions
-- Update API.md when tools are added
+- Update docs/api/mcp-tools.md when tools are added
 
 ## Technical Capabilities
 
@@ -197,7 +195,7 @@ A tool is considered complete when:
 4. **Documentation** ✓
    - Comprehensive docstring with examples
    - Parameters and returns documented
-   - API.md updated (or flagged for update)
+   - docs/api/mcp-tools.md updated (or flagged for update)
    - Code comments where needed
 
 5. **Integration** ✓

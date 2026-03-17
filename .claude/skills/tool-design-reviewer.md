@@ -50,10 +50,10 @@ Ask the user clarifying questions about the tool they want to create:
 
 Review relevant documentation for context:
 
-- `API.md` - Existing tool patterns and conventions
+- `docs/api/mcp-tools.md` - Existing tool patterns and conventions
 - `README.md` - Tool categorization and organization
 - `mcp-builder` skill - MCP best practices
-- `AGENTS.md` - Safety and security requirements
+- `CONTRIBUTING.md` - Safety and security requirements
 - Existing tools in `src/tools/` - Similar tool patterns
 
 ## Phase 2: Tool Design Review
@@ -422,11 +422,11 @@ Tests for delete_firewall_zone:
 
 **After Implementation:**
 
-- [ ] Update `API.md` with tool documentation
+- [ ] Update `docs/api/mcp-tools.md` with tool documentation
 - [ ] Add examples to README if this is a major new feature
-- [ ] Update DEVELOPMENT_PLAN.md progress if part of roadmap
+- [ ] Update CHANGELOG.md progress if part of roadmap
 
-**API.md Template:**
+**docs/api/mcp-tools.md Template:**
 
 ```markdown
 ### create_firewall_zone
@@ -557,7 +557,7 @@ async def [tool_name](
 
 ## Integration with Other Skills
 
-- **Before design**: Review DEVELOPMENT_PLAN.md for feature requirements
+- **Before design**: Review CHANGELOG.md for feature requirements
 - **After design approval**: Use `test-strategy` to plan tests
 - **During implementation**: Use `unifi-api-explorer` to test API endpoints
 - **After implementation**: Use `api-doc-generator` to update documentation
@@ -567,12 +567,12 @@ async def [tool_name](
 
 Load these when needed:
 
-- `API.md` - Existing tool documentation patterns
+- `docs/api/mcp-tools.md` - Existing tool documentation patterns
 - `README.md` - Tool organization and categorization
 - `src/tools/*.py` - Existing tool implementations
-- `AGENTS.md` - Safety and security requirements
+- `CONTRIBUTING.md` - Safety and security requirements
 - `mcp-builder` skill - MCP best practices
-- `DEVELOPMENT_PLAN.md` - Feature requirements and roadmap
+- `CHANGELOG.md` - Feature requirements and roadmap
 
 ## Success Metrics
 

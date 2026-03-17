@@ -27,7 +27,6 @@ async def test_list_vlans(settings, env: TestEnvironment) -> dict[str, Any]:
     try:
         result = await networks.list_vlans(
             site_id=env.site_id,
-            settings=settings,
         )
 
         # Validate response structure
@@ -69,7 +68,6 @@ async def test_list_vlans_pagination(settings, env: TestEnvironment) -> dict[str
         # Get all networks
         all_networks = await networks.list_vlans(
             site_id=env.site_id,
-            settings=settings,
         )
 
         if not all_networks:
@@ -78,7 +76,6 @@ async def test_list_vlans_pagination(settings, env: TestEnvironment) -> dict[str
         # Test with limit
         limited = await networks.list_vlans(
             site_id=env.site_id,
-            settings=settings,
             limit=1,
         )
 
@@ -110,7 +107,6 @@ async def test_get_network_details(settings, env: TestEnvironment) -> dict[str, 
         # First, discover a network
         network_list = await networks.list_vlans(
             site_id=env.site_id,
-            settings=settings,
             limit=1,
         )
 
@@ -124,7 +120,6 @@ async def test_get_network_details(settings, env: TestEnvironment) -> dict[str, 
         result = await networks.get_network_details(
             site_id=env.site_id,
             network_id=network_id,
-            settings=settings,
         )
 
         # Validate response structure
@@ -161,7 +156,6 @@ async def test_get_network_details_missing(settings, env: TestEnvironment) -> di
         await networks.get_network_details(
             site_id=env.site_id,
             network_id=fake_id,
-            settings=settings,
         )
 
         # If we get here, error handling is wrong
@@ -193,7 +187,6 @@ async def test_list_wlans(settings, env: TestEnvironment) -> dict[str, Any]:
     try:
         result = await wifi.list_wlans(
             site_id=env.site_id,
-            settings=settings,
         )
 
         # Validate response structure
@@ -235,7 +228,6 @@ async def test_get_subnet_info(settings, env: TestEnvironment) -> dict[str, Any]
         # First, discover a network
         network_list = await networks.list_vlans(
             site_id=env.site_id,
-            settings=settings,
         )
 
         if not network_list:
@@ -248,7 +240,6 @@ async def test_get_subnet_info(settings, env: TestEnvironment) -> dict[str, Any]
         result = await networks.get_subnet_info(
             site_id=env.site_id,
             network_id=network_id,
-            settings=settings,
         )
 
         # Validate response structure
@@ -285,7 +276,6 @@ async def test_get_network_statistics(settings, env: TestEnvironment) -> dict[st
     try:
         result = await networks.get_network_statistics(
             site_id=env.site_id,
-            settings=settings,
         )
 
         # Validate response structure

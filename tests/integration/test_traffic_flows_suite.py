@@ -28,7 +28,6 @@ async def test_get_traffic_flows(settings, env: TestEnvironment) -> dict[str, An
     try:
         result = await traffic_flows.get_traffic_flows(
             site_id=env.site_id,
-            settings=settings,
             time_range="24h",
         )
 
@@ -79,7 +78,6 @@ async def test_get_flow_statistics(settings, env: TestEnvironment) -> dict[str, 
     try:
         result = await traffic_flows.get_flow_statistics(
             site_id=env.site_id,
-            settings=settings,
             time_range="24h",
         )
 
@@ -119,7 +117,6 @@ async def test_get_top_flows(settings, env: TestEnvironment) -> dict[str, Any]:
     try:
         result = await traffic_flows.get_top_flows(
             site_id=env.site_id,
-            settings=settings,
             limit=5,
             time_range="24h",
         )
@@ -167,7 +164,6 @@ async def test_get_traffic_flows_with_filters(settings, env: TestEnvironment) ->
         # Test with TCP protocol filter
         result = await traffic_flows.get_traffic_flows(
             site_id=env.site_id,
-            settings=settings,
             protocol="tcp",
             time_range="24h",
         )
@@ -207,7 +203,6 @@ async def test_get_flow_risks(settings, env: TestEnvironment) -> dict[str, Any]:
     try:
         result = await traffic_flows.get_flow_risks(
             site_id=env.site_id,
-            settings=settings,
             time_range="24h",
         )
 
@@ -252,7 +247,6 @@ async def test_get_flow_trends(settings, env: TestEnvironment) -> dict[str, Any]
     try:
         result = await traffic_flows.get_flow_trends(
             site_id=env.site_id,
-            settings=settings,
             time_range="7d",
             interval="1h",
         )
@@ -294,7 +288,6 @@ async def test_get_connection_states(settings, env: TestEnvironment) -> dict[str
     try:
         result = await traffic_flows.get_connection_states(
             site_id=env.site_id,
-            settings=settings,
             time_range="1h",
         )
 
@@ -349,8 +342,6 @@ async def test_get_client_flow_aggregation(settings, env: TestEnvironment) -> di
 
         client_list = await clients.list_active_clients(
             site_id=env.site_id,
-            settings=settings,
-            limit=1,
         )
 
         if not client_list:
@@ -363,7 +354,6 @@ async def test_get_client_flow_aggregation(settings, env: TestEnvironment) -> di
         result = await traffic_flows.get_client_flow_aggregation(
             site_id=env.site_id,
             client_mac=client_mac,
-            settings=settings,
             time_range="24h",
         )
 
@@ -404,7 +394,6 @@ async def test_get_flow_analytics(settings, env: TestEnvironment) -> dict[str, A
     try:
         result = await traffic_flows.get_flow_analytics(
             site_id=env.site_id,
-            settings=settings,
             time_range="24h",
         )
 
@@ -445,7 +434,6 @@ async def test_export_traffic_flows_json(settings, env: TestEnvironment) -> dict
     try:
         result = await traffic_flows.export_traffic_flows(
             site_id=env.site_id,
-            settings=settings,
             export_format="json",
             time_range="1h",
             max_records=10,
@@ -492,7 +480,6 @@ async def test_block_flow_source_ip_without_confirmation(
         await traffic_flows.block_flow_source_ip(
             site_id=env.site_id,
             flow_id="test_flow_id",
-            settings=settings,
             confirm=False,  # Should raise error
         )
 

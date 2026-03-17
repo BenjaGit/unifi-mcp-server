@@ -184,6 +184,7 @@ temp/
 # Local live environment test results
 test-results/
 docs/bugs/
+docs/superpowers/
 
 # Session work notes and local test results (may contain internal IPs)
 session-work.md
@@ -191,6 +192,7 @@ TEST_RESULTS.md
 
 # Git worktrees
 .worktrees/
+.worktree-backups/
 
 # API Scraper
 scripts/session-cookies.json

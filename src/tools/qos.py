@@ -13,56 +13,55 @@ See: https://developer.ui.com/network/ for documented endpoints.
 
 from typing import Any
 
-from ..api.client import UniFiClient
-from ..config import Settings
+from fastmcp.server.providers import LocalProvider
+
+from ..api.pool import get_network_client
 from ..models.qos_profile import TrafficRoute
-from ..utils import ValidationError, audit_action, get_logger, validate_confirmation
+from ..utils import (
+    ValidationError,
+    audit_action,
+    get_logger,
+    validate_confirmation,
+    validate_site_id,
+)
 
 logger = get_logger(__name__)
+provider = LocalProvider()
+
+__all__ = [
+    "provider",
+    "list_traffic_routes",
+    "create_traffic_route",
+    "update_traffic_route",
+    "delete_traffic_route",
+]
 
 
-# ============================================================================
-# Traffic Route Management (4 tools)
-# ============================================================================
-
-
+@provider.tool()
 async def list_traffic_routes(
     site_id: str,
-    settings: Settings,
     limit: int = 100,
     offset: int = 0,
 ) -> list[dict[str, Any]]:
-    """List all traffic routing policies for a site.
+    """List all traffic routing policies for a site."""
+    site_id = validate_site_id(site_id)
+    client = get_network_client()
+    if not client.is_authenticated:
+        await client.authenticate()
 
-    Args:
-        site_id: Site identifier
-        settings: Application settings
-        limit: Maximum number of routes to return
-        offset: Number of routes to skip
-
-    Returns:
-        List of traffic routing policies
-    """
-    async with UniFiClient(settings) as client:
-        logger.info(f"Listing traffic routes for site {site_id} (limit={limit}, offset={offset})")
-
-        if not client.is_authenticated:
-            await client.authenticate()
-
-        response = await client.get(f"/ea/sites/{site_id}/rest/routing")
-        data = response if isinstance(response, list) else response.get("data", [])
-
-        # Apply pagination
-        paginated_data = data[offset : offset + limit]
-
-        return [TrafficRoute(**route).model_dump() for route in paginated_data]  # type: ignore[no-any-return]
+    site = await client.resolve_site(site_id)
+    response = await client.get(client.legacy_path(site.name, "rest/routing"))
+    data = response if isinstance(response, list) else response.get("data", [])
+    paginated_data = data[offset : offset + limit]
+    logger.info(f"Listing traffic routes for site {site_id} (limit={limit}, offset={offset})")
+    return [TrafficRoute(**route).model_dump() for route in paginated_data]
 
 
+@provider.tool()
 async def create_traffic_route(
     site_id: str,
     name: str,
     action: str,
-    settings: Settings,
     description: str | None = None,
     source_ip: str | None = None,
     destination_ip: str | None = None,
@@ -77,47 +76,19 @@ async def create_traffic_route(
     confirm: bool | str = False,
     dry_run: bool | str = False,
 ) -> dict[str, Any]:
-    """Create a new traffic routing policy.
-
-    Args:
-        site_id: Site identifier
-        name: Route name
-        action: Route action (allow, deny, mark, shape)
-        settings: Application settings
-        description: Route description
-        source_ip: Source IP address or CIDR
-        destination_ip: Destination IP address or CIDR
-        source_port: Source port (1-65535)
-        destination_port: Destination port (1-65535)
-        protocol: Protocol (tcp, udp, icmp, all)
-        vlan_id: VLAN ID (1-4094)
-        dscp_marking: DSCP value to mark packets (0-63, for mark action)
-        bandwidth_limit_kbps: Bandwidth limit in kbps (for shape action)
-        priority: Route priority (1-1000, lower = higher priority)
-        enabled: Route enabled
-        confirm: Confirmation flag (required for creation)
-        dry_run: If True, validate but don't execute
-
-    Returns:
-        Created traffic route
-    """
+    """Create a new traffic routing policy."""
+    site_id = validate_site_id(site_id)
     validate_confirmation(confirm, "create traffic route", dry_run)
 
-    # Validate action
     valid_actions = ["allow", "deny", "mark", "shape"]
     if action not in valid_actions:
         raise ValidationError(f"Invalid action '{action}'. Use: {', '.join(valid_actions)}")
-
-    # Validate DSCP marking
     if dscp_marking is not None and not 0 <= dscp_marking <= 63:
         raise ValidationError(f"DSCP marking must be 0-63, got {dscp_marking}")
-
-    # Validate priority
     if not 1 <= priority <= 1000:
         raise ValidationError(f"Priority must be 1-1000, got {priority}")
 
-    # Build match criteria
-    match_criteria = {}
+    match_criteria: dict[str, Any] = {}
     if source_ip:
         match_criteria["source_ip"] = source_ip
     if destination_ip:
@@ -131,7 +102,6 @@ async def create_traffic_route(
     if vlan_id:
         match_criteria["vlan_id"] = vlan_id
 
-    # Build route data
     route_data: dict[str, Any] = {
         "name": name,
         "action": action,
@@ -139,7 +109,6 @@ async def create_traffic_route(
         "priority": priority,
         "enabled": enabled,
     }
-
     if description:
         route_data["description"] = description
     if dscp_marking is not None:
@@ -151,36 +120,34 @@ async def create_traffic_route(
         logger.info(f"[DRY RUN] Would create traffic route: {route_data}")
         return {"dry_run": True, "route": route_data}
 
-    async with UniFiClient(settings) as client:
-        logger.info(f"Creating traffic route '{name}' for site {site_id}")
+    client = get_network_client()
+    if not client.is_authenticated:
+        await client.authenticate()
 
-        if not client.is_authenticated:
-            await client.authenticate()
+    site = await client.resolve_site(site_id)
+    response = await client.post(
+        client.legacy_path(site.name, "rest/routing"), json_data=route_data
+    )
+    data = response if isinstance(response, list) else response.get("data", [])
+    if not data:
+        raise ValidationError("Failed to create traffic route")
 
-        response = await client.post(f"/ea/sites/{site_id}/rest/routing", json_data=route_data)
-
-        data = response if isinstance(response, list) else response.get("data", [])
-        if not data:
-            raise ValidationError("Failed to create traffic route")
-
-        result = TrafficRoute(**data[0]).model_dump()
-
-        await audit_action(
-            settings,
-            action_type="create_traffic_route",
-            resource_type="traffic_route",
-            resource_id=result.get("id", "unknown"),
-            details={"name": name, "action": action},
-            site_id=site_id,
-        )
-
-        return result  # type: ignore[no-any-return]
+    result = TrafficRoute(**data[0]).model_dump()
+    await audit_action(
+        getattr(client, "settings", None),
+        action_type="create_traffic_route",
+        resource_type="traffic_route",
+        resource_id=result.get("id", "unknown"),
+        details={"name": name, "action": action},
+        site_id=site_id,
+    )
+    return result
 
 
+@provider.tool()
 async def update_traffic_route(
     site_id: str,
     route_id: str,
-    settings: Settings,
     name: str | None = None,
     action: str | None = None,
     description: str | None = None,
@@ -189,26 +156,10 @@ async def update_traffic_route(
     confirm: bool | str = False,
     dry_run: bool | str = False,
 ) -> dict[str, Any]:
-    """Update an existing traffic routing policy.
-
-    Args:
-        site_id: Site identifier
-        route_id: Traffic route ID to update
-        settings: Application settings
-        name: New route name
-        action: New route action (allow, deny, mark, shape)
-        description: New description
-        enabled: New enabled state
-        priority: New priority (1-1000)
-        confirm: Confirmation flag (required for updates)
-        dry_run: If True, validate but don't execute
-
-    Returns:
-        Updated traffic route
-    """
+    """Update an existing traffic routing policy."""
+    site_id = validate_site_id(site_id)
     validate_confirmation(confirm, "update traffic route", dry_run)
 
-    # Build update data
     update_data: dict[str, Any] = {}
     if name is not None:
         update_data["name"] = name
@@ -222,7 +173,6 @@ async def update_traffic_route(
         if not 1 <= priority <= 1000:
             raise ValidationError(f"Priority must be 1-1000, got {priority}")
         update_data["priority"] = priority
-
     if not update_data:
         raise ValidationError("No update fields provided")
 
@@ -230,72 +180,57 @@ async def update_traffic_route(
         logger.info(f"[DRY RUN] Would update traffic route {route_id}: {update_data}")
         return {"dry_run": True, "route_id": route_id, "updates": update_data}
 
-    async with UniFiClient(settings) as client:
-        logger.info(f"Updating traffic route {route_id} for site {site_id}")
+    client = get_network_client()
+    if not client.is_authenticated:
+        await client.authenticate()
 
-        if not client.is_authenticated:
-            await client.authenticate()
+    site = await client.resolve_site(site_id)
+    response = await client.put(
+        client.legacy_path(site.name, f"rest/routing/{route_id}"), json_data=update_data
+    )
+    data = response if isinstance(response, list) else response.get("data", [])
+    if not data:
+        raise ValidationError(f"Failed to update traffic route {route_id}")
 
-        response = await client.put(
-            f"/ea/sites/{site_id}/rest/routing/{route_id}", json_data=update_data
-        )
-
-        data = response if isinstance(response, list) else response.get("data", [])
-        if not data:
-            raise ValidationError(f"Failed to update traffic route {route_id}")
-
-        result = TrafficRoute(**data[0]).model_dump()
-
-        await audit_action(
-            settings,
-            action_type="update_traffic_route",
-            resource_type="traffic_route",
-            resource_id=route_id,
-            details=update_data,
-            site_id=site_id,
-        )
-
-        return result  # type: ignore[no-any-return]
+    result = TrafficRoute(**data[0]).model_dump()
+    await audit_action(
+        getattr(client, "settings", None),
+        action_type="update_traffic_route",
+        resource_type="traffic_route",
+        resource_id=route_id,
+        details=update_data,
+        site_id=site_id,
+    )
+    return result
 
 
+@provider.tool(annotations={"destructiveHint": True})
 async def delete_traffic_route(
     site_id: str,
     route_id: str,
-    settings: Settings,
     confirm: bool | str = False,
 ) -> dict[str, Any]:
-    """Delete a traffic routing policy.
-
-    Args:
-        site_id: Site identifier
-        route_id: Traffic route ID to delete
-        settings: Application settings
-        confirm: Confirmation flag (required for deletion)
-
-    Returns:
-        Deletion confirmation
-    """
+    """Delete a traffic routing policy."""
+    site_id = validate_site_id(site_id)
     validate_confirmation(confirm, "delete traffic route")
 
-    async with UniFiClient(settings) as client:
-        logger.info(f"Deleting traffic route {route_id} for site {site_id}")
+    client = get_network_client()
+    if not client.is_authenticated:
+        await client.authenticate()
 
-        if not client.is_authenticated:
-            await client.authenticate()
+    site = await client.resolve_site(site_id)
+    await client.delete(client.legacy_path(site.name, f"rest/routing/{route_id}"))
 
-        await client.delete(f"/ea/sites/{site_id}/rest/routing/{route_id}")
-
-        await audit_action(
-            settings,
-            action_type="delete_traffic_route",
-            resource_type="traffic_route",
-            resource_id=route_id,
-            details={"deleted": True},
-            site_id=site_id,
-        )
-
-        return {  # type: ignore[no-any-return]
-            "success": True,
-            "message": f"Traffic route {route_id} deleted successfully",
-            "route_id": route_id,
-        }
+    await audit_action(
+        getattr(client, "settings", None),
+        action_type="delete_traffic_route",
+        resource_type="traffic_route",
+        resource_id=route_id,
+        details={"deleted": True},
+        site_id=site_id,
+    )
+    return {
+        "success": True,
+        "message": f"Traffic route {route_id} deleted successfully",
+        "route_id": route_id,
+    }

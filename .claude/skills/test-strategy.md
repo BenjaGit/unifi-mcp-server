@@ -282,7 +282,7 @@ Load these files for context when needed:
 - `tests/conftest.py` - Pytest fixtures and configuration
 - `tests/unit/test_zbf_tools.py` - Example of high-coverage tests (84.13%)
 - `tests/unit/test_traffic_flow_tools.py` - Example of comprehensive tests (86.62%)
-- `AGENTS.md` - Testing requirements and standards
+- `CONTRIBUTING.md` - Testing requirements and standards
 - `pyproject.toml` - Pytest configuration and coverage settings
 
 ## Common Testing Patterns

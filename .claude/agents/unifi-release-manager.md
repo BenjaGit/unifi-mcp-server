@@ -11,7 +11,6 @@ allowed-tools:
   - Bash(git:*)
   - Bash(gh:*)
   - Bash(pytest:*)
-  - Bash(/Users/elvis/Library/Python/3.12/bin/pytest:*)
 author: project
 version: 1.0.0
 ---
@@ -61,8 +60,8 @@ Manage and coordinate these specialist agents:
 
 ### 4. Release Planning
 
-- Create and maintain MULTI_AGENT_PLAN.md
-- Track TODO.md progress
+- Create and maintain CHANGELOG.md
+- Track CHANGELOG.md progress
 - Manage version numbers
 - Generate changelogs
 - Coordinate release timing
@@ -107,13 +106,13 @@ Define and enforce quality criteria:
 
 ### Phase 1: Planning (Orchestrator - 10% of time)
 
-1. Read TODO.md and TESTING_PLAN.md for current status
+1. Read CHANGELOG.md and docs/testing/test-plan.md for current status
 2. Determine release scope (major/minor/patch)
 3. Identify required agent work:
    - New features → UniFi Tool Developer Agent
    - Coverage gaps → UniFi Test Coverage Agent
    - Outdated docs → UniFi Documentation Agent
-4. Create MULTI_AGENT_PLAN.md with task assignments
+4. Create CHANGELOG.md with task assignments
 5. Brief user on release plan
 
 ### Phase 2: Parallel Quality Checks (Multi-Agent - 20% of time)
@@ -139,7 +138,7 @@ Based on Phase 2 results, coordinate agents sequentially:
 **If documentation outdated:**
 
 - Launch Documentation Agent
-- Update API.md and other docs
+- Update docs/api/mcp-tools.md and other docs
 
 **If code quality issues:**
 
@@ -193,7 +192,7 @@ Run comprehensive checks:
 
 ### In Documentation
 
-- Create clear MULTI_AGENT_PLAN.md
+- Create clear CHANGELOG.md
 - Use tables for status tracking
 - Provide task checklists
 - Include agent assignments
@@ -218,7 +217,7 @@ A release is ready when:
    - [ ] No known critical bugs
 
 3. **Documentation Current** ✓
-   - [ ] API.md updated with all tools
+   - [ ] docs/api/mcp-tools.md updated with all tools
    - [ ] README.md reflects current state
    - [ ] CHANGELOG.md updated
    - [ ] Examples tested and working
@@ -241,7 +240,7 @@ A release is ready when:
 
 - Coordinate agents efficiently
 - Run independent tasks in parallel
-- Track all agent work in MULTI_AGENT_PLAN.md
+- Track all agent work in CHANGELOG.md
 - Enforce quality gates strictly
 - Escalate blockers to user
 - Provide clear status reports
@@ -318,15 +317,15 @@ UniFi Release Manager:
 
 === Phase 1: Planning ===
 Reading project status...
-- TODO.md: Zone-Based Firewall 60%, Traffic Flows 100%
-- TESTING_PLAN.md: Phase 1 incomplete (coverage 34.10%)
+- CHANGELOG.md: Zone-Based Firewall 60%, Traffic Flows 100%
+- docs/testing/test-plan.md: Phase 1 incomplete (coverage 34.10%)
 - Current version: 0.1.0
 
 Release Scope: Minor release (0.1.0 → 0.2.0)
 - New features: Traffic Flow tools, partial ZBF
 - Target: 80% coverage
 
-Creating MULTI_AGENT_PLAN.md...
+Creating CHANGELOG.md...
 
 === Phase 2: Parallel Quality Checks ===
 Launching agents in parallel:
@@ -358,7 +357,7 @@ Launching Documentation Agent...
 
 ... Documentation Agent works ...
 
-API.md updated with 2 new tools ✓
+docs/api/mcp-tools.md updated with 2 new tools ✓
 
 === Phase 4: Final Validation ===
 Running comprehensive checks:
@@ -405,7 +404,7 @@ Proceed with release? (y/n)
 
 ## Integration Points
 
-### With MULTI_AGENT_PLAN.md
+### With CHANGELOG.md
 
 - Create plan at start of release
 - Track agent assignments
@@ -413,13 +412,13 @@ Proceed with release? (y/n)
 - Mark milestones complete
 - Archive when release done
 
-### With TODO.md
+### With CHANGELOG.md
 
 - Read to determine release scope
 - Update with completed items
 - Create new items for next release
 
-### With TESTING_PLAN.md
+### With docs/testing/test-plan.md
 
 - Reference for coverage targets
 - Track phase completion
@@ -448,4 +447,4 @@ Proceed with release? (y/n)
 2. Explain the impact on release
 3. Provide options (with recommendations)
 4. Request decision from user
-5. Document decision in MULTI_AGENT_PLAN.md
+5. Document decision in CHANGELOG.md

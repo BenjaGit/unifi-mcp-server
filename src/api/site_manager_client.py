@@ -6,6 +6,7 @@ import httpx
 
 from ..config import Settings
 from ..utils import APIError, AuthenticationError, NetworkError, ResourceNotFoundError, get_logger
+from .client import RateLimiter
 
 logger = get_logger(__name__)
 
@@ -25,14 +26,18 @@ class SiteManagerClient:
         # Site Manager API base URL
         base_url = "https://api.ui.com/v1/"
 
-        # Initialize HTTP client
+        # Initialize HTTP client with Site Manager-specific API key
         self.client = httpx.AsyncClient(
             base_url=base_url,
-            headers=settings.get_headers(),
+            headers=settings.get_headers(settings.resolved_site_manager_api_key),
             timeout=settings.request_timeout,
             verify=True,  # Always verify SSL for Site Manager API
         )
 
+        self.rate_limiter = RateLimiter(
+            settings.rate_limit_requests,
+            settings.rate_limit_period,
+        )
         self._authenticated = False
 
     async def __aenter__(self) -> "SiteManagerClient":
@@ -64,7 +69,8 @@ class SiteManagerClient:
         """
         try:
             # Test authentication with sites endpoint
-            response = await self.client.get("/v1/sites")
+            await self.rate_limiter.acquire()
+            response = await self.client.get("sites")
             if response.status_code == 200:
                 self._authenticated = True
                 self.logger.info("Successfully authenticated with Site Manager API")
@@ -92,11 +98,48 @@ class SiteManagerClient:
             await self.authenticate()
 
         try:
-            # Ensure endpoint starts with /v1/
-            if not endpoint.startswith("/v1/"):
-                endpoint = f"/v1/{endpoint.lstrip('/')}"
-
+            await self.rate_limiter.acquire()
             response = await self.client.get(endpoint, params=params)
+            response.raise_for_status()
+
+            return response.json()  # type: ignore[no-any-return]
+
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 401:
+                raise AuthenticationError("Site Manager API authentication failed") from e
+            elif e.response.status_code == 404:
+                raise ResourceNotFoundError("resource", endpoint) from e
+            else:
+                raise APIError(
+                    message=f"Site Manager API error: {e.response.text}",
+                    status_code=e.response.status_code,
+                ) from e
+        except httpx.NetworkError as e:
+            raise NetworkError(f"Network communication failed: {e}") from e
+        except Exception as e:
+            self.logger.error(f"Unexpected error in Site Manager API request: {e}")
+            raise APIError(f"Unexpected error: {e}") from e
+
+    async def post(self, endpoint: str, data: dict[str, Any] | None = None) -> dict[str, Any]:
+        """Make a POST request to Site Manager API.
+
+        Args:
+            endpoint: API endpoint path (without /v1/ prefix)
+            data: Request body as dictionary
+
+        Returns:
+            Response data as dictionary
+
+        Raises:
+            APIError: If API returns an error
+            AuthenticationError: If authentication fails
+        """
+        if not self._authenticated:
+            await self.authenticate()
+
+        try:
+            await self.rate_limiter.acquire()
+            response = await self.client.post(endpoint, json=data or {})
             response.raise_for_status()
 
             return response.json()  # type: ignore[no-any-return]
@@ -135,86 +178,81 @@ class SiteManagerClient:
     async def get_site_health(self, site_id: str | None = None) -> dict[str, Any]:
         """Get health metrics for a site or all sites.
 
+        The Site Manager API embeds statistics directly in the /v1/sites response;
+        there is no separate /sites/health endpoint.
+
         Args:
-            site_id: Optional site identifier. If None, returns health for all sites.
+            site_id: Optional site identifier. If None, returns all sites.
 
         Returns:
-            Health metrics
+            Single site dict if site_id given, otherwise {"data": [<sites>]}
         """
-        endpoint = "sites/health"
+        response = await self.get("sites")
+        sites_raw = response.get("data", [])
+        sites: list[dict[str, Any]] = [site for site in sites_raw if isinstance(site, dict)]
+
         if site_id:
-            endpoint = f"sites/{site_id}/health"
+            for site in sites:
+                if site.get("siteId") == site_id:
+                    return site
+            raise ResourceNotFoundError("site", site_id)
 
-        return await self.get(endpoint)
+        return response
 
-    async def get_internet_health(self, site_id: str | None = None) -> dict[str, Any]:
-        """Get internet health metrics.
-
-        Args:
-            site_id: Optional site identifier. If None, returns aggregate internet health.
-
-        Returns:
-            Internet health metrics
-        """
-        endpoint = "internet/health"
-        if site_id:
-            endpoint = f"sites/{site_id}/internet/health"
-
-        return await self.get(endpoint)
-
-    async def list_vantage_points(self) -> dict[str, Any]:
-        """List all Vantage Points.
-
-        Returns:
-            Response with Vantage Points list
-        """
-        return await self.get("vantage-points")
-
-    # ISP Metrics endpoints (added 2026-02-16)
-    async def get_isp_metrics(self, site_id: str) -> dict[str, Any]:
-        """Get ISP metrics for a site.
+    # ISP Metrics endpoints
+    async def get_isp_metrics(
+        self,
+        metric_type: str = "5m",
+        duration: str | None = None,
+        begin_timestamp: str | None = None,
+        end_timestamp: str | None = None,
+    ) -> dict[str, Any]:
+        """Get ISP metrics by interval type.
 
         Args:
-            site_id: Site identifier
+            metric_type: Interval — "5m" (5-min, 24h retention) or "1h" (hourly, 30d retention)
+            duration: Shorthand window ("24h", "7d", "30d"). Cannot combine with timestamps.
+            begin_timestamp: RFC3339 start. Cannot combine with duration.
+            end_timestamp: RFC3339 end. Cannot combine with duration.
 
         Returns:
-            ISP metrics data
+            ISP metrics response with nested periods data
         """
-        return await self.get(f"sites/{site_id}/isp/metrics")
+        params = {
+            k: v
+            for k, v in {
+                "duration": duration,
+                "beginTimestamp": begin_timestamp,
+                "endTimestamp": end_timestamp,
+            }.items()
+            if v is not None
+        }
+        return await self.get(f"isp-metrics/{metric_type}", params=params or None)
 
     async def query_isp_metrics(
         self,
-        site_id: str | None = None,
-        start_time: str | None = None,
-        end_time: str | None = None,
+        metric_type: str = "5m",
+        body: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """Query ISP metrics with filters.
+        """Query ISP metrics for specific sites via POST.
 
         Args:
-            site_id: Optional site identifier (None for all sites)
-            start_time: Optional start time (ISO format)
-            end_time: Optional end time (ISO format)
+            metric_type: Interval — "5m" or "1h"
+            body: Request body. Must contain {"sites": [{"hostId": ..., "siteId": ...}]}
 
         Returns:
             ISP metrics query results
         """
-        params = {
-            "site_id": site_id,
-            "start_time": start_time,
-            "end_time": end_time,
-        }
-        return await self.get(
-            "isp/metrics", params={k: v for k, v in params.items() if v is not None}
-        )
+        return await self.post(f"isp-metrics/{metric_type}/query", data=body)
 
-    # SD-WAN endpoints (added 2026-02-16)
+    # SD-WAN endpoints
     async def list_sdwan_configs(self) -> dict[str, Any]:
         """List all SD-WAN configurations.
 
         Returns:
             Response with SD-WAN configurations list
         """
-        return await self.get("sdwan/configs")
+        return await self.get("sd-wan-configs")
 
     async def get_sdwan_config(self, config_id: str) -> dict[str, Any]:
         """Get SD-WAN configuration by ID.
@@ -225,7 +263,7 @@ class SiteManagerClient:
         Returns:
             SD-WAN configuration data
         """
-        return await self.get(f"sdwan/configs/{config_id}")
+        return await self.get(f"sd-wan-configs/{config_id}")
 
     async def get_sdwan_config_status(self, config_id: str) -> dict[str, Any]:
         """Get SD-WAN configuration deployment status.
@@ -236,9 +274,9 @@ class SiteManagerClient:
         Returns:
             SD-WAN configuration status data
         """
-        return await self.get(f"sdwan/configs/{config_id}/status")
+        return await self.get(f"sd-wan-configs/{config_id}/status")
 
-    # Host Management endpoints (added 2026-02-16)
+    # Host Management endpoints
     async def list_hosts(
         self, limit: int | None = None, offset: int | None = None
     ) -> dict[str, Any]:
@@ -265,11 +303,11 @@ class SiteManagerClient:
         """
         return await self.get(f"hosts/{host_id}")
 
-    # Version Control endpoint (added 2026-02-16)
-    async def get_version_control(self) -> dict[str, Any]:
-        """Get API version control information.
+    # Devices endpoint (cross-site device listing)
+    async def list_devices(self) -> dict[str, Any]:
+        """List all devices across all hosts from Site Manager API.
 
         Returns:
-            Version control data
+            Response with hosts and their devices
         """
-        return await self.get("version")
+        return await self.get("devices")

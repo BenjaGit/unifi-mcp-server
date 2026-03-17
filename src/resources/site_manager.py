@@ -26,7 +26,7 @@ class SiteManagerResource:
             JSON string of sites list
         """
         if not self.settings.site_manager_enabled:
-            return "Site Manager API is not enabled. Set UNIFI_SITE_MANAGER_ENABLED=true"
+            return "Site Manager API is not enabled. Configure UNIFI_REMOTE_API_KEY"
 
         async with SiteManagerClient(self.settings) as client:
             response = await client.list_sites()
@@ -42,7 +42,7 @@ class SiteManagerResource:
             JSON string of health metrics
         """
         if not self.settings.site_manager_enabled:
-            return "Site Manager API is not enabled. Set UNIFI_SITE_MANAGER_ENABLED=true"
+            return "Site Manager API is not enabled. Configure UNIFI_REMOTE_API_KEY"
 
         async with SiteManagerClient(self.settings) as client:
             response = await client.get_site_health()
@@ -50,15 +50,15 @@ class SiteManagerResource:
             return f"Health Status: {health_data}"
 
     async def get_internet_health_status(self) -> str:
-        """Get internet connectivity status.
+        """Get internet connectivity status from the local Network API.
 
         Returns:
             JSON string of internet health
         """
-        if not self.settings.site_manager_enabled:
-            return "Site Manager API is not enabled. Set UNIFI_SITE_MANAGER_ENABLED=true"
+        from ..tools.site_manager import get_internet_health
 
-        async with SiteManagerClient(self.settings) as client:
-            response = await client.get_internet_health()
-            health_data = response.get("data", response)
-            return f"Internet Health: {health_data}"
+        try:
+            result = await get_internet_health()
+            return f"Internet Health: {result}"
+        except Exception as e:
+            return f"Error retrieving internet health: {e}"

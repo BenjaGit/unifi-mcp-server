@@ -1,13 +1,44 @@
 """RADIUS profile and guest portal management tools."""
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from typing import Any
 
-from ..api.client import UniFiClient
-from ..config import Settings
+from fastmcp.server.providers import LocalProvider
+
+from ..api.pool import get_network_client
 from ..models.radius import GuestPortalConfig, HotspotPackage, RADIUSAccount, RADIUSProfile
 from ..utils import audit_action, get_logger, validate_confirmation
 
 logger = get_logger(__name__)
+provider = LocalProvider()
+
+__all__ = [
+    "provider",
+    "list_radius_profiles",
+    "get_radius_profile",
+    "create_radius_profile",
+    "update_radius_profile",
+    "delete_radius_profile",
+    "list_radius_accounts",
+    "create_radius_account",
+    "get_radius_account",
+    "update_radius_account",
+    "delete_radius_account",
+    "get_guest_portal_config",
+    "configure_guest_portal",
+    "list_hotspot_packages",
+    "create_hotspot_package",
+    "get_hotspot_package",
+    "update_hotspot_package",
+    "delete_hotspot_package",
+]
+
+
+@asynccontextmanager
+async def _network_client() -> AsyncIterator[Any]:
+    client = get_network_client()
+    yield client
 
 
 # =============================================================================
@@ -15,9 +46,9 @@ logger = get_logger(__name__)
 # =============================================================================
 
 
+@provider.tool()
 async def list_radius_profiles(
     site_id: str,
-    settings: Settings,
 ) -> list[dict]:
     """List all RADIUS profiles for a site.
 
@@ -28,22 +59,25 @@ async def list_radius_profiles(
     Returns:
         List of RADIUS profiles
     """
-    async with UniFiClient(settings) as client:
+    async with _network_client() as client:
         logger.info(f"Listing RADIUS profiles for site {site_id}")
 
         if not client.is_authenticated:
+
             await client.authenticate()
 
-        response = await client.get(f"/ea/sites/{site_id}/rest/radiusprofile")
+        site = await client.resolve_site(site_id)
+
+        response = await client.get(client.legacy_path(site.name, "rest/radiusprofile"))
         data = response if isinstance(response, list) else response.get("data", [])
 
         return [RADIUSProfile(**profile).model_dump() for profile in data]
 
 
+@provider.tool()
 async def get_radius_profile(
     site_id: str,
     profile_id: str,
-    settings: Settings,
 ) -> dict:
     """Get details for a specific RADIUS profile.
 
@@ -55,26 +89,31 @@ async def get_radius_profile(
     Returns:
         RADIUS profile details
     """
-    async with UniFiClient(settings) as client:
+    async with _network_client() as client:
         logger.info(f"Getting RADIUS profile {profile_id} for site {site_id}")
 
         if not client.is_authenticated:
+
             await client.authenticate()
 
-        response = await client.get(f"/ea/sites/{site_id}/rest/radiusprofile/{profile_id}")
+        site = await client.resolve_site(site_id)
+
+        response = await client.get(
+            client.legacy_path(site.name, f"rest/radiusprofile/{profile_id}")
+        )
         data = response if isinstance(response, list) else response.get("data", response)
         if isinstance(data, list):
             data = data[0] if data else {}
 
-        return RADIUSProfile(**data).model_dump()  # type: ignore[no-any-return]
+        return RADIUSProfile(**data).model_dump()
 
 
+@provider.tool()
 async def create_radius_profile(
     site_id: str,
     name: str,
     auth_server: str,
     auth_secret: str,
-    settings: Settings,
     auth_port: int = 1812,
     acct_server: str | None = None,
     acct_port: int = 1813,
@@ -106,11 +145,14 @@ async def create_radius_profile(
     """
     validate_confirmation(confirm, "create RADIUS profile", dry_run)
 
-    async with UniFiClient(settings) as client:
+    async with _network_client() as client:
         logger.info(f"Creating RADIUS profile '{name}' for site {site_id}")
 
         if not client.is_authenticated:
+
             await client.authenticate()
+
+        site = await client.resolve_site(site_id)
 
         # Build request payload
         payload: dict[str, Any] = {
@@ -148,14 +190,16 @@ async def create_radius_profile(
             logger.info(f"[DRY RUN] Would create RADIUS profile with payload: {payload_safe}")
             return {"dry_run": True, "payload": payload_safe}
 
-        response = await client.post(f"/ea/sites/{site_id}/rest/radiusprofile", json_data=payload)
+        response = await client.post(
+            client.legacy_path(site.name, "rest/radiusprofile"), json_data=payload
+        )
         data = response if isinstance(response, list) else response.get("data", response)
         if isinstance(data, list):
             data = data[0] if data else {}
 
         # Audit the action
         await audit_action(
-            settings,
+            client.settings,
             action_type="create_radius_profile",
             resource_type="radius_profile",
             resource_id=data.get("_id", "unknown"),
@@ -163,13 +207,13 @@ async def create_radius_profile(
             details={"name": name, "auth_server": auth_server},
         )
 
-        return RADIUSProfile(**data).model_dump()  # type: ignore[no-any-return]
+        return RADIUSProfile(**data).model_dump()
 
 
+@provider.tool()
 async def update_radius_profile(
     site_id: str,
     profile_id: str,
-    settings: Settings,
     name: str | None = None,
     auth_server: str | None = None,
     auth_secret: str | None = None,
@@ -205,11 +249,14 @@ async def update_radius_profile(
     """
     validate_confirmation(confirm, "update RADIUS profile", dry_run)
 
-    async with UniFiClient(settings) as client:
+    async with _network_client() as client:
         logger.info(f"Updating RADIUS profile {profile_id} for site {site_id}")
 
         if not client.is_authenticated:
+
             await client.authenticate()
+
+        site = await client.resolve_site(site_id)
 
         # Build update payload with only provided fields
         payload: dict[str, Any] = {}
@@ -235,7 +282,7 @@ async def update_radius_profile(
 
         if dry_run:
             # Build safe payload without secrets for logging
-            payload_safe = {}
+            payload_safe: dict[str, Any] = {}
             if name is not None:
                 payload_safe["name"] = name
             if auth_server is not None:
@@ -258,7 +305,7 @@ async def update_radius_profile(
             return {"dry_run": True, "profile_id": profile_id, "payload": payload_safe}
 
         response = await client.put(
-            f"/ea/sites/{site_id}/rest/radiusprofile/{profile_id}", json_data=payload
+            client.legacy_path(site.name, f"rest/radiusprofile/{profile_id}"), json_data=payload
         )
         data = response if isinstance(response, list) else response.get("data", response)
         if isinstance(data, list):
@@ -266,7 +313,7 @@ async def update_radius_profile(
 
         # Audit the action
         await audit_action(
-            settings,
+            client.settings,
             action_type="update_radius_profile",
             resource_type="radius_profile",
             resource_id=profile_id,
@@ -274,13 +321,13 @@ async def update_radius_profile(
             details=payload,
         )
 
-        return RADIUSProfile(**data).model_dump()  # type: ignore[no-any-return]
+        return RADIUSProfile(**data).model_dump()
 
 
+@provider.tool(annotations={"destructiveHint": True})
 async def delete_radius_profile(
     site_id: str,
     profile_id: str,
-    settings: Settings,
     confirm: bool | str = False,
     dry_run: bool | str = False,
 ) -> dict:
@@ -298,21 +345,24 @@ async def delete_radius_profile(
     """
     validate_confirmation(confirm, "delete RADIUS profile", dry_run)
 
-    async with UniFiClient(settings) as client:
+    async with _network_client() as client:
         logger.info(f"Deleting RADIUS profile {profile_id} for site {site_id}")
 
         if not client.is_authenticated:
+
             await client.authenticate()
+
+        site = await client.resolve_site(site_id)
 
         if dry_run:
             logger.info(f"[DRY RUN] Would delete RADIUS profile {profile_id}")
             return {"dry_run": True, "profile_id": profile_id}
 
-        await client.delete(f"/ea/sites/{site_id}/rest/radiusprofile/{profile_id}")
+        await client.delete(client.legacy_path(site.name, f"rest/radiusprofile/{profile_id}"))
 
         # Audit the action
         await audit_action(
-            settings,
+            client.settings,
             action_type="delete_radius_profile",
             resource_type="radius_profile",
             resource_id=profile_id,
@@ -328,9 +378,9 @@ async def delete_radius_profile(
 # =============================================================================
 
 
+@provider.tool()
 async def list_radius_accounts(
     site_id: str,
-    settings: Settings,
 ) -> list[dict]:
     """List all RADIUS accounts for a site.
 
@@ -341,13 +391,16 @@ async def list_radius_accounts(
     Returns:
         List of RADIUS accounts
     """
-    async with UniFiClient(settings) as client:
+    async with _network_client() as client:
         logger.info(f"Listing RADIUS accounts for site {site_id}")
 
         if not client.is_authenticated:
+
             await client.authenticate()
 
-        response = await client.get(f"/ea/sites/{site_id}/rest/account")
+        site = await client.resolve_site(site_id)
+
+        response = await client.get(client.legacy_path(site.name, "rest/account"))
         data = response if isinstance(response, list) else response.get("data", [])
 
         # Redact passwords in response
@@ -358,11 +411,11 @@ async def list_radius_accounts(
         return [RADIUSAccount(**account).model_dump() for account in data]
 
 
+@provider.tool()
 async def create_radius_account(
     site_id: str,
     username: str,
     password: str,
-    settings: Settings,
     vlan_id: int | None = None,
     tunnel_type: int | None = None,
     tunnel_medium_type: int | None = None,
@@ -393,11 +446,14 @@ async def create_radius_account(
     """
     validate_confirmation(confirm, "create RADIUS account", dry_run)
 
-    async with UniFiClient(settings) as client:
+    async with _network_client() as client:
         logger.info(f"Creating RADIUS account '{username}' for site {site_id}")
 
         if not client.is_authenticated:
+
             await client.authenticate()
+
+        site = await client.resolve_site(site_id)
 
         # Build request payload using correct API field names
         payload: dict[str, Any] = {
@@ -427,7 +483,9 @@ async def create_radius_account(
             payload_safe["x_password"] = "***REDACTED***"
             return {"dry_run": True, "payload": payload_safe}
 
-        response = await client.post(f"/ea/sites/{site_id}/rest/account", json_data=payload)
+        response = await client.post(
+            client.legacy_path(site.name, "rest/account"), json_data=payload
+        )
         data = response if isinstance(response, list) else response.get("data", response)
 
         # Handle list response (auto-unwrapped)
@@ -436,7 +494,7 @@ async def create_radius_account(
 
         # Audit the action
         await audit_action(
-            settings,
+            client.settings,
             action_type="create_radius_account",
             resource_type="radius_account",
             resource_id=data.get("_id", "unknown"),
@@ -448,13 +506,13 @@ async def create_radius_account(
         if "x_password" in data:
             data["x_password"] = "***REDACTED***"
 
-        return RADIUSAccount(**data).model_dump()  # type: ignore[no-any-return]
+        return RADIUSAccount(**data).model_dump()
 
 
+@provider.tool()
 async def get_radius_account(
     site_id: str,
     account_id: str,
-    settings: Settings,
 ) -> dict:
     """Get details for a specific RADIUS account.
 
@@ -466,13 +524,16 @@ async def get_radius_account(
     Returns:
         RADIUS account details with password redacted
     """
-    async with UniFiClient(settings) as client:
+    async with _network_client() as client:
         logger.info(f"Getting RADIUS account {account_id} for site {site_id}")
 
         if not client.is_authenticated:
+
             await client.authenticate()
 
-        response = await client.get(f"/ea/sites/{site_id}/rest/account/{account_id}")
+        site = await client.resolve_site(site_id)
+
+        response = await client.get(client.legacy_path(site.name, f"rest/account/{account_id}"))
         data = response if isinstance(response, list) else response.get("data", response)
         if isinstance(data, list):
             data = data[0] if data else {}
@@ -483,13 +544,13 @@ async def get_radius_account(
         if "x_password" in data:
             data["x_password"] = "***REDACTED***"
 
-        return RADIUSAccount(**data).model_dump()  # type: ignore[no-any-return]
+        return RADIUSAccount(**data).model_dump()
 
 
+@provider.tool()
 async def update_radius_account(
     site_id: str,
     account_id: str,
-    settings: Settings,
     username: str | None = None,
     password: str | None = None,
     vlan_id: int | None = None,
@@ -541,11 +602,14 @@ async def update_radius_account(
     if not payload and not dry_run:
         raise ValueError("At least one field must be provided to update.")
 
-    async with UniFiClient(settings) as client:
+    async with _network_client() as client:
         logger.info(f"Updating RADIUS account {account_id} for site {site_id}")
 
         if not client.is_authenticated:
+
             await client.authenticate()
+
+        site = await client.resolve_site(site_id)
 
         if dry_run:
             payload_safe = payload.copy()
@@ -555,14 +619,14 @@ async def update_radius_account(
             return {"dry_run": True, "account_id": account_id, "payload": payload_safe}
 
         response = await client.put(
-            f"/ea/sites/{site_id}/rest/account/{account_id}", json_data=payload
+            client.legacy_path(site.name, f"rest/account/{account_id}"), json_data=payload
         )
         data = response if isinstance(response, list) else response.get("data", response)
         if isinstance(data, list):
             data = data[0] if data else {}
 
         await audit_action(
-            settings,
+            client.settings,
             action_type="update_radius_account",
             resource_type="radius_account",
             resource_id=account_id,
@@ -573,13 +637,13 @@ async def update_radius_account(
         if "x_password" in data:
             data["x_password"] = "***REDACTED***"
 
-        return RADIUSAccount(**data).model_dump()  # type: ignore[no-any-return]
+        return RADIUSAccount(**data).model_dump()
 
 
+@provider.tool(annotations={"destructiveHint": True})
 async def delete_radius_account(
     site_id: str,
     account_id: str,
-    settings: Settings,
     confirm: bool | str = False,
     dry_run: bool | str = False,
 ) -> dict:
@@ -597,21 +661,24 @@ async def delete_radius_account(
     """
     validate_confirmation(confirm, "delete RADIUS account", dry_run)
 
-    async with UniFiClient(settings) as client:
+    async with _network_client() as client:
         logger.info(f"Deleting RADIUS account {account_id} for site {site_id}")
 
         if not client.is_authenticated:
+
             await client.authenticate()
+
+        site = await client.resolve_site(site_id)
 
         if dry_run:
             logger.info(f"[DRY RUN] Would delete RADIUS account {account_id}")
             return {"dry_run": True, "account_id": account_id}
 
-        await client.delete(f"/ea/sites/{site_id}/rest/account/{account_id}")
+        await client.delete(client.legacy_path(site.name, f"rest/account/{account_id}"))
 
         # Audit the action
         await audit_action(
-            settings,
+            client.settings,
             action_type="delete_radius_account",
             resource_type="radius_account",
             resource_id=account_id,
@@ -627,9 +694,9 @@ async def delete_radius_account(
 # =============================================================================
 
 
+@provider.tool()
 async def get_guest_portal_config(
     site_id: str,
-    settings: Settings,
 ) -> dict:
     """Get guest portal configuration for a site.
 
@@ -640,23 +707,27 @@ async def get_guest_portal_config(
     Returns:
         Guest portal configuration
     """
-    async with UniFiClient(settings) as client:
+    async with _network_client() as client:
         logger.info(f"Getting guest portal config for site {site_id}")
 
         if not client.is_authenticated:
+
             await client.authenticate()
 
-        response = await client.get(f"/integration/v1/sites/{site_id}/guest-portal/config")
-        data = response if isinstance(response, list) else response.get("data", response)
-        if isinstance(data, list):
-            data = data[0] if data else {}
+        site = await client.resolve_site(site_id)
 
-        return GuestPortalConfig(**data).model_dump()  # type: ignore[no-any-return]
+        response = await client.get(client.legacy_path(site.name, "rest/setting"))
+        settings_list: list[dict[str, Any]] = (
+            response if isinstance(response, list) else response.get("data", [])
+        )
+        data = next((s for s in settings_list if s.get("key") == "guest_access"), {})
+
+        return GuestPortalConfig(**data).model_dump()
 
 
+@provider.tool()
 async def configure_guest_portal(
     site_id: str,
-    settings: Settings,
     portal_title: str | None = None,
     auth_method: str | None = None,
     password: str | None = None,
@@ -689,11 +760,14 @@ async def configure_guest_portal(
     """
     validate_confirmation(confirm, "configure guest portal", dry_run)
 
-    async with UniFiClient(settings) as client:
+    async with _network_client() as client:
         logger.info(f"Configuring guest portal for site {site_id}")
 
         if not client.is_authenticated:
+
             await client.authenticate()
+
+        site = await client.resolve_site(site_id)
 
         # Build update payload
         payload: dict[str, Any] = {}
@@ -717,7 +791,7 @@ async def configure_guest_portal(
 
         if dry_run:
             # Build safe payload without secrets for logging
-            payload_safe = {}
+            payload_safe: dict[str, Any] = {}
             if portal_title is not None:
                 payload_safe["portal_title"] = portal_title
             if auth_method is not None:
@@ -737,8 +811,23 @@ async def configure_guest_portal(
             logger.info(f"[DRY RUN] Would configure guest portal with payload: {payload_safe}")
             return {"dry_run": True, "payload": payload_safe}
 
+        # GET rest/setting to find the guest_access entry and its _id
+        settings_response = await client.get(client.legacy_path(site.name, "rest/setting"))
+        settings_list: list[dict[str, Any]] = (
+            settings_response
+            if isinstance(settings_response, list)
+            else settings_response.get("data", [])
+        )
+        existing: dict[str, Any] = next(
+            (s for s in settings_list if s.get("key") == "guest_access"), {}
+        )
+        setting_id = existing.get("_id", "")
+        # Merge update payload onto existing setting
+        merged = {**existing, **payload}
+
         response = await client.put(
-            f"/integration/v1/sites/{site_id}/guest-portal/config", json_data=payload
+            client.legacy_path(site.name, f"rest/setting/guest_access/{setting_id}"),
+            json_data=merged,
         )
         data = response if isinstance(response, list) else response.get("data", response)
         if isinstance(data, list):
@@ -746,7 +835,7 @@ async def configure_guest_portal(
 
         # Audit the action
         await audit_action(
-            settings,
+            client.settings,
             action_type="configure_guest_portal",
             resource_type="guest_portal_config",
             resource_id=site_id,
@@ -754,7 +843,7 @@ async def configure_guest_portal(
             details=payload,
         )
 
-        return GuestPortalConfig(**data).model_dump()  # type: ignore[no-any-return]
+        return GuestPortalConfig(**data).model_dump()
 
 
 # =============================================================================
@@ -762,9 +851,9 @@ async def configure_guest_portal(
 # =============================================================================
 
 
+@provider.tool()
 async def list_hotspot_packages(
     site_id: str,
-    settings: Settings,
 ) -> list[dict]:
     """List all hotspot packages for a site.
 
@@ -775,23 +864,31 @@ async def list_hotspot_packages(
     Returns:
         List of hotspot packages
     """
-    async with UniFiClient(settings) as client:
+    async with _network_client() as client:
         logger.info(f"Listing hotspot packages for site {site_id}")
 
         if not client.is_authenticated:
+
             await client.authenticate()
 
-        response = await client.get(f"/integration/v1/sites/{site_id}/hotspot/packages")
-        data = response if isinstance(response, list) else response.get("data", [])
+        site = await client.resolve_site(site_id)
+
+        try:
+            response = await client.get(client.legacy_path(site.name, "rest/hotspot"))
+            data = response if isinstance(response, list) else response.get("data", [])
+        except Exception as e:
+            if "not found" in str(e).lower() or "404" in str(e):
+                return []
+            raise
 
         return [HotspotPackage(**package).model_dump() for package in data]
 
 
+@provider.tool()
 async def create_hotspot_package(
     site_id: str,
     name: str,
     duration_minutes: int,
-    settings: Settings,
     download_limit_kbps: int | None = None,
     upload_limit_kbps: int | None = None,
     download_quota_mb: int | None = None,
@@ -822,11 +919,14 @@ async def create_hotspot_package(
     """
     validate_confirmation(confirm, "create hotspot package", dry_run)
 
-    async with UniFiClient(settings) as client:
+    async with _network_client() as client:
         logger.info(f"Creating hotspot package '{name}' for site {site_id}")
 
         if not client.is_authenticated:
+
             await client.authenticate()
+
+        site = await client.resolve_site(site_id)
 
         # Build request payload
         payload: dict[str, Any] = {
@@ -852,7 +952,7 @@ async def create_hotspot_package(
             return {"dry_run": True, "payload": payload}
 
         response = await client.post(
-            f"/integration/v1/sites/{site_id}/hotspot/packages", json_data=payload
+            client.legacy_path(site.name, "rest/hotspot"), json_data=payload
         )
         data = response if isinstance(response, list) else response.get("data", response)
         if isinstance(data, list):
@@ -860,7 +960,7 @@ async def create_hotspot_package(
 
         # Audit the action
         await audit_action(
-            settings,
+            client.settings,
             action_type="create_hotspot_package",
             resource_type="hotspot_package",
             resource_id=data.get("_id", "unknown"),
@@ -868,13 +968,13 @@ async def create_hotspot_package(
             details={"name": name, "duration_minutes": duration_minutes},
         )
 
-        return HotspotPackage(**data).model_dump()  # type: ignore[no-any-return]
+        return HotspotPackage(**data).model_dump()
 
 
+@provider.tool()
 async def get_hotspot_package(
     site_id: str,
     package_id: str,
-    settings: Settings,
 ) -> dict:
     """Get details for a specific hotspot package.
 
@@ -886,29 +986,35 @@ async def get_hotspot_package(
     Returns:
         Hotspot package details
     """
-    async with UniFiClient(settings) as client:
+    async with _network_client() as client:
         logger.info(f"Getting hotspot package {package_id} for site {site_id}")
 
         if not client.is_authenticated:
+
             await client.authenticate()
 
-        response = await client.get(
-            f"/integration/v1/sites/{site_id}/hotspot/packages/{package_id}"
-        )
-        data = response if isinstance(response, list) else response.get("data", response)
-        if isinstance(data, list):
-            data = data[0] if data else {}
+        site = await client.resolve_site(site_id)
+
+        response = await client.get(client.legacy_path(site.name, "rest/hotspot"))
+        all_data = response if isinstance(response, list) else response.get("data", response)
+        data: dict[str, Any]
+        if isinstance(all_data, list):
+            data = next((p for p in all_data if p.get("_id") == package_id), {})
+        elif isinstance(all_data, dict):
+            data = all_data if all_data.get("_id") == package_id else {}
+        else:
+            data = {}
 
         if not data:
             return {}
 
-        return HotspotPackage(**data).model_dump()  # type: ignore[no-any-return]
+        return HotspotPackage(**data).model_dump()
 
 
+@provider.tool()
 async def update_hotspot_package(
     site_id: str,
     package_id: str,
-    settings: Settings,
     name: str | None = None,
     duration_minutes: int | None = None,
     download_limit_kbps: int | None = None,
@@ -968,25 +1074,28 @@ async def update_hotspot_package(
     if not payload and not dry_run:
         raise ValueError("At least one field must be provided to update.")
 
-    async with UniFiClient(settings) as client:
+    async with _network_client() as client:
         logger.info(f"Updating hotspot package {package_id} for site {site_id}")
 
         if not client.is_authenticated:
+
             await client.authenticate()
+
+        site = await client.resolve_site(site_id)
 
         if dry_run:
             logger.info(f"[DRY RUN] Would update hotspot package with payload: {payload}")
             return {"dry_run": True, "package_id": package_id, "payload": payload}
 
         response = await client.put(
-            f"/integration/v1/sites/{site_id}/hotspot/packages/{package_id}", json_data=payload
+            client.legacy_path(site.name, f"rest/hotspot/{package_id}"), json_data=payload
         )
         data = response if isinstance(response, list) else response.get("data", response)
         if isinstance(data, list):
             data = data[0] if data else {}
 
         await audit_action(
-            settings,
+            client.settings,
             action_type="update_hotspot_package",
             resource_type="hotspot_package",
             resource_id=package_id,
@@ -994,13 +1103,13 @@ async def update_hotspot_package(
             details=payload,
         )
 
-        return HotspotPackage(**data).model_dump()  # type: ignore[no-any-return]
+        return HotspotPackage(**data).model_dump()
 
 
+@provider.tool(annotations={"destructiveHint": True})
 async def delete_hotspot_package(
     site_id: str,
     package_id: str,
-    settings: Settings,
     confirm: bool | str = False,
     dry_run: bool | str = False,
 ) -> dict:
@@ -1018,21 +1127,24 @@ async def delete_hotspot_package(
     """
     validate_confirmation(confirm, "delete hotspot package", dry_run)
 
-    async with UniFiClient(settings) as client:
+    async with _network_client() as client:
         logger.info(f"Deleting hotspot package {package_id} for site {site_id}")
 
         if not client.is_authenticated:
+
             await client.authenticate()
+
+        site = await client.resolve_site(site_id)
 
         if dry_run:
             logger.info(f"[DRY RUN] Would delete hotspot package {package_id}")
             return {"dry_run": True, "package_id": package_id}
 
-        await client.delete(f"/integration/v1/sites/{site_id}/hotspot/packages/{package_id}")
+        await client.delete(client.legacy_path(site.name, f"rest/hotspot/{package_id}"))
 
         # Audit the action
         await audit_action(
-            settings,
+            client.settings,
             action_type="delete_hotspot_package",
             resource_type="hotspot_package",
             resource_id=package_id,

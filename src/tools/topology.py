@@ -2,245 +2,198 @@
 
 import json
 from datetime import datetime, timezone
-from typing import Literal
+from typing import Any, Literal
 
-from src.api.client import UniFiClient
-from src.config import Settings
-from src.models.topology import NetworkDiagram, TopologyConnection, TopologyNode
-from src.utils.exceptions import ValidationError
+from fastmcp.server.providers import LocalProvider
+
+from ..api.pool import get_network_client
+from ..models.topology import NetworkDiagram, TopologyConnection, TopologyNode
+from ..utils.exceptions import ValidationError
+
+provider = LocalProvider()
+
+__all__ = [
+    "provider",
+    "get_network_topology",
+    "get_device_connections",
+    "get_port_mappings",
+    "export_topology",
+    "get_topology_statistics",
+]
 
 
-async def get_network_topology(
-    site_id: str,
-    settings: Settings,
-    include_coordinates: bool = False,
-) -> dict:
-    """
-    Retrieve complete network topology graph.
+@provider.tool()
+async def get_network_topology(site_id: str, include_coordinates: bool = False) -> dict[str, Any]:
+    """Retrieve complete network topology graph."""
+    client = get_network_client()
+    if not client.is_authenticated:
+        await client.authenticate()
 
-    Fetches the network topology including all devices, clients, and their
-    interconnections. Optionally includes position coordinates for visualization.
+    site = await client.resolve_site(site_id)
+    devices_endpoint = client.integration_path(site.uuid, "devices")
+    clients_endpoint = client.integration_path(site.uuid, "clients")
 
-    Args:
-        site_id: Site identifier ("default" for default site)
-        settings: Application settings with UniFi controller connection info
-        include_coordinates: Whether to calculate node position coordinates
+    device_nodes: list[dict[str, Any]] = []
+    offset = 0
+    while True:
+        response = await client.get(f"{devices_endpoint}?offset={offset}&limit=100")
+        data = response if isinstance(response, list) else response.get("data", [])
+        if not data:
+            break
+        device_nodes.extend(data)
+        offset += len(data)
+        if len(data) < 100:
+            break
 
-    Returns:
-        Network diagram dictionary with nodes, connections, and statistics
+    client_nodes: list[dict[str, Any]] = []
+    offset = 0
+    while True:
+        response = await client.get(f"{clients_endpoint}?offset={offset}&limit=100")
+        data = response if isinstance(response, list) else response.get("data", [])
+        if not data:
+            break
+        client_nodes.extend(data)
+        offset += len(data)
+        if len(data) < 100:
+            break
 
-    Example:
-        ```python
-        topology = await get_network_topology("default", settings, include_coordinates=True)
-        print(f"Total devices: {topology['total_devices']}")
-        print(f"Total clients: {topology['total_clients']}")
-        ```
-    """
-    async with UniFiClient(settings) as client:
-        if not client.is_authenticated:
-            await client.authenticate()
+    nodes: list[TopologyNode] = []
+    connections: list[TopologyConnection] = []
+    depth_map: dict[str, int] = {}
 
-        actual_site_id = await client.resolve_site_id(site_id)
+    for device in device_nodes:
+        device_id = device.get("id", "")
+        uplink_info = device.get("uplink", {})
+        uplink_device_id = uplink_info.get("deviceId")
 
-        # Fetch devices and clients from UniFi Integration API
-        devices_endpoint = client.settings.get_integration_path(f"sites/{actual_site_id}/devices")
-        clients_endpoint = client.settings.get_integration_path(f"sites/{actual_site_id}/clients")
+        if uplink_device_id:
+            parent_depth = depth_map.get(uplink_device_id, 0)
+            depth_map[device_id] = parent_depth + 1
+        else:
+            depth_map[device_id] = 0
 
-        # Fetch all devices and clients (handle pagination)
-        device_nodes = []
-        offset = 0
-        while True:
-            response = await client.get(f"{devices_endpoint}?offset={offset}&limit=100")
-            data = response if isinstance(response, list) else response.get("data", [])
-            if not data:
-                break
-            device_nodes.extend(data)
-            offset += len(data)
-            if len(data) < 100:
-                break
+        node = TopologyNode(
+            node_id=device_id,
+            node_type="device",
+            name=device.get("name"),
+            mac=device.get("macAddress"),
+            ip=device.get("ipAddress"),
+            model=device.get("model"),
+            type_detail=device.get("model"),
+            uplink_device_id=uplink_device_id,
+            uplink_port=uplink_info.get("portIndex"),
+            uplink_depth=depth_map.get(device_id, 0),
+            state=1 if device.get("state") == "CONNECTED" else 0,
+            adopted=True,
+            x_coordinate=None,
+            y_coordinate=None,
+        )
+        nodes.append(node)
 
-        client_nodes = []
-        offset = 0
-        while True:
-            response = await client.get(f"{clients_endpoint}?offset={offset}&limit=100")
-            data = response if isinstance(response, list) else response.get("data", [])
-            if not data:
-                break
-            client_nodes.extend(data)
-            offset += len(data)
-            if len(data) < 100:
-                break
-
-        # Convert devices to topology nodes
-        nodes = []
-        connections = []
-        depth_map = {}  # Track network depth for each device
-
-        # First pass: Create all device nodes and calculate depth
-        for device in device_nodes:
-            device_id = device.get("id", "")
-            uplink_info = device.get("uplink", {})
-            uplink_device_id = uplink_info.get("deviceId")
-
-            # Calculate depth (distance from gateway)
-            if uplink_device_id:
-                parent_depth = depth_map.get(uplink_device_id, 0)
-                depth_map[device_id] = parent_depth + 1
-            else:
-                depth_map[device_id] = 0  # Gateway device
-
-            node = TopologyNode(
-                node_id=device_id,
-                node_type="device",
-                name=device.get("name"),
-                mac=device.get("macAddress"),
-                ip=device.get("ipAddress"),
-                model=device.get("model"),
-                type_detail=device.get("model"),
-                uplink_device_id=uplink_device_id,
-                uplink_port=uplink_info.get("portIndex"),
-                uplink_depth=depth_map.get(device_id, 0),
-                state=1 if device.get("state") == "CONNECTED" else 0,
-                adopted=True,  # All returned devices are adopted
-            )
-            nodes.append(node)
-
-            # Create connection if device has uplink
-            if uplink_device_id:
-                conn = TopologyConnection(
+        if uplink_device_id:
+            connections.append(
+                TopologyConnection(
                     connection_id=f"conn_{device_id}_uplink",
                     source_node_id=device_id,
                     target_node_id=uplink_device_id,
                     connection_type="uplink",
                     source_port=uplink_info.get("portIndex"),
+                    target_port=None,
+                    port_name=None,
                     speed_mbps=uplink_info.get("speedMbps"),
+                    duplex=None,
+                    link_quality=None,
                     is_uplink=True,
                     status="up" if device.get("state") == "CONNECTED" else "down",
                 )
-                connections.append(conn)
+            )
 
-        # Process clients
-        for client_data in client_nodes:
-            client_id = client_data.get("id", "")
-            client_type = client_data.get("type", "WIRED")
-            uplink_device_id = client_data.get("uplinkDeviceId")
+    for client_data in client_nodes:
+        client_id = client_data.get("id", "")
+        client_type = client_data.get("type", "WIRED")
+        uplink_device_id = client_data.get("uplinkDeviceId")
 
-            node = TopologyNode(
+        nodes.append(
+            TopologyNode(
                 node_id=client_id,
                 node_type="client",
                 name=client_data.get("name"),
                 mac=client_data.get("macAddress"),
                 ip=client_data.get("ipAddress"),
-                state=1,  # All returned clients are connected
+                model=None,
+                type_detail=None,
+                uplink_device_id=uplink_device_id,
+                uplink_port=None,
+                uplink_depth=None,
+                state=1,
+                adopted=None,
+                x_coordinate=None,
+                y_coordinate=None,
             )
-            nodes.append(node)
+        )
 
-            # Create connection for client
-            if uplink_device_id:
-                conn_type = "wired" if client_type == "WIRED" else "wireless"
-                conn = TopologyConnection(
+        if uplink_device_id:
+            conn_type = "wired" if client_type == "WIRED" else "wireless"
+            connections.append(
+                TopologyConnection(
                     connection_id=f"conn_client_{client_id}",
                     source_node_id=client_id,
                     target_node_id=uplink_device_id,
                     connection_type=conn_type,
+                    source_port=client_data.get("portIdx"),
+                    target_port=None,
+                    port_name=None,
+                    speed_mbps=None,
+                    duplex=None,
+                    link_quality=None,
                     is_uplink=False,
                     status="up",
                 )
-                connections.append(conn)
+            )
 
-        # Calculate statistics
-        total_devices = len([n for n in nodes if n.node_type == "device"])
-        total_clients = len([n for n in nodes if n.node_type == "client"])
-        max_depth = max([n.uplink_depth for n in nodes if n.uplink_depth is not None], default=0)
+    total_devices = len([n for n in nodes if n.node_type == "device"])
+    total_clients = len([n for n in nodes if n.node_type == "client"])
+    max_depth = max([n.uplink_depth for n in nodes if n.uplink_depth is not None], default=0)
 
-        # Build network diagram
-        diagram = NetworkDiagram(
-            site_id=actual_site_id,
-            generated_at=datetime.now(timezone.utc).isoformat(),
-            nodes=nodes,
-            connections=connections,
-            total_devices=total_devices,
-            total_clients=total_clients,
-            total_connections=len(connections),
-            max_depth=max_depth,
-            has_coordinates=include_coordinates,
-        )
+    diagram = NetworkDiagram(
+        site_id=site.uuid,
+        site_name=site.name,
+        generated_at=datetime.now(timezone.utc).isoformat(),
+        nodes=nodes,
+        connections=connections,
+        total_devices=total_devices,
+        total_clients=total_clients,
+        total_connections=len(connections),
+        max_depth=max_depth,
+        layout_algorithm=None,
+        has_coordinates=include_coordinates,
+    )
 
-        return diagram.model_dump()
+    return diagram.model_dump()
 
 
-async def get_device_connections(
-    site_id: str,
-    device_id: str | None,
-    settings: Settings,
-) -> list[dict]:
-    """
-    Get device interconnection details.
-
-    Retrieves detailed connection information for a specific device or all devices.
-
-    Args:
-        site_id: Site identifier
-        device_id: Specific device ID, or None for all devices
-        settings: Application settings
-
-    Returns:
-        List of connection dictionaries
-
-    Example:
-        ```python
-        connections = await get_device_connections("default", "switch_001", settings)
-        for conn in connections:
-            print(f"{conn['source_node_id']} -> {conn['target_node_id']}")
-        ```
-    """
-    topology = await get_network_topology(site_id, settings)
-
-    connections = topology.get("connections", [])
-
+@provider.tool()
+async def get_device_connections(site_id: str, device_id: str | None) -> list[dict[str, Any]]:
+    """Get device interconnection details."""
+    topology = await get_network_topology(site_id)
+    raw_connections = topology.get("connections", [])
+    connections: list[dict[str, Any]] = raw_connections if isinstance(raw_connections, list) else []
     if device_id:
-        # Filter connections for specific device
         connections = [
             conn
             for conn in connections
             if conn.get("source_node_id") == device_id or conn.get("target_node_id") == device_id
         ]
-
     return connections
 
 
-async def get_port_mappings(
-    site_id: str,
-    device_id: str,
-    settings: Settings,
-) -> dict:
-    """
-    Get port-level connection mappings for a device.
-
-    Retrieves detailed information about which ports are connected to which devices/clients.
-
-    Args:
-        site_id: Site identifier
-        device_id: Device ID
-        settings: Application settings
-
-    Returns:
-        Dictionary with device_id and port mapping information
-
-    Example:
-        ```python
-        ports = await get_port_mappings("default", "switch_001", settings)
-        for port_num, connected_device in ports['ports'].items():
-            print(f"Port {port_num}: {connected_device}")
-        ```
-    """
-    topology = await get_network_topology(site_id, settings)
-
+@provider.tool()
+async def get_port_mappings(site_id: str, device_id: str) -> dict[str, Any]:
+    """Get port-level connection mappings for a device."""
+    topology = await get_network_topology(site_id)
     connections = topology.get("connections", [])
 
-    # Build port mapping
-    port_map = {}
-
+    port_map: dict[int, dict[str, Any]] = {}
     for conn in connections:
         if conn.get("source_node_id") == device_id:
             port_num = conn.get("source_port")
@@ -264,59 +217,26 @@ async def get_port_mappings(
     return {"device_id": device_id, "ports": port_map}
 
 
-async def export_topology(
-    site_id: str,
-    format: Literal["json", "graphml", "dot"],
-    settings: Settings,
-) -> str:
-    """
-    Export network topology in various formats.
-
-    Exports the network topology as JSON, GraphML (XML), or DOT (Graphviz) format.
-
-    Args:
-        site_id: Site identifier
-        format: Export format ("json", "graphml", or "dot")
-        settings: Application settings
-
-    Returns:
-        Topology data as a formatted string
-
-    Raises:
-        ValidationError: If invalid format is specified
-
-    Example:
-        ```python
-        # Export as JSON
-        json_data = await export_topology("default", "json", settings)
-
-        # Export as GraphML for network visualization tools
-        graphml_data = await export_topology("default", "graphml", settings)
-
-        # Export as DOT for Graphviz
-        dot_data = await export_topology("default", "dot", settings)
-        ```
-    """
+@provider.tool()
+async def export_topology(site_id: str, format: Literal["json", "graphml", "dot"]) -> str:
+    """Export network topology in JSON, GraphML, or DOT format."""
     if format not in ["json", "graphml", "dot"]:
         raise ValidationError(
             f"Invalid export format: {format}. Must be 'json', 'graphml', or 'dot'"
         )
 
-    topology = await get_network_topology(site_id, settings)
+    topology = await get_network_topology(site_id)
 
     if format == "json":
         return json.dumps(topology, indent=2)
 
-    elif format == "graphml":
-        # Generate GraphML XML
+    if format == "graphml":
         nodes = topology.get("nodes", [])
         connections = topology.get("connections", [])
 
         graphml = ['<?xml version="1.0" encoding="UTF-8"?>']
         graphml.append('<graphml xmlns="http://graphml.graphdrawing.org/xmlns">')
         graphml.append('  <graph id="UniFi Network" edgedefault="directed">')
-
-        # Add nodes
         for node in nodes:
             node_id = node.get("node_id", "")
             node_type = node.get("node_type", "")
@@ -326,7 +246,6 @@ async def export_topology(
             graphml.append(f'      <data key="name">{name}</data>')
             graphml.append("    </node>")
 
-        # Add edges
         for conn in connections:
             source = conn.get("source_node_id", "")
             target = conn.get("target_node_id", "")
@@ -337,65 +256,32 @@ async def export_topology(
 
         graphml.append("  </graph>")
         graphml.append("</graphml>")
-
         return "\n".join(graphml)
 
-    elif format == "dot":
-        # Generate DOT format
-        nodes = topology.get("nodes", [])
-        connections = topology.get("connections", [])
+    nodes = topology.get("nodes", [])
+    connections = topology.get("connections", [])
+    dot = ["digraph UniFiNetwork {"]
+    dot.append("  node [shape=box];")
+    for node in nodes:
+        node_id = node.get("node_id", "")
+        name = node.get("name", node_id)
+        node_type = node.get("node_type", "")
+        dot.append(f'  "{node_id}" [label="{name}\\n({node_type})"];')
 
-        dot = ["digraph UniFiNetwork {"]
-        dot.append("  node [shape=box];")
+    for conn in connections:
+        source = conn.get("source_node_id", "")
+        target = conn.get("target_node_id", "")
+        conn_type = conn.get("connection_type", "")
+        dot.append(f'  "{source}" -> "{target}" [label="{conn_type}"];')
 
-        # Add nodes
-        for node in nodes:
-            node_id = node.get("node_id", "")
-            name = node.get("name", node_id)
-            node_type = node.get("node_type", "")
-            dot.append(f'  "{node_id}" [label="{name}\\n({node_type})"];')
-
-        # Add edges
-        for conn in connections:
-            source = conn.get("source_node_id", "")
-            target = conn.get("target_node_id", "")
-            conn_type = conn.get("connection_type", "")
-            dot.append(f'  "{source}" -> "{target}" [label="{conn_type}"];')
-
-        dot.append("}")
-
-        return "\n".join(dot)
-
-    return ""
+    dot.append("}")
+    return "\n".join(dot)
 
 
-async def get_topology_statistics(
-    site_id: str,
-    settings: Settings,
-) -> dict:
-    """
-    Get network topology statistics.
-
-    Retrieves statistical summary of the network topology including device counts,
-    client counts, connection counts, and network depth.
-
-    Args:
-        site_id: Site identifier
-        settings: Application settings
-
-    Returns:
-        Dictionary with topology statistics
-
-    Example:
-        ```python
-        stats = await get_topology_statistics("default", settings)
-        print(f"Devices: {stats['total_devices']}")
-        print(f"Clients: {stats['total_clients']}")
-        print(f"Max network depth: {stats['max_depth']}")
-        ```
-    """
-    topology = await get_network_topology(site_id, settings)
-
+@provider.tool()
+async def get_topology_statistics(site_id: str) -> dict[str, Any]:
+    """Get network topology statistics."""
+    topology = await get_network_topology(site_id)
     return {
         "site_id": topology.get("site_id"),
         "total_devices": topology.get("total_devices", 0),

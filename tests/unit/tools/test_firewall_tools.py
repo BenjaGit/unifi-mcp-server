@@ -5,29 +5,18 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 import src.tools.firewall as fw_module
+from src.api.network_client import SiteInfo
 from src.tools.firewall import (
+    create_firewall_group,
     create_firewall_rule,
+    delete_firewall_group,
     delete_firewall_rule,
+    list_firewall_groups,
     list_firewall_rules,
+    update_firewall_group,
     update_firewall_rule,
 )
 from src.utils.exceptions import ResourceNotFoundError, ValidationError
-
-
-@pytest.fixture
-def mock_settings():
-    """Create mock settings for testing."""
-    settings = MagicMock()
-    settings.log_level = "INFO"
-    settings.api_type = MagicMock()
-    settings.api_type.value = "local"
-    settings.base_url = "https://192.168.2.1"
-    settings.api_key = "test-key"
-    settings.local_host = "192.168.2.1"
-    settings.local_port = 443
-    settings.local_verify_ssl = False
-    return settings
-
 
 # =============================================================================
 # list_firewall_rules Tests - Task 16.1
@@ -35,7 +24,7 @@ def mock_settings():
 
 
 @pytest.mark.asyncio
-async def test_list_firewall_rules_success(mock_settings):
+async def test_list_firewall_rules_success():
     """Test successful listing of firewall rules."""
     mock_response = {
         "data": [
@@ -63,9 +52,13 @@ async def test_list_firewall_rules_success(mock_settings):
     mock_client.get = AsyncMock(return_value=mock_response)
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=None)
+    mock_client.resolve_site = AsyncMock(return_value=SiteInfo(name="default", uuid="uuid-default"))
+    mock_client.legacy_path = MagicMock(
+        side_effect=lambda site, ep: f"/proxy/network/api/s/{site}/{ep}"
+    )
 
-    with patch.object(fw_module, "UniFiClient", return_value=mock_client):
-        result = await list_firewall_rules(site_id="default", settings=mock_settings)
+    with patch.object(fw_module, "get_network_client", return_value=mock_client):
+        result = await list_firewall_rules(site_id="default")
 
     assert len(result) == 2
     assert result[0]["_id"] == "rule1"
@@ -76,7 +69,7 @@ async def test_list_firewall_rules_success(mock_settings):
 
 
 @pytest.mark.asyncio
-async def test_list_firewall_rules_empty(mock_settings):
+async def test_list_firewall_rules_empty():
     """Test listing firewall rules when none exist."""
     mock_response = {"data": []}
 
@@ -85,16 +78,20 @@ async def test_list_firewall_rules_empty(mock_settings):
     mock_client.get = AsyncMock(return_value=mock_response)
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=None)
+    mock_client.resolve_site = AsyncMock(return_value=SiteInfo(name="default", uuid="uuid-default"))
+    mock_client.legacy_path = MagicMock(
+        side_effect=lambda site, ep: f"/proxy/network/api/s/{site}/{ep}"
+    )
 
-    with patch.object(fw_module, "UniFiClient", return_value=mock_client):
-        result = await list_firewall_rules(site_id="default", settings=mock_settings)
+    with patch.object(fw_module, "get_network_client", return_value=mock_client):
+        result = await list_firewall_rules(site_id="default")
 
     assert len(result) == 0
     assert result == []
 
 
 @pytest.mark.asyncio
-async def test_list_firewall_rules_pagination(mock_settings):
+async def test_list_firewall_rules_pagination():
     """Test listing firewall rules with pagination."""
     mock_response = {
         "data": [
@@ -111,11 +108,13 @@ async def test_list_firewall_rules_pagination(mock_settings):
     mock_client.get = AsyncMock(return_value=mock_response)
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=None)
+    mock_client.resolve_site = AsyncMock(return_value=SiteInfo(name="default", uuid="uuid-default"))
+    mock_client.legacy_path = MagicMock(
+        side_effect=lambda site, ep: f"/proxy/network/api/s/{site}/{ep}"
+    )
 
-    with patch.object(fw_module, "UniFiClient", return_value=mock_client):
-        result = await list_firewall_rules(
-            site_id="default", settings=mock_settings, limit=2, offset=1
-        )
+    with patch.object(fw_module, "get_network_client", return_value=mock_client):
+        result = await list_firewall_rules(site_id="default", limit=2, offset=1)
 
     assert len(result) == 2
     assert result[0]["_id"] == "rule2"
@@ -123,7 +122,7 @@ async def test_list_firewall_rules_pagination(mock_settings):
 
 
 @pytest.mark.asyncio
-async def test_list_firewall_rules_list_response(mock_settings):
+async def test_list_firewall_rules_list_response():
     """Test listing firewall rules when response is auto-unwrapped list."""
     # Client may auto-unwrap data, so response could be a list directly
     mock_response = [
@@ -136,9 +135,13 @@ async def test_list_firewall_rules_list_response(mock_settings):
     mock_client.get = AsyncMock(return_value=mock_response)
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=None)
+    mock_client.resolve_site = AsyncMock(return_value=SiteInfo(name="default", uuid="uuid-default"))
+    mock_client.legacy_path = MagicMock(
+        side_effect=lambda site, ep: f"/proxy/network/api/s/{site}/{ep}"
+    )
 
-    with patch.object(fw_module, "UniFiClient", return_value=mock_client):
-        result = await list_firewall_rules(site_id="default", settings=mock_settings)
+    with patch.object(fw_module, "get_network_client", return_value=mock_client):
+        result = await list_firewall_rules(site_id="default")
 
     assert len(result) == 2
     assert result[0]["name"] == "Allow SSH"
@@ -150,7 +153,7 @@ async def test_list_firewall_rules_list_response(mock_settings):
 
 
 @pytest.mark.asyncio
-async def test_create_firewall_rule_allow(mock_settings):
+async def test_create_firewall_rule_allow():
     """Test creating an allow firewall rule."""
     mock_response = {
         "data": [
@@ -168,13 +171,16 @@ async def test_create_firewall_rule_allow(mock_settings):
     mock_client.post = AsyncMock(return_value=mock_response)
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=None)
+    mock_client.resolve_site = AsyncMock(return_value=SiteInfo(name="default", uuid="uuid-default"))
+    mock_client.legacy_path = MagicMock(
+        side_effect=lambda site, ep: f"/proxy/network/api/s/{site}/{ep}"
+    )
 
-    with patch.object(fw_module, "UniFiClient", return_value=mock_client):
+    with patch.object(fw_module, "get_network_client", return_value=mock_client):
         result = await create_firewall_rule(
             site_id="default",
             name="Allow Web Traffic",
             action="accept",
-            settings=mock_settings,
             confirm=True,
         )
 
@@ -192,7 +198,7 @@ async def test_create_firewall_rule_allow(mock_settings):
 
 
 @pytest.mark.asyncio
-async def test_create_firewall_rule_block(mock_settings):
+async def test_create_firewall_rule_block():
     """Test creating a block (drop) firewall rule."""
     mock_response = {
         "data": [
@@ -210,13 +216,16 @@ async def test_create_firewall_rule_block(mock_settings):
     mock_client.post = AsyncMock(return_value=mock_response)
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=None)
+    mock_client.resolve_site = AsyncMock(return_value=SiteInfo(name="default", uuid="uuid-default"))
+    mock_client.legacy_path = MagicMock(
+        side_effect=lambda site, ep: f"/proxy/network/api/s/{site}/{ep}"
+    )
 
-    with patch.object(fw_module, "UniFiClient", return_value=mock_client):
+    with patch.object(fw_module, "get_network_client", return_value=mock_client):
         result = await create_firewall_rule(
             site_id="default",
             name="Block Malicious Traffic",
             action="drop",
-            settings=mock_settings,
             confirm=True,
         )
 
@@ -230,7 +239,7 @@ async def test_create_firewall_rule_block(mock_settings):
 
 
 @pytest.mark.asyncio
-async def test_create_firewall_rule_reject(mock_settings):
+async def test_create_firewall_rule_reject():
     """Test creating a reject firewall rule."""
     mock_response = {
         "data": [
@@ -248,13 +257,16 @@ async def test_create_firewall_rule_reject(mock_settings):
     mock_client.post = AsyncMock(return_value=mock_response)
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=None)
+    mock_client.resolve_site = AsyncMock(return_value=SiteInfo(name="default", uuid="uuid-default"))
+    mock_client.legacy_path = MagicMock(
+        side_effect=lambda site, ep: f"/proxy/network/api/s/{site}/{ep}"
+    )
 
-    with patch.object(fw_module, "UniFiClient", return_value=mock_client):
+    with patch.object(fw_module, "get_network_client", return_value=mock_client):
         result = await create_firewall_rule(
             site_id="default",
             name="Reject Spam",
             action="reject",
-            settings=mock_settings,
             confirm=True,
         )
 
@@ -262,13 +274,12 @@ async def test_create_firewall_rule_reject(mock_settings):
 
 
 @pytest.mark.asyncio
-async def test_create_firewall_rule_dry_run(mock_settings):
+async def test_create_firewall_rule_dry_run():
     """Test create firewall rule dry run."""
     result = await create_firewall_rule(
         site_id="default",
         name="Test Rule",
         action="accept",
-        settings=mock_settings,
         confirm=True,
         dry_run=True,
     )
@@ -286,7 +297,7 @@ async def test_create_firewall_rule_dry_run(mock_settings):
 
 
 @pytest.mark.asyncio
-async def test_create_firewall_rule_with_port(mock_settings):
+async def test_create_firewall_rule_with_port():
     """Test creating a firewall rule with port specification."""
     mock_response = {
         "data": [
@@ -306,13 +317,16 @@ async def test_create_firewall_rule_with_port(mock_settings):
     mock_client.post = AsyncMock(return_value=mock_response)
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=None)
+    mock_client.resolve_site = AsyncMock(return_value=SiteInfo(name="default", uuid="uuid-default"))
+    mock_client.legacy_path = MagicMock(
+        side_effect=lambda site, ep: f"/proxy/network/api/s/{site}/{ep}"
+    )
 
-    with patch.object(fw_module, "UniFiClient", return_value=mock_client):
+    with patch.object(fw_module, "get_network_client", return_value=mock_client):
         result = await create_firewall_rule(
             site_id="default",
             name="Allow HTTPS",
             action="accept",
-            settings=mock_settings,
             protocol="tcp",
             port=443,
             confirm=True,
@@ -330,7 +344,7 @@ async def test_create_firewall_rule_with_port(mock_settings):
 
 
 @pytest.mark.asyncio
-async def test_create_firewall_rule_with_source(mock_settings):
+async def test_create_firewall_rule_with_source():
     """Test creating a firewall rule with source address."""
     mock_response = {
         "data": [
@@ -349,13 +363,16 @@ async def test_create_firewall_rule_with_source(mock_settings):
     mock_client.post = AsyncMock(return_value=mock_response)
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=None)
+    mock_client.resolve_site = AsyncMock(return_value=SiteInfo(name="default", uuid="uuid-default"))
+    mock_client.legacy_path = MagicMock(
+        side_effect=lambda site, ep: f"/proxy/network/api/s/{site}/{ep}"
+    )
 
-    with patch.object(fw_module, "UniFiClient", return_value=mock_client):
+    with patch.object(fw_module, "get_network_client", return_value=mock_client):
         result = await create_firewall_rule(
             site_id="default",
             name="Allow from LAN",
             action="accept",
-            settings=mock_settings,
             src_address="192.168.1.0/24",
             confirm=True,
         )
@@ -369,7 +386,7 @@ async def test_create_firewall_rule_with_source(mock_settings):
 
 
 @pytest.mark.asyncio
-async def test_create_firewall_rule_with_destination(mock_settings):
+async def test_create_firewall_rule_with_destination():
     """Test creating a firewall rule with destination address."""
     mock_response = {
         "data": [
@@ -388,13 +405,16 @@ async def test_create_firewall_rule_with_destination(mock_settings):
     mock_client.post = AsyncMock(return_value=mock_response)
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=None)
+    mock_client.resolve_site = AsyncMock(return_value=SiteInfo(name="default", uuid="uuid-default"))
+    mock_client.legacy_path = MagicMock(
+        side_effect=lambda site, ep: f"/proxy/network/api/s/{site}/{ep}"
+    )
 
-    with patch.object(fw_module, "UniFiClient", return_value=mock_client):
+    with patch.object(fw_module, "get_network_client", return_value=mock_client):
         result = await create_firewall_rule(
             site_id="default",
             name="Block to Server",
             action="drop",
-            settings=mock_settings,
             dst_address="10.0.0.100/32",
             confirm=True,
         )
@@ -408,14 +428,13 @@ async def test_create_firewall_rule_with_destination(mock_settings):
 
 
 @pytest.mark.asyncio
-async def test_create_firewall_rule_no_confirm(mock_settings):
+async def test_create_firewall_rule_no_confirm():
     """Test create firewall rule fails without confirmation."""
     with pytest.raises(ValidationError) as excinfo:
         await create_firewall_rule(
             site_id="default",
             name="Test Rule",
             action="accept",
-            settings=mock_settings,
             confirm=False,
         )
 
@@ -423,14 +442,13 @@ async def test_create_firewall_rule_no_confirm(mock_settings):
 
 
 @pytest.mark.asyncio
-async def test_create_firewall_rule_invalid_action(mock_settings):
+async def test_create_firewall_rule_invalid_action():
     """Test create firewall rule with invalid action."""
     with pytest.raises(ValueError) as excinfo:
         await create_firewall_rule(
             site_id="default",
             name="Test Rule",
             action="invalid_action",
-            settings=mock_settings,
             confirm=True,
         )
 
@@ -438,14 +456,13 @@ async def test_create_firewall_rule_invalid_action(mock_settings):
 
 
 @pytest.mark.asyncio
-async def test_create_firewall_rule_invalid_protocol(mock_settings):
+async def test_create_firewall_rule_invalid_protocol():
     """Test create firewall rule with invalid protocol."""
     with pytest.raises(ValueError) as excinfo:
         await create_firewall_rule(
             site_id="default",
             name="Test Rule",
             action="accept",
-            settings=mock_settings,
             protocol="invalid_protocol",
             confirm=True,
         )
@@ -454,7 +471,7 @@ async def test_create_firewall_rule_invalid_protocol(mock_settings):
 
 
 @pytest.mark.asyncio
-async def test_create_firewall_rule_disabled(mock_settings):
+async def test_create_firewall_rule_disabled():
     """Test creating a disabled firewall rule."""
     mock_response = {
         "data": [
@@ -472,13 +489,16 @@ async def test_create_firewall_rule_disabled(mock_settings):
     mock_client.post = AsyncMock(return_value=mock_response)
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=None)
+    mock_client.resolve_site = AsyncMock(return_value=SiteInfo(name="default", uuid="uuid-default"))
+    mock_client.legacy_path = MagicMock(
+        side_effect=lambda site, ep: f"/proxy/network/api/s/{site}/{ep}"
+    )
 
-    with patch.object(fw_module, "UniFiClient", return_value=mock_client):
+    with patch.object(fw_module, "get_network_client", return_value=mock_client):
         result = await create_firewall_rule(
             site_id="default",
             name="Disabled Rule",
             action="accept",
-            settings=mock_settings,
             enabled=False,
             confirm=True,
         )
@@ -492,7 +512,7 @@ async def test_create_firewall_rule_disabled(mock_settings):
 
 
 @pytest.mark.asyncio
-async def test_create_firewall_rule_full_options(mock_settings):
+async def test_create_firewall_rule_full_options():
     """Test creating a firewall rule with all options specified."""
     mock_response = {
         "data": [
@@ -514,13 +534,16 @@ async def test_create_firewall_rule_full_options(mock_settings):
     mock_client.post = AsyncMock(return_value=mock_response)
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=None)
+    mock_client.resolve_site = AsyncMock(return_value=SiteInfo(name="default", uuid="uuid-default"))
+    mock_client.legacy_path = MagicMock(
+        side_effect=lambda site, ep: f"/proxy/network/api/s/{site}/{ep}"
+    )
 
-    with patch.object(fw_module, "UniFiClient", return_value=mock_client):
+    with patch.object(fw_module, "get_network_client", return_value=mock_client):
         result = await create_firewall_rule(
             site_id="default",
             name="Full Options Rule",
             action="accept",
-            settings=mock_settings,
             src_address="192.168.1.0/24",
             dst_address="10.0.0.0/8",
             protocol="tcp",
@@ -550,7 +573,7 @@ async def test_create_firewall_rule_full_options(mock_settings):
 
 
 @pytest.mark.asyncio
-async def test_update_firewall_rule_success(mock_settings):
+async def test_update_firewall_rule_success():
     """Test successful firewall rule update."""
     mock_rules_response = {
         "data": [
@@ -579,12 +602,15 @@ async def test_update_firewall_rule_success(mock_settings):
     mock_client.put = AsyncMock(return_value=mock_update_response)
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=None)
+    mock_client.resolve_site = AsyncMock(return_value=SiteInfo(name="default", uuid="uuid-default"))
+    mock_client.legacy_path = MagicMock(
+        side_effect=lambda site, ep: f"/proxy/network/api/s/{site}/{ep}"
+    )
 
-    with patch.object(fw_module, "UniFiClient", return_value=mock_client):
+    with patch.object(fw_module, "get_network_client", return_value=mock_client):
         result = await update_firewall_rule(
             site_id="default",
             rule_id="rule123",
-            settings=mock_settings,
             name="New Name",
             confirm=True,
         )
@@ -595,7 +621,7 @@ async def test_update_firewall_rule_success(mock_settings):
 
 
 @pytest.mark.asyncio
-async def test_update_firewall_rule_action(mock_settings):
+async def test_update_firewall_rule_action():
     """Test updating firewall rule action."""
     mock_rules_response = {
         "data": [
@@ -624,12 +650,15 @@ async def test_update_firewall_rule_action(mock_settings):
     mock_client.put = AsyncMock(return_value=mock_update_response)
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=None)
+    mock_client.resolve_site = AsyncMock(return_value=SiteInfo(name="default", uuid="uuid-default"))
+    mock_client.legacy_path = MagicMock(
+        side_effect=lambda site, ep: f"/proxy/network/api/s/{site}/{ep}"
+    )
 
-    with patch.object(fw_module, "UniFiClient", return_value=mock_client):
+    with patch.object(fw_module, "get_network_client", return_value=mock_client):
         result = await update_firewall_rule(
             site_id="default",
             rule_id="rule123",
-            settings=mock_settings,
             action="drop",
             confirm=True,
         )
@@ -643,12 +672,11 @@ async def test_update_firewall_rule_action(mock_settings):
 
 
 @pytest.mark.asyncio
-async def test_update_firewall_rule_dry_run(mock_settings):
+async def test_update_firewall_rule_dry_run():
     """Test update firewall rule dry run."""
     result = await update_firewall_rule(
         site_id="default",
         rule_id="rule123",
-        settings=mock_settings,
         name="Updated Name",
         confirm=True,
         dry_run=True,
@@ -661,13 +689,12 @@ async def test_update_firewall_rule_dry_run(mock_settings):
 
 
 @pytest.mark.asyncio
-async def test_update_firewall_rule_no_confirm(mock_settings):
+async def test_update_firewall_rule_no_confirm():
     """Test update firewall rule fails without confirmation."""
     with pytest.raises(ValidationError) as excinfo:
         await update_firewall_rule(
             site_id="default",
             rule_id="rule123",
-            settings=mock_settings,
             name="New Name",
             confirm=False,
         )
@@ -676,7 +703,7 @@ async def test_update_firewall_rule_no_confirm(mock_settings):
 
 
 @pytest.mark.asyncio
-async def test_update_firewall_rule_not_found(mock_settings):
+async def test_update_firewall_rule_not_found():
     """Test updating a non-existent firewall rule."""
     mock_rules_response = {"data": []}
 
@@ -685,26 +712,28 @@ async def test_update_firewall_rule_not_found(mock_settings):
     mock_client.get = AsyncMock(return_value=mock_rules_response)
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=None)
+    mock_client.resolve_site = AsyncMock(return_value=SiteInfo(name="default", uuid="uuid-default"))
+    mock_client.legacy_path = MagicMock(
+        side_effect=lambda site, ep: f"/proxy/network/api/s/{site}/{ep}"
+    )
 
-    with patch.object(fw_module, "UniFiClient", return_value=mock_client):
+    with patch.object(fw_module, "get_network_client", return_value=mock_client):
         with pytest.raises(ResourceNotFoundError):
             await update_firewall_rule(
                 site_id="default",
                 rule_id="nonexistent",
-                settings=mock_settings,
                 name="New Name",
                 confirm=True,
             )
 
 
 @pytest.mark.asyncio
-async def test_update_firewall_rule_invalid_action(mock_settings):
+async def test_update_firewall_rule_invalid_action():
     """Test update firewall rule with invalid action."""
     with pytest.raises(ValueError) as excinfo:
         await update_firewall_rule(
             site_id="default",
             rule_id="rule123",
-            settings=mock_settings,
             action="invalid",
             confirm=True,
         )
@@ -713,13 +742,12 @@ async def test_update_firewall_rule_invalid_action(mock_settings):
 
 
 @pytest.mark.asyncio
-async def test_update_firewall_rule_invalid_protocol(mock_settings):
+async def test_update_firewall_rule_invalid_protocol():
     """Test update firewall rule with invalid protocol."""
     with pytest.raises(ValueError) as excinfo:
         await update_firewall_rule(
             site_id="default",
             rule_id="rule123",
-            settings=mock_settings,
             protocol="invalid",
             confirm=True,
         )
@@ -728,7 +756,7 @@ async def test_update_firewall_rule_invalid_protocol(mock_settings):
 
 
 @pytest.mark.asyncio
-async def test_update_firewall_rule_multiple_fields(mock_settings):
+async def test_update_firewall_rule_multiple_fields():
     """Test updating multiple firewall rule fields at once."""
     mock_rules_response = {
         "data": [
@@ -760,12 +788,15 @@ async def test_update_firewall_rule_multiple_fields(mock_settings):
     mock_client.put = AsyncMock(return_value=mock_update_response)
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=None)
+    mock_client.resolve_site = AsyncMock(return_value=SiteInfo(name="default", uuid="uuid-default"))
+    mock_client.legacy_path = MagicMock(
+        side_effect=lambda site, ep: f"/proxy/network/api/s/{site}/{ep}"
+    )
 
-    with patch.object(fw_module, "UniFiClient", return_value=mock_client):
+    with patch.object(fw_module, "get_network_client", return_value=mock_client):
         result = await update_firewall_rule(
             site_id="default",
             rule_id="rule123",
-            settings=mock_settings,
             name="New Name",
             action="drop",
             src_address="192.168.1.0/24",
@@ -786,7 +817,7 @@ async def test_update_firewall_rule_multiple_fields(mock_settings):
 
 
 @pytest.mark.asyncio
-async def test_delete_firewall_rule_success(mock_settings):
+async def test_delete_firewall_rule_success():
     """Test successful firewall rule deletion."""
     mock_rules_response = {
         "data": [
@@ -805,12 +836,15 @@ async def test_delete_firewall_rule_success(mock_settings):
     mock_client.delete = AsyncMock(return_value=mock_delete_response)
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=None)
+    mock_client.resolve_site = AsyncMock(return_value=SiteInfo(name="default", uuid="uuid-default"))
+    mock_client.legacy_path = MagicMock(
+        side_effect=lambda site, ep: f"/proxy/network/api/s/{site}/{ep}"
+    )
 
-    with patch.object(fw_module, "UniFiClient", return_value=mock_client):
+    with patch.object(fw_module, "get_network_client", return_value=mock_client):
         result = await delete_firewall_rule(
             site_id="default",
             rule_id="rule123",
-            settings=mock_settings,
             confirm=True,
         )
 
@@ -820,12 +854,11 @@ async def test_delete_firewall_rule_success(mock_settings):
 
 
 @pytest.mark.asyncio
-async def test_delete_firewall_rule_dry_run(mock_settings):
+async def test_delete_firewall_rule_dry_run():
     """Test delete firewall rule dry run."""
     result = await delete_firewall_rule(
         site_id="default",
         rule_id="rule123",
-        settings=mock_settings,
         confirm=True,
         dry_run=True,
     )
@@ -835,13 +868,12 @@ async def test_delete_firewall_rule_dry_run(mock_settings):
 
 
 @pytest.mark.asyncio
-async def test_delete_firewall_rule_no_confirm(mock_settings):
+async def test_delete_firewall_rule_no_confirm():
     """Test delete firewall rule fails without confirmation."""
     with pytest.raises(ValidationError) as excinfo:
         await delete_firewall_rule(
             site_id="default",
             rule_id="rule123",
-            settings=mock_settings,
             confirm=False,
         )
 
@@ -849,7 +881,7 @@ async def test_delete_firewall_rule_no_confirm(mock_settings):
 
 
 @pytest.mark.asyncio
-async def test_delete_firewall_rule_not_found(mock_settings):
+async def test_delete_firewall_rule_not_found():
     """Test deleting a non-existent firewall rule."""
     mock_rules_response = {"data": []}
 
@@ -858,19 +890,22 @@ async def test_delete_firewall_rule_not_found(mock_settings):
     mock_client.get = AsyncMock(return_value=mock_rules_response)
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=None)
+    mock_client.resolve_site = AsyncMock(return_value=SiteInfo(name="default", uuid="uuid-default"))
+    mock_client.legacy_path = MagicMock(
+        side_effect=lambda site, ep: f"/proxy/network/api/s/{site}/{ep}"
+    )
 
-    with patch.object(fw_module, "UniFiClient", return_value=mock_client):
+    with patch.object(fw_module, "get_network_client", return_value=mock_client):
         with pytest.raises(ResourceNotFoundError):
             await delete_firewall_rule(
                 site_id="default",
                 rule_id="nonexistent",
-                settings=mock_settings,
                 confirm=True,
             )
 
 
 @pytest.mark.asyncio
-async def test_delete_firewall_rule_multiple_rules(mock_settings):
+async def test_delete_firewall_rule_multiple_rules():
     """Test deleting correct rule when multiple exist."""
     mock_rules_response = {
         "data": [
@@ -887,12 +922,15 @@ async def test_delete_firewall_rule_multiple_rules(mock_settings):
     mock_client.delete = AsyncMock(return_value=mock_delete_response)
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=None)
+    mock_client.resolve_site = AsyncMock(return_value=SiteInfo(name="default", uuid="uuid-default"))
+    mock_client.legacy_path = MagicMock(
+        side_effect=lambda site, ep: f"/proxy/network/api/s/{site}/{ep}"
+    )
 
-    with patch.object(fw_module, "UniFiClient", return_value=mock_client):
+    with patch.object(fw_module, "get_network_client", return_value=mock_client):
         result = await delete_firewall_rule(
             site_id="default",
             rule_id="rule2",
-            settings=mock_settings,
             confirm=True,
         )
 
@@ -910,7 +948,7 @@ async def test_delete_firewall_rule_multiple_rules(mock_settings):
 
 
 @pytest.mark.asyncio
-async def test_create_firewall_rule_udp_protocol(mock_settings):
+async def test_create_firewall_rule_udp_protocol():
     """Test creating a firewall rule with UDP protocol."""
     mock_response = {
         "data": [
@@ -929,13 +967,16 @@ async def test_create_firewall_rule_udp_protocol(mock_settings):
     mock_client.post = AsyncMock(return_value=mock_response)
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=None)
+    mock_client.resolve_site = AsyncMock(return_value=SiteInfo(name="default", uuid="uuid-default"))
+    mock_client.legacy_path = MagicMock(
+        side_effect=lambda site, ep: f"/proxy/network/api/s/{site}/{ep}"
+    )
 
-    with patch.object(fw_module, "UniFiClient", return_value=mock_client):
+    with patch.object(fw_module, "get_network_client", return_value=mock_client):
         result = await create_firewall_rule(
             site_id="default",
             name="DNS Rule",
             action="accept",
-            settings=mock_settings,
             protocol="udp",
             port=53,
             confirm=True,
@@ -945,7 +986,7 @@ async def test_create_firewall_rule_udp_protocol(mock_settings):
 
 
 @pytest.mark.asyncio
-async def test_create_firewall_rule_icmp_protocol(mock_settings):
+async def test_create_firewall_rule_icmp_protocol():
     """Test creating a firewall rule with ICMP protocol."""
     mock_response = {
         "data": [
@@ -963,13 +1004,16 @@ async def test_create_firewall_rule_icmp_protocol(mock_settings):
     mock_client.post = AsyncMock(return_value=mock_response)
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=None)
+    mock_client.resolve_site = AsyncMock(return_value=SiteInfo(name="default", uuid="uuid-default"))
+    mock_client.legacy_path = MagicMock(
+        side_effect=lambda site, ep: f"/proxy/network/api/s/{site}/{ep}"
+    )
 
-    with patch.object(fw_module, "UniFiClient", return_value=mock_client):
+    with patch.object(fw_module, "get_network_client", return_value=mock_client):
         result = await create_firewall_rule(
             site_id="default",
             name="Allow Ping",
             action="accept",
-            settings=mock_settings,
             protocol="icmp",
             confirm=True,
         )
@@ -978,7 +1022,7 @@ async def test_create_firewall_rule_icmp_protocol(mock_settings):
 
 
 @pytest.mark.asyncio
-async def test_create_firewall_rule_all_protocol(mock_settings):
+async def test_create_firewall_rule_all_protocol():
     """Test creating a firewall rule with all protocols."""
     mock_response = {
         "data": [
@@ -996,13 +1040,16 @@ async def test_create_firewall_rule_all_protocol(mock_settings):
     mock_client.post = AsyncMock(return_value=mock_response)
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=None)
+    mock_client.resolve_site = AsyncMock(return_value=SiteInfo(name="default", uuid="uuid-default"))
+    mock_client.legacy_path = MagicMock(
+        side_effect=lambda site, ep: f"/proxy/network/api/s/{site}/{ep}"
+    )
 
-    with patch.object(fw_module, "UniFiClient", return_value=mock_client):
+    with patch.object(fw_module, "get_network_client", return_value=mock_client):
         result = await create_firewall_rule(
             site_id="default",
             name="Block All",
             action="drop",
-            settings=mock_settings,
             protocol="all",
             confirm=True,
         )
@@ -1011,7 +1058,7 @@ async def test_create_firewall_rule_all_protocol(mock_settings):
 
 
 @pytest.mark.asyncio
-async def test_update_firewall_rule_list_response(mock_settings):
+async def test_update_firewall_rule_list_response():
     """Test update when rules response is auto-unwrapped list."""
     # Client may auto-unwrap data
     mock_rules_response = [
@@ -1039,12 +1086,15 @@ async def test_update_firewall_rule_list_response(mock_settings):
     mock_client.put = AsyncMock(return_value=mock_update_response)
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=None)
+    mock_client.resolve_site = AsyncMock(return_value=SiteInfo(name="default", uuid="uuid-default"))
+    mock_client.legacy_path = MagicMock(
+        side_effect=lambda site, ep: f"/proxy/network/api/s/{site}/{ep}"
+    )
 
-    with patch.object(fw_module, "UniFiClient", return_value=mock_client):
+    with patch.object(fw_module, "get_network_client", return_value=mock_client):
         result = await update_firewall_rule(
             site_id="default",
             rule_id="rule123",
-            settings=mock_settings,
             name="Updated Rule",
             confirm=True,
         )
@@ -1053,7 +1103,7 @@ async def test_update_firewall_rule_list_response(mock_settings):
 
 
 @pytest.mark.asyncio
-async def test_delete_firewall_rule_list_response(mock_settings):
+async def test_delete_firewall_rule_list_response():
     """Test delete when rules response is auto-unwrapped list."""
     # Client may auto-unwrap data
     mock_rules_response = [
@@ -1067,12 +1117,15 @@ async def test_delete_firewall_rule_list_response(mock_settings):
     mock_client.delete = AsyncMock(return_value=mock_delete_response)
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=None)
+    mock_client.resolve_site = AsyncMock(return_value=SiteInfo(name="default", uuid="uuid-default"))
+    mock_client.legacy_path = MagicMock(
+        side_effect=lambda site, ep: f"/proxy/network/api/s/{site}/{ep}"
+    )
 
-    with patch.object(fw_module, "UniFiClient", return_value=mock_client):
+    with patch.object(fw_module, "get_network_client", return_value=mock_client):
         result = await delete_firewall_rule(
             site_id="default",
             rule_id="rule123",
-            settings=mock_settings,
             confirm=True,
         )
 
@@ -1085,7 +1138,7 @@ async def test_delete_firewall_rule_list_response(mock_settings):
 
 
 @pytest.mark.asyncio
-async def test_create_firewall_rule_with_networkconf_ids(mock_settings):
+async def test_create_firewall_rule_with_networkconf_ids():
     """Test creation with src_networkconf_id and dst_networkconf_id set."""
     created = {
         "data": [
@@ -1104,13 +1157,16 @@ async def test_create_firewall_rule_with_networkconf_ids(mock_settings):
     mock_client.post = AsyncMock(return_value=created)
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=None)
+    mock_client.resolve_site = AsyncMock(return_value=SiteInfo(name="default", uuid="uuid-default"))
+    mock_client.legacy_path = MagicMock(
+        side_effect=lambda site, ep: f"/proxy/network/api/s/{site}/{ep}"
+    )
 
-    with patch.object(fw_module, "UniFiClient", return_value=mock_client):
+    with patch.object(fw_module, "get_network_client", return_value=mock_client):
         result = await create_firewall_rule(
             site_id="default",
             name="Inter-VLAN Rule",
             action="accept",
-            settings=mock_settings,
             src_networkconf_id="net1",
             dst_networkconf_id="net2",
             confirm=True,
@@ -1124,7 +1180,7 @@ async def test_create_firewall_rule_with_networkconf_ids(mock_settings):
 
 
 @pytest.mark.asyncio
-async def test_create_firewall_rule_with_src_dst_address(mock_settings):
+async def test_create_firewall_rule_with_src_dst_address():
     """Test creation with src_address, dst_address, protocol, and port."""
     created = {
         "data": [
@@ -1141,13 +1197,16 @@ async def test_create_firewall_rule_with_src_dst_address(mock_settings):
     mock_client.post = AsyncMock(return_value=created)
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=None)
+    mock_client.resolve_site = AsyncMock(return_value=SiteInfo(name="default", uuid="uuid-default"))
+    mock_client.legacy_path = MagicMock(
+        side_effect=lambda site, ep: f"/proxy/network/api/s/{site}/{ep}"
+    )
 
-    with patch.object(fw_module, "UniFiClient", return_value=mock_client):
+    with patch.object(fw_module, "get_network_client", return_value=mock_client):
         await create_firewall_rule(
             site_id="default",
             name="Address Rule",
             action="drop",
-            settings=mock_settings,
             src_address="10.0.0.0/24",
             dst_address="192.168.1.0/24",
             protocol="tcp",
@@ -1164,27 +1223,30 @@ async def test_create_firewall_rule_with_src_dst_address(mock_settings):
 
 
 @pytest.mark.asyncio
-async def test_create_firewall_rule_error_handling(mock_settings):
+async def test_create_firewall_rule_error_handling():
     """Test create firewall rule error handling path."""
     mock_client = MagicMock()
     mock_client.authenticate = AsyncMock()
     mock_client.post = AsyncMock(side_effect=RuntimeError("API error"))
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=None)
+    mock_client.resolve_site = AsyncMock(return_value=SiteInfo(name="default", uuid="uuid-default"))
+    mock_client.legacy_path = MagicMock(
+        side_effect=lambda site, ep: f"/proxy/network/api/s/{site}/{ep}"
+    )
 
-    with patch.object(fw_module, "UniFiClient", return_value=mock_client):
+    with patch.object(fw_module, "get_network_client", return_value=mock_client):
         with pytest.raises(RuntimeError, match="API error"):
             await create_firewall_rule(
                 site_id="default",
                 name="Fail Rule",
                 action="accept",
-                settings=mock_settings,
                 confirm=True,
             )
 
 
 @pytest.mark.asyncio
-async def test_update_firewall_rule_with_all_fields(mock_settings):
+async def test_update_firewall_rule_with_all_fields():
     """Test update with all optional fields (src/dst address, protocol, port, enabled)."""
     existing_rules = {
         "data": [{"_id": "rule1", "name": "Old", "action": "accept", "ruleset": "WAN_IN"}]
@@ -1205,12 +1267,15 @@ async def test_update_firewall_rule_with_all_fields(mock_settings):
     mock_client.put = AsyncMock(return_value=updated)
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=None)
+    mock_client.resolve_site = AsyncMock(return_value=SiteInfo(name="default", uuid="uuid-default"))
+    mock_client.legacy_path = MagicMock(
+        side_effect=lambda site, ep: f"/proxy/network/api/s/{site}/{ep}"
+    )
 
-    with patch.object(fw_module, "UniFiClient", return_value=mock_client):
+    with patch.object(fw_module, "get_network_client", return_value=mock_client):
         await update_firewall_rule(
             site_id="default",
             rule_id="rule1",
-            settings=mock_settings,
             name="New Name",
             action="drop",
             src_address="10.0.0.0/8",
@@ -1232,39 +1297,331 @@ async def test_update_firewall_rule_with_all_fields(mock_settings):
 
 
 @pytest.mark.asyncio
-async def test_update_firewall_rule_error_handling(mock_settings):
+async def test_update_firewall_rule_error_handling():
     """Test update firewall rule error handling path."""
     mock_client = MagicMock()
     mock_client.authenticate = AsyncMock()
     mock_client.get = AsyncMock(side_effect=RuntimeError("API error"))
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=None)
+    mock_client.resolve_site = AsyncMock(return_value=SiteInfo(name="default", uuid="uuid-default"))
+    mock_client.legacy_path = MagicMock(
+        side_effect=lambda site, ep: f"/proxy/network/api/s/{site}/{ep}"
+    )
 
-    with patch.object(fw_module, "UniFiClient", return_value=mock_client):
+    with patch.object(fw_module, "get_network_client", return_value=mock_client):
         with pytest.raises(RuntimeError, match="API error"):
             await update_firewall_rule(
                 site_id="default",
                 rule_id="rule1",
-                settings=mock_settings,
                 name="Test",
                 confirm=True,
             )
 
 
 @pytest.mark.asyncio
-async def test_delete_firewall_rule_error_handling(mock_settings):
+async def test_delete_firewall_rule_error_handling():
     """Test delete firewall rule error handling path."""
     mock_client = MagicMock()
     mock_client.authenticate = AsyncMock()
     mock_client.get = AsyncMock(side_effect=RuntimeError("API error"))
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=None)
+    mock_client.resolve_site = AsyncMock(return_value=SiteInfo(name="default", uuid="uuid-default"))
+    mock_client.legacy_path = MagicMock(
+        side_effect=lambda site, ep: f"/proxy/network/api/s/{site}/{ep}"
+    )
 
-    with patch.object(fw_module, "UniFiClient", return_value=mock_client):
+    with patch.object(fw_module, "get_network_client", return_value=mock_client):
         with pytest.raises(RuntimeError, match="API error"):
             await delete_firewall_rule(
                 site_id="default",
                 rule_id="rule1",
-                settings=mock_settings,
                 confirm=True,
             )
+
+
+def _make_mock_fg_client():
+    client = MagicMock()
+    client.authenticate = AsyncMock()
+    client.resolve_site = AsyncMock(return_value=SiteInfo(name="default", uuid="uuid-default"))
+    client.legacy_path = MagicMock(side_effect=lambda site, ep: f"/proxy/network/api/s/{site}/{ep}")
+    client.get = AsyncMock()
+    client.post = AsyncMock()
+    client.put = AsyncMock()
+    client.delete = AsyncMock()
+    client.__aenter__ = AsyncMock(return_value=client)
+    client.__aexit__ = AsyncMock(return_value=None)
+    return client
+
+
+SAMPLE_GROUPS = [
+    {
+        "_id": "grp1",
+        "name": "TrustedHosts",
+        "group_type": "address-group",
+        "group_members": ["192.168.1.0/24"],
+    },
+    {"_id": "grp2", "name": "WebPorts", "group_type": "port-group", "group_members": ["80", "443"]},
+]
+
+
+# =============================================================================
+# list_firewall_groups Tests
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_list_firewall_groups_basic():
+    """Test basic firewall group listing."""
+    mock_client = _make_mock_fg_client()
+    mock_client.get = AsyncMock(return_value={"data": SAMPLE_GROUPS})
+
+    with patch.object(fw_module, "get_network_client", return_value=mock_client):
+        result = await list_firewall_groups("default")
+
+    assert len(result) == 2
+    assert result[0]["name"] == "TrustedHosts"
+
+
+@pytest.mark.asyncio
+async def test_list_firewall_groups_correct_path():
+    """Test that the correct rest/firewallgroup path is used."""
+    mock_client = _make_mock_fg_client()
+    mock_client.get = AsyncMock(return_value={"data": []})
+
+    with patch.object(fw_module, "get_network_client", return_value=mock_client):
+        await list_firewall_groups("default")
+
+    mock_client.legacy_path.assert_called_once_with("default", "rest/firewallgroup")
+
+
+@pytest.mark.asyncio
+async def test_list_firewall_groups_empty():
+    """Test listing with no groups."""
+    mock_client = _make_mock_fg_client()
+    mock_client.get = AsyncMock(return_value={"data": []})
+
+    with patch.object(fw_module, "get_network_client", return_value=mock_client):
+        result = await list_firewall_groups("default")
+
+    assert len(result) == 0
+
+
+# =============================================================================
+# create_firewall_group Tests
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_create_firewall_group_basic():
+    """Test basic firewall group creation."""
+    mock_client = _make_mock_fg_client()
+    mock_client.post = AsyncMock(return_value={"data": [{"_id": "new-grp", "name": "MyGroup"}]})
+
+    with patch.object(fw_module, "get_network_client", return_value=mock_client):
+        result = await create_firewall_group(
+            site_id="default",
+            name="MyGroup",
+            group_type="address-group",
+            group_members=["10.0.0.0/8"],
+            confirm=True,
+        )
+
+    assert result is not None
+    mock_client.post.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_create_firewall_group_dry_run():
+    """Test dry run skips API call."""
+    mock_client = _make_mock_fg_client()
+
+    with patch.object(fw_module, "get_network_client", return_value=mock_client):
+        result = await create_firewall_group(
+            site_id="default",
+            name="MyGroup",
+            group_type="address-group",
+            group_members=[],
+            confirm=True,
+            dry_run=True,
+        )
+
+    assert result["dry_run"] is True
+    mock_client.post.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_create_firewall_group_no_confirm():
+    """Test that missing confirm raises error."""
+    with pytest.raises(ValidationError):
+        await create_firewall_group(
+            site_id="default",
+            name="MyGroup",
+            group_type="address-group",
+            group_members=[],
+            confirm=False,
+        )
+
+
+@pytest.mark.asyncio
+async def test_create_firewall_group_payload():
+    """Test that the correct payload is sent."""
+    mock_client = _make_mock_fg_client()
+    mock_client.post = AsyncMock(return_value={"_id": "new-grp"})
+
+    with patch.object(fw_module, "get_network_client", return_value=mock_client):
+        await create_firewall_group(
+            site_id="default",
+            name="TestGroup",
+            group_type="port-group",
+            group_members=["80", "443"],
+            confirm=True,
+        )
+
+    payload = mock_client.post.call_args[1]["json_data"]
+    assert payload["name"] == "TestGroup"
+    assert payload["group_type"] == "port-group"
+    assert payload["group_members"] == ["80", "443"]
+
+
+# =============================================================================
+# update_firewall_group Tests
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_update_firewall_group_basic():
+    """Test basic firewall group update."""
+    mock_client = _make_mock_fg_client()
+    mock_client.get = AsyncMock(return_value={"data": SAMPLE_GROUPS})
+    mock_client.put = AsyncMock(return_value={"_id": "grp1", "name": "Renamed"})
+
+    with patch.object(fw_module, "get_network_client", return_value=mock_client):
+        result = await update_firewall_group(
+            site_id="default",
+            group_id="grp1",
+            name="Renamed",
+            confirm=True,
+        )
+
+    assert result is not None
+    mock_client.put.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_update_firewall_group_dry_run():
+    """Test dry run skips API call."""
+    mock_client = _make_mock_fg_client()
+
+    with patch.object(fw_module, "get_network_client", return_value=mock_client):
+        result = await update_firewall_group(
+            site_id="default",
+            group_id="grp1",
+            confirm=True,
+            dry_run=True,
+        )
+
+    assert result["dry_run"] is True
+    mock_client.put.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_update_firewall_group_not_found():
+    """Test that updating non-existent group raises ResourceNotFoundError."""
+    mock_client = _make_mock_fg_client()
+    mock_client.get = AsyncMock(return_value={"data": SAMPLE_GROUPS})
+
+    with patch.object(fw_module, "get_network_client", return_value=mock_client):
+        with pytest.raises(ResourceNotFoundError):
+            await update_firewall_group(
+                site_id="default",
+                group_id="nonexistent",
+                name="NewName",
+                confirm=True,
+            )
+
+
+@pytest.mark.asyncio
+async def test_update_firewall_group_members():
+    """Test that members are updated correctly."""
+    mock_client = _make_mock_fg_client()
+    mock_client.get = AsyncMock(return_value={"data": SAMPLE_GROUPS})
+    mock_client.put = AsyncMock(return_value={"_id": "grp1"})
+
+    with patch.object(fw_module, "get_network_client", return_value=mock_client):
+        await update_firewall_group(
+            site_id="default",
+            group_id="grp1",
+            group_members=["10.0.0.0/8", "172.16.0.0/12"],
+            confirm=True,
+        )
+
+    payload = mock_client.put.call_args[1]["json_data"]
+    assert payload["group_members"] == ["10.0.0.0/8", "172.16.0.0/12"]
+
+
+# =============================================================================
+# delete_firewall_group Tests
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_delete_firewall_group_basic():
+    """Test basic firewall group deletion."""
+    mock_client = _make_mock_fg_client()
+    mock_client.delete = AsyncMock(return_value=None)
+
+    with patch.object(fw_module, "get_network_client", return_value=mock_client):
+        result = await delete_firewall_group(
+            site_id="default",
+            group_id="grp1",
+            confirm=True,
+        )
+
+    assert result["success"] is True
+    assert result["group_id"] == "grp1"
+
+
+@pytest.mark.asyncio
+async def test_delete_firewall_group_dry_run():
+    """Test dry run skips deletion."""
+    mock_client = _make_mock_fg_client()
+
+    with patch.object(fw_module, "get_network_client", return_value=mock_client):
+        result = await delete_firewall_group(
+            site_id="default",
+            group_id="grp1",
+            confirm=True,
+            dry_run=True,
+        )
+
+    assert result["dry_run"] is True
+    mock_client.delete.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_delete_firewall_group_no_confirm():
+    """Test that missing confirm raises error."""
+    with pytest.raises(ValidationError):
+        await delete_firewall_group(
+            site_id="default",
+            group_id="grp1",
+            confirm=False,
+        )
+
+
+@pytest.mark.asyncio
+async def test_delete_firewall_group_correct_path():
+    """Test that the correct path is used for deletion."""
+    mock_client = _make_mock_fg_client()
+    mock_client.delete = AsyncMock(return_value=None)
+
+    with patch.object(fw_module, "get_network_client", return_value=mock_client):
+        await delete_firewall_group(
+            site_id="default",
+            group_id="grp99",
+            confirm=True,
+        )
+
+    mock_client.legacy_path.assert_called_with("default", "rest/firewallgroup/grp99")

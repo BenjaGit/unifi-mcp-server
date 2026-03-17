@@ -2,8 +2,9 @@
 
 from typing import Any
 
-from ..api import UniFiClient
-from ..config import Settings
+from fastmcp.server.providers import LocalProvider
+
+from ..api.pool import get_network_client
 from ..utils import (
     ResourceNotFoundError,
     ValidationError,
@@ -14,10 +15,41 @@ from ..utils import (
     validate_site_id,
 )
 
+logger = get_logger(__name__)
+provider = LocalProvider()
 
+__all__ = [
+    "provider",
+    "list_wlans",
+    "create_wlan",
+    "update_wlan",
+    "delete_wlan",
+    "get_wlan_statistics",
+]
+
+
+def _map_security_to_integration(security: str, wpa_mode: str = "wpa2") -> str:
+    """Map legacy security/wpa_mode to Integration API securityConfiguration type."""
+    if security == "open":
+        return "OPEN"
+    if security == "wpaeap":
+        return "WPA2_ENTERPRISE"
+    # wpapsk
+    mode_map = {"wpa": "WPA_PERSONAL", "wpa2": "WPA2_PERSONAL", "wpa3": "WPA3_PERSONAL"}
+    return mode_map.get(wpa_mode, "WPA2_PERSONAL")
+
+
+def _map_bands_to_integration(wlan_bands: list[str] | None) -> list[float] | None:
+    """Map legacy band names to Integration API frequency GHz values."""
+    if not wlan_bands:
+        return None
+    band_map = {"2g": 2.4, "5g": 5, "6g": 6}
+    return [band_map[b] for b in wlan_bands if b in band_map]
+
+
+@provider.tool()
 async def list_wlans(
     site_id: str,
-    settings: Settings,
     limit: int | None = None,
     offset: int | None = None,
 ) -> list[dict[str, Any]]:
@@ -25,7 +57,6 @@ async def list_wlans(
 
     Args:
         site_id: Site identifier
-        settings: Application settings
         limit: Maximum number of WLANs to return
         offset: Number of WLANs to skip
 
@@ -34,29 +65,29 @@ async def list_wlans(
     """
     site_id = validate_site_id(site_id)
     limit, offset = validate_limit_offset(limit, offset)
-    logger = get_logger(__name__, settings.log_level)
-
-    async with UniFiClient(settings) as client:
+    client = get_network_client()
+    if not client.is_authenticated:
         await client.authenticate()
 
-        response = await client.get(f"/ea/sites/{site_id}/rest/wlanconf")
-        # Handle both list and dict responses
-        wlans_data: list[dict[str, Any]] = (
-            response if isinstance(response, list) else response.get("data", [])
-        )
+    site = await client.resolve_site(site_id)
 
-        # Apply pagination
-        paginated = wlans_data[offset : offset + limit]
+    response = await client.get(client.integration_path(site.uuid, "wifi/broadcasts"))
+    wlans_data: list[dict[str, Any]] = (
+        response if isinstance(response, list) else response.get("data", [])
+    )
 
-        logger.info(f"Retrieved {len(paginated)} WLANs for site '{site_id}'")
-        return paginated
+    # Apply pagination
+    paginated = wlans_data[offset : offset + limit]
+
+    logger.info(f"Retrieved {len(paginated)} WLANs for site '{site_id}'")
+    return paginated
 
 
+@provider.tool()
 async def create_wlan(
     site_id: str,
     name: str,
     security: str,
-    settings: Settings,
     password: str | None = None,
     enabled: bool = True,
     is_guest: bool = False,
@@ -80,7 +111,6 @@ async def create_wlan(
         site_id: Site identifier
         name: SSID name
         security: Security type (open, wpapsk, wpaeap)
-        settings: Application settings
         password: WiFi password (required for wpapsk)
         enabled: Enable the WLAN immediately
         is_guest: Mark as guest network
@@ -107,7 +137,6 @@ async def create_wlan(
     """
     site_id = validate_site_id(site_id)
     validate_confirmation(confirm, "wifi operation", dry_run)
-    logger = get_logger(__name__, settings.log_level)
 
     # Validate security type
     valid_security = ["open", "wpapsk", "wpaeap"]
@@ -132,49 +161,28 @@ async def create_wlan(
             f"Invalid WPA encryption '{wpa_enc}'. Must be one of: {valid_wpa_enc}"
         )
 
-    # Build WLAN data
-    wlan_data = {
+    # Build Integration API payload
+    wlan_data: dict[str, Any] = {
         "name": name,
-        "security": security,
         "enabled": enabled,
-        "is_guest": is_guest,
-        "hide_ssid": hide_ssid,
+        "hideName": hide_ssid,
     }
 
-    if security == "wpapsk":
-        wlan_data["x_passphrase"] = password
-        wlan_data["wpa_mode"] = wpa_mode
-        wlan_data["wpa_enc"] = wpa_enc
+    # Security configuration
+    sec_type = _map_security_to_integration(security, wpa_mode)
+    sec_config: dict[str, Any] = {"type": sec_type}
+    if security == "wpapsk" and password:
+        sec_config["passphrase"] = password
+    wlan_data["securityConfiguration"] = sec_config
 
-    if vlan_id is not None:
-        if not 1 <= vlan_id <= 4094:
-            raise ValidationError(f"Invalid VLAN ID {vlan_id}. Must be between 1 and 4094")
-        wlan_data["vlan"] = vlan_id
-        wlan_data["vlan_enabled"] = True
+    # Network association
+    if networkconf_id:
+        wlan_data["network"] = {"type": "SPECIFIC", "networkId": networkconf_id}
 
-    if networkconf_id is not None:
-        wlan_data["networkconf_id"] = networkconf_id
-
-    if ap_group_ids is not None:
-        wlan_data["ap_group_ids"] = ap_group_ids
-
-    if ap_group_mode is not None:
-        wlan_data["ap_group_mode"] = ap_group_mode
-
-    if wlan_bands is not None:
-        wlan_data["wlan_bands"] = wlan_bands
-
-    if optimize_iot_wifi_connectivity is not None:
-        wlan_data["optimize_iot_wifi_connectivity"] = optimize_iot_wifi_connectivity
-        if optimize_iot_wifi_connectivity:
-            wlan_data["b_supported"] = True
-            wlan_data["no2ghz_oui"] = False
-
-    if minrate_ng_enabled is not None:
-        wlan_data["minrate_ng_enabled"] = minrate_ng_enabled
-
-    if minrate_ng_data_rate_kbps is not None:
-        wlan_data["minrate_ng_data_rate_kbps"] = minrate_ng_data_rate_kbps
+    # Broadcasting frequencies
+    freq = _map_bands_to_integration(wlan_bands)
+    if freq:
+        wlan_data["broadcastingFrequenciesGHz"] = freq
 
     # Log parameters for audit (mask password)
     parameters = {
@@ -193,37 +201,44 @@ async def create_wlan(
 
     if dry_run:
         logger.info(f"DRY RUN: Would create WLAN '{name}' in site '{site_id}'")
-        log_audit(
+        await log_audit(
             operation="create_wlan",
             parameters=parameters,
             result="dry_run",
             site_id=site_id,
             dry_run=True,
         )
-        # Don't include password in dry-run output
-        safe_data = {k: v for k, v in wlan_data.items() if k != "x_passphrase"}
+        # Don't include passphrase in dry-run output
+        safe_data = {k: v for k, v in wlan_data.items() if k != "securityConfiguration"}
+        safe_data["securityConfiguration"] = {"type": sec_type}
         return {"dry_run": True, "would_create": safe_data}
 
     try:
-        async with UniFiClient(settings) as client:
+        client = get_network_client()
+        if not client.is_authenticated:
             await client.authenticate()
 
-            response = await client.post(f"/ea/sites/{site_id}/rest/wlanconf", json_data=wlan_data)
-            created_wlan: dict[str, Any] = response.get("data", [{}])[0]
+        site = await client.resolve_site(site_id)
 
-            logger.info(f"Created WLAN '{name}' in site '{site_id}'")
-            log_audit(
-                operation="create_wlan",
-                parameters=parameters,
-                result="success",
-                site_id=site_id,
-            )
+        response = await client.post(
+            client.integration_path(site.uuid, "wifi/broadcasts"),
+            json_data=wlan_data,
+        )
+        created_wlan = response if isinstance(response, dict) else {}
 
-            return created_wlan
+        logger.info(f"Created WLAN '{name}' in site '{site_id}'")
+        await log_audit(
+            operation="create_wlan",
+            parameters=parameters,
+            result="success",
+            site_id=site_id,
+        )
+
+        return created_wlan
 
     except Exception as e:
         logger.error(f"Failed to create WLAN '{name}': {e}")
-        log_audit(
+        await log_audit(
             operation="create_wlan",
             parameters=parameters,
             result="failed",
@@ -232,10 +247,10 @@ async def create_wlan(
         raise
 
 
+@provider.tool()
 async def update_wlan(
     site_id: str,
     wlan_id: str,
-    settings: Settings,
     name: str | None = None,
     security: str | None = None,
     password: str | None = None,
@@ -253,7 +268,6 @@ async def update_wlan(
     Args:
         site_id: Site identifier
         wlan_id: WLAN ID
-        settings: Application settings
         name: New SSID name
         security: New security type (open, wpapsk, wpaeap)
         password: New WiFi password
@@ -275,7 +289,6 @@ async def update_wlan(
     """
     site_id = validate_site_id(site_id)
     validate_confirmation(confirm, "wifi operation", dry_run)
-    logger = get_logger(__name__, settings.log_level)
 
     # Validate security type if provided
     if security is not None:
@@ -319,7 +332,7 @@ async def update_wlan(
 
     if dry_run:
         logger.info(f"DRY RUN: Would update WLAN '{wlan_id}' in site '{site_id}'")
-        log_audit(
+        await log_audit(
             operation="update_wlan",
             parameters=parameters,
             result="dry_run",
@@ -329,63 +342,63 @@ async def update_wlan(
         return {"dry_run": True, "would_update": parameters}
 
     try:
-        async with UniFiClient(settings) as client:
+        client = get_network_client()
+        if not client.is_authenticated:
             await client.authenticate()
 
-            # Get existing WLAN
-            response = await client.get(f"/ea/sites/{site_id}/rest/wlanconf")
-            wlans_data: list[dict[str, Any]] = response.get("data", [])
+        site = await client.resolve_site(site_id)
 
-            existing_wlan = None
-            for wlan in wlans_data:
-                if wlan.get("_id") == wlan_id:
-                    existing_wlan = wlan
-                    break
+        # Fetch existing WLAN from Integration API
+        try:
+            existing = await client.get(
+                client.integration_path(site.uuid, f"wifi/broadcasts/{wlan_id}")
+            )
+        except Exception as e:
+            if "404" in str(e) or "not found" in str(e).lower():
+                raise ResourceNotFoundError("wlan", wlan_id) from e
+            raise
 
-            if not existing_wlan:
-                raise ResourceNotFoundError("wlan", wlan_id)
+        if not existing or not isinstance(existing, dict):
+            raise ResourceNotFoundError("wlan", wlan_id)
 
-            # Build update data
-            update_data = existing_wlan.copy()
+        # Build update payload from existing + changes
+        update_data = existing.copy()
 
-            if name is not None:
-                update_data["name"] = name
+        if name is not None:
+            update_data["name"] = name
+        if enabled is not None:
+            update_data["enabled"] = enabled
+        if hide_ssid is not None:
+            update_data["hideName"] = hide_ssid
+
+        # Update security configuration
+        if security is not None or password is not None or wpa_mode is not None:
+            sec_config = update_data.get("securityConfiguration", {}).copy()
             if security is not None:
-                update_data["security"] = security
+                sec_config["type"] = _map_security_to_integration(security, wpa_mode or "wpa2")
             if password is not None:
-                update_data["x_passphrase"] = password
-            if enabled is not None:
-                update_data["enabled"] = enabled
-            if is_guest is not None:
-                update_data["is_guest"] = is_guest
-            if wpa_mode is not None:
-                update_data["wpa_mode"] = wpa_mode
-            if wpa_enc is not None:
-                update_data["wpa_enc"] = wpa_enc
-            if vlan_id is not None:
-                update_data["vlan"] = vlan_id
-                update_data["vlan_enabled"] = True
-            if hide_ssid is not None:
-                update_data["hide_ssid"] = hide_ssid
+                sec_config["passphrase"] = password
+            update_data["securityConfiguration"] = sec_config
 
-            response = await client.put(
-                f"/ea/sites/{site_id}/rest/wlanconf/{wlan_id}", json_data=update_data
-            )
-            updated_wlan: dict[str, Any] = response.get("data", [{}])[0]
+        response = await client.put(
+            client.integration_path(site.uuid, f"wifi/broadcasts/{wlan_id}"),
+            json_data=update_data,
+        )
+        updated_wlan = response if isinstance(response, dict) else {}
 
-            logger.info(f"Updated WLAN '{wlan_id}' in site '{site_id}'")
-            log_audit(
-                operation="update_wlan",
-                parameters=parameters,
-                result="success",
-                site_id=site_id,
-            )
+        logger.info(f"Updated WLAN '{wlan_id}' in site '{site_id}'")
+        await log_audit(
+            operation="update_wlan",
+            parameters=parameters,
+            result="success",
+            site_id=site_id,
+        )
 
-            return updated_wlan
+        return updated_wlan
 
     except Exception as e:
         logger.error(f"Failed to update WLAN '{wlan_id}': {e}")
-        log_audit(
+        await log_audit(
             operation="update_wlan",
             parameters=parameters,
             result="failed",
@@ -394,10 +407,10 @@ async def update_wlan(
         raise
 
 
+@provider.tool(annotations={"destructiveHint": True})
 async def delete_wlan(
     site_id: str,
     wlan_id: str,
-    settings: Settings,
     confirm: bool | str = False,
     dry_run: bool | str = False,
 ) -> dict[str, Any]:
@@ -406,7 +419,6 @@ async def delete_wlan(
     Args:
         site_id: Site identifier
         wlan_id: WLAN ID
-        settings: Application settings
         confirm: Confirmation flag (must be True to execute)
         dry_run: If True, validate but don't delete the WLAN
 
@@ -419,13 +431,12 @@ async def delete_wlan(
     """
     site_id = validate_site_id(site_id)
     validate_confirmation(confirm, "wifi operation", dry_run)
-    logger = get_logger(__name__, settings.log_level)
 
     parameters = {"site_id": site_id, "wlan_id": wlan_id}
 
     if dry_run:
         logger.info(f"DRY RUN: Would delete WLAN '{wlan_id}' from site '{site_id}'")
-        log_audit(
+        await log_audit(
             operation="delete_wlan",
             parameters=parameters,
             result="dry_run",
@@ -435,32 +446,35 @@ async def delete_wlan(
         return {"dry_run": True, "would_delete": wlan_id}
 
     try:
-        async with UniFiClient(settings) as client:
+        client = get_network_client()
+        if not client.is_authenticated:
             await client.authenticate()
 
-            # Verify WLAN exists before deleting
-            response = await client.get(f"/ea/sites/{site_id}/rest/wlanconf")
-            wlans_data: list[dict[str, Any]] = response.get("data", [])
+        site = await client.resolve_site(site_id)
 
-            wlan_exists = any(wlan.get("_id") == wlan_id for wlan in wlans_data)
-            if not wlan_exists:
-                raise ResourceNotFoundError("wlan", wlan_id)
+        # Verify WLAN exists before deleting
+        try:
+            await client.get(client.integration_path(site.uuid, f"wifi/broadcasts/{wlan_id}"))
+        except Exception as e:
+            if "404" in str(e) or "not found" in str(e).lower():
+                raise ResourceNotFoundError("wlan", wlan_id) from e
+            raise
 
-            response = await client.delete(f"/ea/sites/{site_id}/rest/wlanconf/{wlan_id}")
+        await client.delete(client.integration_path(site.uuid, f"wifi/broadcasts/{wlan_id}"))
 
-            logger.info(f"Deleted WLAN '{wlan_id}' from site '{site_id}'")
-            log_audit(
-                operation="delete_wlan",
-                parameters=parameters,
-                result="success",
-                site_id=site_id,
-            )
+        logger.info(f"Deleted WLAN '{wlan_id}' from site '{site_id}'")
+        await log_audit(
+            operation="delete_wlan",
+            parameters=parameters,
+            result="success",
+            site_id=site_id,
+        )
 
-            return {"success": True, "deleted_wlan_id": wlan_id}
+        return {"success": True, "deleted_wlan_id": wlan_id}
 
     except Exception as e:
         logger.error(f"Failed to delete WLAN '{wlan_id}': {e}")
-        log_audit(
+        await log_audit(
             operation="delete_wlan",
             parameters=parameters,
             result="failed",
@@ -469,71 +483,74 @@ async def delete_wlan(
         raise
 
 
+@provider.tool()
 async def get_wlan_statistics(
     site_id: str,
-    settings: Settings,
     wlan_id: str | None = None,
 ) -> dict[str, Any]:
     """Get WiFi usage statistics.
 
     Args:
         site_id: Site identifier
-        settings: Application settings
         wlan_id: Optional WLAN ID to filter statistics
 
     Returns:
         WLAN statistics dictionary
     """
     site_id = validate_site_id(site_id)
-    logger = get_logger(__name__, settings.log_level)
-
-    async with UniFiClient(settings) as client:
+    client = get_network_client()
+    if not client.is_authenticated:
         await client.authenticate()
 
-        # Get WLANs
-        wlans_response = await client.get(f"/ea/sites/{site_id}/rest/wlanconf")
-        wlans_data = wlans_response.get("data", [])
+    site = await client.resolve_site(site_id)
 
-        # Get active clients
-        clients_response = await client.get(f"/ea/sites/{site_id}/sta")
-        clients_data = clients_response.get("data", [])
+    # Get WLANs from Integration API
+    wlans_response = await client.get(client.integration_path(site.uuid, "wifi/broadcasts"))
+    wlans_data = (
+        wlans_response if isinstance(wlans_response, list) else wlans_response.get("data", [])
+    )
 
-        # Calculate statistics per WLAN
-        wlan_stats = []
-        for wlan in wlans_data:
-            wlan_identifier = wlan.get("_id")
-            wlan_name = wlan.get("name")
+    # Get active clients (still legacy — no Integration API equivalent)
+    clients_response = await client.get(client.legacy_path(site.name, "sta"))
+    clients_data = (
+        clients_response if isinstance(clients_response, list) else clients_response.get("data", [])
+    )
 
-            # Skip if filtering by WLAN ID and this isn't it
-            if wlan_id and wlan_identifier != wlan_id:
-                continue
+    # Calculate statistics per WLAN
+    wlan_stats = []
+    for wlan in wlans_data:
+        wlan_identifier = wlan.get("id")
+        wlan_name = wlan.get("name")
 
-            # Count clients on this WLAN (match by essid/name)
-            clients_on_wlan = [
-                c for c in clients_data if c.get("essid") == wlan_name or c.get("is_wired") is False
-            ]
+        # Skip if filtering by WLAN ID and this isn't it
+        if wlan_id and wlan_identifier != wlan_id:
+            continue
 
-            # Calculate total bandwidth
-            total_tx = sum(c.get("tx_bytes", 0) for c in clients_on_wlan)
-            total_rx = sum(c.get("rx_bytes", 0) for c in clients_on_wlan)
+        # Count clients on this WLAN by matching ESSID to WLAN name.
+        # Clients missing ESSID are excluded to avoid inflating per-SSID stats.
+        clients_on_wlan = [c for c in clients_data if c.get("essid") == wlan_name]
 
-            wlan_stats.append(
-                {
-                    "wlan_id": wlan_identifier,
-                    "name": wlan_name,
-                    "enabled": wlan.get("enabled", False),
-                    "security": wlan.get("security"),
-                    "is_guest": wlan.get("is_guest", False),
-                    "client_count": len(clients_on_wlan),
-                    "total_tx_bytes": total_tx,
-                    "total_rx_bytes": total_rx,
-                    "total_bytes": total_tx + total_rx,
-                }
-            )
+        # Calculate total bandwidth
+        total_tx = sum(c.get("tx_bytes", 0) for c in clients_on_wlan)
+        total_rx = sum(c.get("rx_bytes", 0) for c in clients_on_wlan)
 
-        logger.info(f"Retrieved WLAN statistics for site '{site_id}'")
+        sec_config = wlan.get("securityConfiguration", {})
 
-        if wlan_id:
-            return wlan_stats[0] if wlan_stats else {}
-        else:
-            return {"site_id": site_id, "wlans": wlan_stats}
+        wlan_stats.append(
+            {
+                "wlan_id": wlan_identifier,
+                "name": wlan_name,
+                "enabled": wlan.get("enabled", False),
+                "security": sec_config.get("type"),
+                "client_count": len(clients_on_wlan),
+                "total_tx_bytes": total_tx,
+                "total_rx_bytes": total_rx,
+                "total_bytes": total_tx + total_rx,
+            }
+        )
+
+    logger.info(f"Retrieved WLAN statistics for site '{site_id}'")
+
+    if wlan_id:
+        return wlan_stats[0] if wlan_stats else {}
+    return {"site_id": site_id, "wlans": wlan_stats}

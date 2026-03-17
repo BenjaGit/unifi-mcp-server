@@ -59,14 +59,14 @@ Ask the user about the release:
 
 ### Step 2: Review Development Plan Progress
 
-Load and analyze DEVELOPMENT_PLAN.md and TODO.md:
+Load and analyze CHANGELOG.md and CHANGELOG.md:
 
 ```python
 # Check current progress
 Current Version: v0.1.4
 Next Planned: v0.2.0
 
-v0.2.0 Status (from TODO.md):
+v0.2.0 Status (from CHANGELOG.md):
 - Phase 1 (ZBF): ~60% complete
 - Phase 2 (Traffic Flows): 100% complete ✅
 - Phase 3 (QoS): 0% complete
@@ -133,13 +133,13 @@ Based on completion status, define what's included:
 **Documentation** (Must Be Updated):
 
 - [ ] README.md updated with new features
-- [ ] API.md updated with new tools
+- [ ] docs/api/mcp-tools.md updated with new tools
 - [ ] CHANGELOG.md has release notes
 - [ ] Version numbers updated in:
   - [ ] `pyproject.toml`
   - [ ] `src/__init__.py`
   - [ ] `README.md`
-  - [ ] `DEVELOPMENT_PLAN.md`
+  - [ ] `CHANGELOG.md`
 - [ ] Migration guides written (if breaking changes)
 
 **CI/CD** (Must Pass):
@@ -357,7 +357,7 @@ git checkout -b release/v0.2.0
 # Update version in pyproject.toml
 # Update version in src/__init__.py
 # Update README.md with version
-# Update DEVELOPMENT_PLAN.md progress
+# Update CHANGELOG.md progress
 
 git add .
 git commit -m "chore: prepare v0.2.0 release"
@@ -366,7 +366,7 @@ git commit -m "chore: prepare v0.2.0 release"
 **Step 2: Update Documentation**
 
 ```bash
-# Generate/update API.md
+# Generate/update docs/api/mcp-tools.md
 # (Use api-doc-generator skill)
 
 # Update CHANGELOG.md with release notes
@@ -374,7 +374,7 @@ git commit -m "chore: prepare v0.2.0 release"
 
 # Update README.md features list
 
-git add API.md CHANGELOG.md README.md
+git add docs/api/mcp-tools.md CHANGELOG.md README.md
 git commit -m "docs: update documentation for v0.2.0 release"
 ```
 
@@ -424,7 +424,7 @@ This release adds Traffic Flow Monitoring and Zone-Based Firewall support.
 - [x] Version bumped in pyproject.toml
 - [x] CHANGELOG.md updated
 - [x] README.md updated
-- [x] API.md updated
+- [x] docs/api/mcp-tools.md updated
 - [x] All CI checks passing
 - [x] Pre-release validation passed
 
@@ -507,7 +507,7 @@ docker pull ghcr.io/enuno/unifi-mcp-server:latest
 ## 📚 Documentation
 
 - [README.md](README.md) - Getting started
-- [API.md](API.md) - Complete API reference
+- [docs/api/mcp-tools.md](docs/api/mcp-tools.md) - Complete API reference
 - [CHANGELOG.md](CHANGELOG.md) - Full changelog
 
 ## 🙏 Contributors
@@ -544,7 +544,7 @@ EOF
 
 **Next Steps:**
 - [ ] Create v0.2.1 milestone for pending features
-- [ ] Update DEVELOPMENT_PLAN.md with v0.3.0 timeline
+- [ ] Update CHANGELOG.md with v0.3.0 timeline
 - [ ] Begin Sprint 1 of next version
 
 ### Version Bump for Development
@@ -562,14 +562,14 @@ git push
 
 - **Before release**: Use `test-strategy` to ensure coverage targets met
 - **During release**: Use `api-doc-generator` to update documentation
-- **After release**: Plan next version with DEVELOPMENT_PLAN.md
+- **After release**: Plan next version with CHANGELOG.md
 
 ## Reference Files
 
 Load for context:
 
-- `DEVELOPMENT_PLAN.md` - Release milestones and progress
-- `TODO.md` - Feature completion status
+- `CHANGELOG.md` - Release milestones and progress
+- `CHANGELOG.md` - Feature completion status
 - `CHANGELOG.md` - Release history
 - `pyproject.toml` - Version configuration
 - `.github/workflows/release.yml` - Release automation

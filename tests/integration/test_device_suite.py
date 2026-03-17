@@ -24,7 +24,6 @@ async def test_list_devices_by_type(settings, env: TestEnvironment) -> dict[str,
             result = await devices.list_devices_by_type(
                 site_id=env.site_id,
                 device_type=device_type,
-                settings=settings,
             )
 
             # Validate response structure
@@ -68,7 +67,6 @@ async def test_list_devices_by_type_pagination(settings, env: TestEnvironment) -
             result = await devices.list_devices_by_type(
                 site_id=env.site_id,
                 device_type=dt,
-                settings=settings,
             )
             if result:
                 device_type = dt
@@ -81,7 +79,6 @@ async def test_list_devices_by_type_pagination(settings, env: TestEnvironment) -
         limited = await devices.list_devices_by_type(
             site_id=env.site_id,
             device_type=device_type,
-            settings=settings,
             limit=1,
         )
 
@@ -92,7 +89,6 @@ async def test_list_devices_by_type_pagination(settings, env: TestEnvironment) -
         offset_result = await devices.list_devices_by_type(
             site_id=env.site_id,
             device_type=device_type,
-            settings=settings,
             offset=0,
             limit=10,
         )
@@ -123,7 +119,6 @@ async def test_get_device_details(settings, env: TestEnvironment) -> dict[str, A
             device_list = await devices.list_devices_by_type(
                 site_id=env.site_id,
                 device_type=device_type,
-                settings=settings,
                 limit=1,
             )
             if device_list:
@@ -139,7 +134,6 @@ async def test_get_device_details(settings, env: TestEnvironment) -> dict[str, A
         result = await devices.get_device_details(
             site_id=env.site_id,
             device_id=device_id,
-            settings=settings,
         )
 
         # Validate response structure
@@ -173,7 +167,6 @@ async def test_get_device_details_missing(settings, env: TestEnvironment) -> dic
         await devices.get_device_details(
             site_id=env.site_id,
             device_id=fake_id,
-            settings=settings,
         )
 
         # If we get here, the device exists (unlikely) or error handling is wrong
@@ -206,7 +199,6 @@ async def test_get_device_statistics(settings, env: TestEnvironment) -> dict[str
             device_list = await devices.list_devices_by_type(
                 site_id=env.site_id,
                 device_type=device_type,
-                settings=settings,
                 limit=1,
             )
             if device_list:
@@ -222,7 +214,6 @@ async def test_get_device_statistics(settings, env: TestEnvironment) -> dict[str
         result = await devices.get_device_statistics(
             site_id=env.site_id,
             device_id=device_id,
-            settings=settings,
         )
 
         # Validate response structure
@@ -261,7 +252,6 @@ async def test_search_devices_by_partial_name(settings, env: TestEnvironment) ->
             device_list = await devices.list_devices_by_type(
                 site_id=env.site_id,
                 device_type=device_type,
-                settings=settings,
                 limit=1,
             )
             if device_list and device_list[0].get("name"):
@@ -278,7 +268,6 @@ async def test_search_devices_by_partial_name(settings, env: TestEnvironment) ->
         result = await devices.search_devices(
             site_id=env.site_id,
             query=query,
-            settings=settings,
         )
 
         assert isinstance(result, list), "Result must be a list"
@@ -315,7 +304,6 @@ async def test_search_devices_by_mac(settings, env: TestEnvironment) -> dict[str
             device_list = await devices.list_devices_by_type(
                 site_id=env.site_id,
                 device_type=device_type,
-                settings=settings,
                 limit=1,
             )
             if device_list and device_list[0].get("mac"):
@@ -332,7 +320,6 @@ async def test_search_devices_by_mac(settings, env: TestEnvironment) -> dict[str
         result = await devices.search_devices(
             site_id=env.site_id,
             query=query,
-            settings=settings,
         )
 
         assert isinstance(result, list), "Result must be a list"
@@ -370,7 +357,6 @@ async def test_list_pending_devices(settings, env: TestEnvironment) -> dict[str,
     try:
         result = await devices.list_pending_devices(
             site_id=env.site_id,
-            settings=settings,
         )
 
         # Validate response structure

@@ -32,7 +32,7 @@ Your mission is to ensure all documentation is accurate, comprehensive, up-to-da
 
 ### 1. API Documentation Maintenance
 
-- Keep API.md synchronized with implemented tools
+- Keep docs/api/mcp-tools.md synchronized with implemented tools
 - Auto-generate tool documentation from docstrings
 - Ensure all parameters, returns, and errors are documented
 - Provide practical usage examples for each tool
@@ -102,10 +102,10 @@ Your mission is to ensure all documentation is accurate, comprehensive, up-to-da
 
 1. Review all documentation files:
    - README.md
-   - API.md
+   - docs/api/mcp-tools.md
    - CONTRIBUTING.md
    - SECURITY.md
-   - TESTING_PLAN.md
+   - docs/testing/test-plan.md
 2. Check documentation against current code
 3. Identify outdated sections
 4. Find missing documentation
@@ -116,7 +116,7 @@ Your mission is to ensure all documentation is accurate, comprehensive, up-to-da
 1. Scan all tool modules in `src/tools/`
 2. Parse docstrings from tool functions
 3. Extract parameters and return types
-4. Identify tools not documented in API.md
+4. Identify tools not documented in docs/api/mcp-tools.md
 5. Find tools with incomplete docstrings
 
 ### Phase 3: Documentation Generation (30% of time)
@@ -180,7 +180,7 @@ Documentation is considered complete when:
    - No outdated information
 
 2. **Completeness** ✓
-   - All 40+ tools documented in API.md
+   - All 40+ tools documented in docs/api/mcp-tools.md
    - All parameters and returns documented
    - Error conditions documented
    - Usage examples provided
@@ -237,7 +237,7 @@ Documentation is considered complete when:
 
 ## Documentation Structure Standards
 
-### API.md Structure
+### docs/api/mcp-tools.md Structure
 
 ```markdown
 # UniFi MCP Server API Reference
@@ -301,12 +301,12 @@ async def example_tool(param1: str, param2: int = 5) -> Dict[str, Any]:
 ## Example Documentation Session
 
 ```
-Orchestrator: "Update API.md with new traffic flow tools"
+Orchestrator: "Update docs/api/mcp-tools.md with new traffic flow tools"
 
 UniFi Documentation Specialist:
 
 1. Documentation Audit:
-   Checking API.md...
+   Checking docs/api/mcp-tools.md...
    - Last updated: 2025-01-10
    - Tools documented: 38/40
    - Missing: create_traffic_flow_rule, update_zbf_matrix
@@ -337,7 +337,7 @@ UniFi Documentation Specialist:
    ✓ Markdown renders correctly
    ✓ Consistent with existing structure
 
-API.md updated successfully!
+docs/api/mcp-tools.md updated successfully!
 - Added 2 new tools
 - Created new "Traffic Flow Tools" category
 - Included 3 practical examples
@@ -378,7 +378,7 @@ Trigger documentation updates when:
 
 Before marking documentation as complete:
 
-- [ ] All tools documented in API.md
+- [ ] All tools documented in docs/api/mcp-tools.md
 - [ ] All tools have usage examples
 - [ ] All parameters documented with types
 - [ ] All return values documented

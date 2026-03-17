@@ -1,9 +1,11 @@
 """Network configuration MCP tools."""
 
+import ipaddress
 from typing import Any
 
-from ..api import UniFiClient
-from ..config import Settings
+from fastmcp.server.providers import LocalProvider
+
+from ..api.pool import get_network_client
 from ..utils import (
     ResourceNotFoundError,
     ValidationError,
@@ -13,13 +15,115 @@ from ..utils import (
     validate_site_id,
 )
 
+logger = get_logger(__name__)
+provider = LocalProvider()
 
+__all__ = ["provider", "create_network", "update_network", "delete_network"]
+
+
+def _parse_subnet(subnet: str) -> tuple[str, int]:
+    """Parse CIDR notation into gateway IP and prefix length.
+
+    Uses the first usable host address as the gateway IP,
+    which matches UniFi's default behavior.
+
+    Args:
+        subnet: CIDR notation (e.g., "192.168.1.0/24")
+
+    Returns:
+        Tuple of (host_ip, prefix_length)
+
+    Raises:
+        ValidationError: If subnet is invalid
+    """
+    try:
+        network = ipaddress.ip_network(subnet, strict=False)
+    except ValueError as e:
+        raise ValidationError(f"Invalid subnet '{subnet}': {e}") from e
+
+    # First usable host = gateway IP (UniFi convention)
+    host_ip = str(network.network_address + 1)
+    return host_ip, network.prefixlen
+
+
+def _build_network_payload(
+    *,
+    name: str | None = None,
+    vlan_id: int | None = None,
+    subnet: str | None = None,
+    purpose: str | None = None,
+    dhcp_enabled: bool | None = None,
+    dhcp_start: str | None = None,
+    dhcp_stop: str | None = None,
+    dhcp_dns_1: str | None = None,
+    dhcp_dns_2: str | None = None,
+    dhcp_dns_3: str | None = None,
+    dhcp_dns_4: str | None = None,
+    domain_name: str | None = None,
+) -> dict[str, Any]:
+    """Build Integration API network payload from tool parameters.
+
+    Only includes fields that are explicitly provided (not None),
+    so this works for both create (all required fields set) and
+    partial update (only changed fields set).
+    """
+    payload: dict[str, Any] = {}
+
+    if name is not None:
+        payload["name"] = name
+    if vlan_id is not None:
+        payload["vlanId"] = vlan_id
+    if purpose is not None:
+        # Integration API uses uppercase purpose values
+        payload["purpose"] = purpose.upper().replace("-", "_")
+
+    # Build ipv4Configuration if any IP-related fields are set
+    ipv4_config: dict[str, Any] = {}
+
+    if subnet is not None:
+        host_ip, prefix_length = _parse_subnet(subnet)
+        ipv4_config["hostIpAddress"] = host_ip
+        ipv4_config["prefixLength"] = prefix_length
+
+    # Build DHCP configuration
+    dhcp_config: dict[str, Any] = {}
+
+    if dhcp_enabled is not None:
+        dhcp_config["mode"] = "SERVER" if dhcp_enabled else "NONE"
+
+    if dhcp_start is not None or dhcp_stop is not None:
+        ip_range: dict[str, str] = {}
+        if dhcp_start is not None:
+            ip_range["start"] = dhcp_start
+        if dhcp_stop is not None:
+            ip_range["stop"] = dhcp_stop
+        dhcp_config["ipAddressRange"] = ip_range
+
+    # Collect DNS overrides
+    dns_servers = [
+        dns for dns in [dhcp_dns_1, dhcp_dns_2, dhcp_dns_3, dhcp_dns_4] if dns is not None
+    ]
+    if dns_servers:
+        dhcp_config["dnsServerIpAddressesOverride"] = dns_servers
+
+    if domain_name is not None:
+        dhcp_config["domainName"] = domain_name
+
+    if dhcp_config:
+        ipv4_config["dhcpConfiguration"] = dhcp_config
+
+    if ipv4_config:
+        payload["ipv4Configuration"] = ipv4_config
+
+    return payload
+
+
+@provider.tool(annotations={"destructiveHint": True})
 async def create_network(
     site_id: str,
     name: str,
     vlan_id: int,
     subnet: str,
-    settings: Settings,
     purpose: str = "corporate",
     dhcp_enabled: bool = True,
     dhcp_start: str | None = None,
@@ -34,6 +138,8 @@ async def create_network(
 ) -> dict[str, Any]:
     """Create a new network/VLAN.
 
+    Uses the official Integration API: POST /v1/sites/{id}/networks
+
     Args:
         site_id: Site identifier
         name: Network name
@@ -46,6 +152,8 @@ async def create_network(
         dhcp_stop: DHCP range stop IP
         dhcp_dns_1: Primary DNS server
         dhcp_dns_2: Secondary DNS server
+        dhcp_dns_3: Tertiary DNS server
+        dhcp_dns_4: Quaternary DNS server
         domain_name: Domain name for DHCP
         confirm: Confirmation flag (must be True to execute)
         dry_run: If True, validate but don't create the network
@@ -59,7 +167,6 @@ async def create_network(
     """
     site_id = validate_site_id(site_id)
     validate_confirmation(confirm, "network configuration operation", dry_run)
-    logger = get_logger(__name__, settings.log_level)
 
     # Validate VLAN ID
     if not 1 <= vlan_id <= 4094:
@@ -70,35 +177,25 @@ async def create_network(
     if purpose not in valid_purposes:
         raise ValidationError(f"Invalid purpose '{purpose}'. Must be one of: {valid_purposes}")
 
-    # Validate subnet format
+    # Validate subnet format (also validates via ipaddress module)
     if "/" not in subnet:
         raise ValidationError(f"Invalid subnet '{subnet}'. Must be in CIDR notation")
 
-    # Build network data
-    network_data = {
-        "name": name,
-        "purpose": purpose,
-        "vlan_enabled": True,
-        "vlan": vlan_id,
-        "ip_subnet": subnet,
-        "dhcpd_enabled": dhcp_enabled,
-    }
-
-    if dhcp_enabled:
-        if dhcp_start:
-            network_data["dhcpd_start"] = dhcp_start
-        if dhcp_stop:
-            network_data["dhcpd_stop"] = dhcp_stop
-        if dhcp_dns_1:
-            network_data["dhcpd_dns_1"] = dhcp_dns_1
-        if dhcp_dns_2:
-            network_data["dhcpd_dns_2"] = dhcp_dns_2
-        if dhcp_dns_3:
-            network_data["dhcpd_dns_3"] = dhcp_dns_3
-        if dhcp_dns_4:
-            network_data["dhcpd_dns_4"] = dhcp_dns_4
-        if domain_name:
-            network_data["domain_name"] = domain_name
+    # Build Integration API payload
+    network_data = _build_network_payload(
+        name=name,
+        vlan_id=vlan_id,
+        subnet=subnet,
+        purpose=purpose,
+        dhcp_enabled=dhcp_enabled,
+        dhcp_start=dhcp_start,
+        dhcp_stop=dhcp_stop,
+        dhcp_dns_1=dhcp_dns_1,
+        dhcp_dns_2=dhcp_dns_2,
+        dhcp_dns_3=dhcp_dns_3,
+        dhcp_dns_4=dhcp_dns_4,
+        domain_name=domain_name,
+    )
 
     # Log parameters for audit
     parameters = {
@@ -114,7 +211,7 @@ async def create_network(
 
     if dry_run:
         logger.info(f"DRY RUN: Would create network '{name}' in site '{site_id}'")
-        log_audit(
+        await log_audit(
             operation="create_network",
             parameters=parameters,
             result="dry_run",
@@ -124,30 +221,27 @@ async def create_network(
         return {"dry_run": True, "would_create": network_data}
 
     try:
-        async with UniFiClient(settings) as client:
-            await client.authenticate()
+        client = get_network_client()
+        site = await client.resolve_site(site_id)
 
-            response = await client.post(
-                f"/ea/sites/{site_id}/rest/networkconf", json_data=network_data
-            )
-            if isinstance(response, list):
-                created_network: dict[str, Any] = response[0] if response else {}
-            else:
-                created_network = response.get("data", [{}])[0]
+        response = await client.post(
+            client.integration_path(site.uuid, "networks"), json_data=network_data
+        )
+        created_network = response if isinstance(response, dict) else {}
 
-            logger.info(f"Created network '{name}' in site '{site_id}'")
-            log_audit(
-                operation="create_network",
-                parameters=parameters,
-                result="success",
-                site_id=site_id,
-            )
+        logger.info(f"Created network '{name}' in site '{site_id}'")
+        await log_audit(
+            operation="create_network",
+            parameters=parameters,
+            result="success",
+            site_id=site_id,
+        )
 
-            return created_network
+        return created_network
 
     except Exception as e:
         logger.error(f"Failed to create network '{name}': {e}")
-        log_audit(
+        await log_audit(
             operation="create_network",
             parameters=parameters,
             result="failed",
@@ -156,10 +250,10 @@ async def create_network(
         raise
 
 
+@provider.tool(annotations={"destructiveHint": True})
 async def update_network(
     site_id: str,
     network_id: str,
-    settings: Settings,
     name: str | None = None,
     vlan_id: int | None = None,
     subnet: str | None = None,
@@ -177,6 +271,8 @@ async def update_network(
 ) -> dict[str, Any]:
     """Update an existing network.
 
+    Uses the official Integration API: PUT /v1/sites/{id}/networks/{networkId}
+
     Args:
         site_id: Site identifier
         network_id: Network ID
@@ -190,6 +286,8 @@ async def update_network(
         dhcp_stop: New DHCP range stop IP
         dhcp_dns_1: New primary DNS server
         dhcp_dns_2: New secondary DNS server
+        dhcp_dns_3: New tertiary DNS server
+        dhcp_dns_4: New quaternary DNS server
         domain_name: New domain name
         confirm: Confirmation flag (must be True to execute)
         dry_run: If True, validate but don't update the network
@@ -203,7 +301,6 @@ async def update_network(
     """
     site_id = validate_site_id(site_id)
     validate_confirmation(confirm, "network configuration operation", dry_run)
-    logger = get_logger(__name__, settings.log_level)
 
     # Validate VLAN ID if provided
     if vlan_id is not None and not 1 <= vlan_id <= 4094:
@@ -231,7 +328,7 @@ async def update_network(
 
     if dry_run:
         logger.info(f"DRY RUN: Would update network '{network_id}' in site '{site_id}'")
-        log_audit(
+        await log_audit(
             operation="update_network",
             parameters=parameters,
             result="dry_run",
@@ -241,75 +338,56 @@ async def update_network(
         return {"dry_run": True, "would_update": parameters}
 
     try:
-        async with UniFiClient(settings) as client:
-            await client.authenticate()
+        client = get_network_client()
+        site = await client.resolve_site(site_id)
 
-            # Get existing network
-            response = await client.get(f"/ea/sites/{site_id}/rest/networkconf")
-            if isinstance(response, list):
-                networks_data: list[dict[str, Any]] = response
-            else:
-                networks_data = response.get("data", [])
-
-            existing_network = None
-            for network in networks_data:
-                if network.get("_id") == network_id:
-                    existing_network = network
-                    break
-
-            if not existing_network:
-                raise ResourceNotFoundError("network", network_id)
-
-            # Build update data
-            update_data = existing_network.copy()
-
-            if name is not None:
-                update_data["name"] = name
-            if vlan_id is not None:
-                update_data["vlan_enabled"] = True
-                update_data["vlan"] = vlan_id
-            if subnet is not None:
-                update_data["ip_subnet"] = subnet
-            if purpose is not None:
-                update_data["purpose"] = purpose
-            if dhcp_enabled is not None:
-                update_data["dhcpd_enabled"] = dhcp_enabled
-            if dhcp_start is not None:
-                update_data["dhcpd_start"] = dhcp_start
-            if dhcp_stop is not None:
-                update_data["dhcpd_stop"] = dhcp_stop
-            if dhcp_dns_1 is not None:
-                update_data["dhcpd_dns_1"] = dhcp_dns_1
-            if dhcp_dns_2 is not None:
-                update_data["dhcpd_dns_2"] = dhcp_dns_2
-            if dhcp_dns_3 is not None:
-                update_data["dhcpd_dns_3"] = dhcp_dns_3
-            if dhcp_dns_4 is not None:
-                update_data["dhcpd_dns_4"] = dhcp_dns_4
-            if domain_name is not None:
-                update_data["domain_name"] = domain_name
-
-            response = await client.put(
-                f"/ea/sites/{site_id}/rest/networkconf/{network_id}", json_data=update_data
+        # Fetch existing network by ID
+        try:
+            existing = await client.get(
+                client.integration_path(site.uuid, f"networks/{network_id}")
             )
-            if isinstance(response, list):
-                updated_network: dict[str, Any] = response[0] if response else {}
-            else:
-                updated_network = response.get("data", [{}])[0]
+        except Exception as e:
+            if "404" in str(e) or "not found" in str(e).lower():
+                raise ResourceNotFoundError("network", network_id) from e
+            raise
 
-            logger.info(f"Updated network '{network_id}' in site '{site_id}'")
-            log_audit(
-                operation="update_network",
-                parameters=parameters,
-                result="success",
-                site_id=site_id,
-            )
+        if not existing or not isinstance(existing, dict):
+            raise ResourceNotFoundError("network", network_id)
 
-            return updated_network
+        update_data = _build_network_payload(
+            name=name,
+            vlan_id=vlan_id,
+            subnet=subnet,
+            purpose=purpose,
+            dhcp_enabled=dhcp_enabled,
+            dhcp_start=dhcp_start,
+            dhcp_stop=dhcp_stop,
+            dhcp_dns_1=dhcp_dns_1,
+            dhcp_dns_2=dhcp_dns_2,
+            dhcp_dns_3=dhcp_dns_3,
+            dhcp_dns_4=dhcp_dns_4,
+            domain_name=domain_name,
+        )
+
+        response = await client.put(
+            client.integration_path(site.uuid, f"networks/{network_id}"),
+            json_data=update_data,
+        )
+        updated_network = response if isinstance(response, dict) else {}
+
+        logger.info(f"Updated network '{network_id}' in site '{site_id}'")
+        await log_audit(
+            operation="update_network",
+            parameters=parameters,
+            result="success",
+            site_id=site_id,
+        )
+
+        return updated_network
 
     except Exception as e:
         logger.error(f"Failed to update network '{network_id}': {e}")
-        log_audit(
+        await log_audit(
             operation="update_network",
             parameters=parameters,
             result="failed",
@@ -318,14 +396,16 @@ async def update_network(
         raise
 
 
+@provider.tool(annotations={"destructiveHint": True})
 async def delete_network(
     site_id: str,
     network_id: str,
-    settings: Settings,
     confirm: bool | str = False,
     dry_run: bool | str = False,
 ) -> dict[str, Any]:
     """Delete a network.
+
+    Uses the official Integration API: DELETE /v1/sites/{id}/networks/{networkId}
 
     Args:
         site_id: Site identifier
@@ -343,13 +423,12 @@ async def delete_network(
     """
     site_id = validate_site_id(site_id)
     validate_confirmation(confirm, "network configuration operation", dry_run)
-    logger = get_logger(__name__, settings.log_level)
 
     parameters = {"site_id": site_id, "network_id": network_id}
 
     if dry_run:
         logger.info(f"DRY RUN: Would delete network '{network_id}' from site '{site_id}'")
-        log_audit(
+        await log_audit(
             operation="delete_network",
             parameters=parameters,
             result="dry_run",
@@ -359,35 +438,36 @@ async def delete_network(
         return {"dry_run": True, "would_delete": network_id}
 
     try:
-        async with UniFiClient(settings) as client:
-            await client.authenticate()
+        client = get_network_client()
+        site = await client.resolve_site(site_id)
 
-            # Verify network exists before deleting
-            response = await client.get(f"/ea/sites/{site_id}/rest/networkconf")
-            if isinstance(response, list):
-                networks_data: list[dict[str, Any]] = response
-            else:
-                networks_data = response.get("data", [])
-
-            network_exists = any(net.get("_id") == network_id for net in networks_data)
-            if not network_exists:
-                raise ResourceNotFoundError("network", network_id)
-
-            response = await client.delete(f"/ea/sites/{site_id}/rest/networkconf/{network_id}")
-
-            logger.info(f"Deleted network '{network_id}' from site '{site_id}'")
-            log_audit(
-                operation="delete_network",
-                parameters=parameters,
-                result="success",
-                site_id=site_id,
+        try:
+            existing = await client.get(
+                client.integration_path(site.uuid, f"networks/{network_id}")
             )
+        except Exception as e:
+            if "404" in str(e) or "not found" in str(e).lower():
+                raise ResourceNotFoundError("network", network_id) from e
+            raise
 
-            return {"success": True, "deleted_network_id": network_id}
+        if not existing or not isinstance(existing, dict):
+            raise ResourceNotFoundError("network", network_id)
+
+        await client.delete(client.integration_path(site.uuid, f"networks/{network_id}"))
+
+        logger.info(f"Deleted network '{network_id}' from site '{site_id}'")
+        await log_audit(
+            operation="delete_network",
+            parameters=parameters,
+            result="success",
+            site_id=site_id,
+        )
+
+        return {"success": True, "deleted_network_id": network_id}
 
     except Exception as e:
         logger.error(f"Failed to delete network '{network_id}': {e}")
-        log_audit(
+        await log_audit(
             operation="delete_network",
             parameters=parameters,
             result="failed",

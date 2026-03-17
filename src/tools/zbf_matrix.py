@@ -22,7 +22,7 @@ See tests/verification/PHASE2_FINDINGS.md for complete verification report.
 
 from typing import Any
 
-from ..api.client import UniFiClient  # noqa: F401
+from ..api import NetworkClient  # noqa: F401
 from ..config import Settings
 from ..models.zbf_matrix import ApplicationBlockRule, ZonePolicy, ZonePolicyMatrix  # noqa: F401
 from ..utils import audit_action, get_logger, validate_confirmation  # noqa: F401

@@ -53,7 +53,7 @@ Before implementation, clarify:
 
 ```bash
 # Read the comprehensive UniFi API documentation
-Read: docs/UNIFI_API.md
+Read: docs/api/unifi-api-reference.md
 ```
 
 This document contains verified endpoints for UniFi Network v10.0.156+.
@@ -97,9 +97,9 @@ Read: tests/unit/test_devices.py
 
 The UniFi MCP Server has discovered that many documented endpoints don't exist in real controllers. Before implementation:
 
-1. **Check endpoint existence** in `docs/UNIFI_API.md` verification notes
+1. **Check endpoint existence** in `docs/api/unifi-api-reference.md` verification notes
 2. **Test on real hardware** if possible (U7 Express, UDM Pro, etc.)
-3. **Document findings** in code comments and API.md
+3. **Document findings** in code comments and docs/api/mcp-tools.md
 
 **Known endpoint issues:**
 
@@ -135,7 +135,7 @@ Document your plan covering:
 **Documentation:**
 
 - Docstring with examples
-- API.md section update
+- docs/api/mcp-tools.md section update
 - README.md feature list update (if major feature)
 
 ---
@@ -491,9 +491,9 @@ open htmlcov/index.html  # Review coverage report
 
 ## Phase 4: Documentation
 
-### 4.1 Update API.md
+### 4.1 Update docs/api/mcp-tools.md
 
-**Location**: `API.md`
+**Location**: `docs/api/mcp-tools.md`
 
 Add your tool to the appropriate section with complete documentation:
 
@@ -649,7 +649,7 @@ If you have access to a UniFi controller:
 1. Configure local gateway API credentials
 2. Test tool with real data
 3. Verify API endpoint exists and returns expected format
-4. Document any discrepancies in API.md
+4. Document any discrepancies in docs/api/mcp-tools.md
 
 ---
 
@@ -683,8 +683,8 @@ Before submitting:
 
 ### Documentation
 
-- [ ] API.md updated with complete tool documentation
-- [ ] Examples provided in docstring and API.md
+- [ ] docs/api/mcp-tools.md updated with complete tool documentation
+- [ ] Examples provided in docstring and docs/api/mcp-tools.md
 - [ ] Error handling documented
 - [ ] API endpoint documented
 - [ ] API mode support clearly indicated
@@ -833,15 +833,14 @@ async def aggregate_across_sites(
 ### Project Documentation
 
 - `README.md` - Project overview and quick start
-- `API.md` - Complete MCP tool reference
-- `AGENTS.md` - AI agent development guidelines
-- `DEVELOPMENT_PLAN.md` - Roadmap and feature planning
-- `TESTING_PLAN.md` - Testing strategy and coverage goals
+- `docs/api/mcp-tools.md` - Complete MCP tool reference
+- `CHANGELOG.md` - Version history and roadmap
+- `docs/testing/test-plan.md` - Testing strategy and coverage goals
 - `CONTRIBUTING.md` - Contribution guidelines
 
 ### UniFi API Documentation
 
-- `docs/UNIFI_API.md` - Verified endpoint documentation for v10.0.156+
+- `docs/api/unifi-api-reference.md` - Verified endpoint documentation for v10.0.156+
 - [UniFi Network Developer Documentation](https://developer.ui.com/)
 
 ### Code Examples

@@ -4,8 +4,43 @@ import json
 from pathlib import Path
 from typing import Any
 
+import anyio
+
 from .helpers import get_iso_timestamp
 from .logger import get_logger
+
+REDACTION_MARKER = "***REDACTED***"
+SENSITIVE_AUDIT_KEYS = {
+    "password",
+    "x_password",
+    "passphrase",
+    "secret",
+    "auth_secret",
+    "token",
+    "api_key",
+    "x_api_key",
+    "key",
+}
+
+
+def _redact_audit_value(value: Any) -> Any:
+    """Recursively redact sensitive fields in audit payloads."""
+    if isinstance(value, dict):
+        redacted: dict[str, Any] = {}
+        for key, item in value.items():
+            if str(key).lower() in SENSITIVE_AUDIT_KEYS:
+                redacted[key] = REDACTION_MARKER
+            else:
+                redacted[key] = _redact_audit_value(item)
+        return redacted
+
+    if isinstance(value, list):
+        return [_redact_audit_value(item) for item in value]
+
+    if isinstance(value, tuple):
+        return tuple(_redact_audit_value(item) for item in value)
+
+    return value
 
 
 class AuditLogger:
@@ -24,7 +59,7 @@ class AuditLogger:
         # Ensure log directory exists
         self.log_file.parent.mkdir(parents=True, exist_ok=True)
 
-    def log_operation(
+    async def log_operation(
         self,
         operation: str,
         parameters: dict[str, Any],
@@ -34,7 +69,7 @@ class AuditLogger:
         dry_run: bool = False,
         error: str | None = None,
     ) -> None:
-        """Log a mutating operation.
+        """Log a mutating operation asynchronously.
 
         Args:
             operation: Name of the operation (e.g., "create_firewall_rule")
@@ -46,12 +81,13 @@ class AuditLogger:
             dry_run: Whether this was a dry run
         """
         timestamp = get_iso_timestamp()
+        redacted_parameters = _redact_audit_value(parameters)
 
         # Create audit record
         audit_record = {
             "timestamp": timestamp,
             "operation": operation,
-            "parameters": parameters,
+            "parameters": redacted_parameters,
             "result": result,
             "dry_run": dry_run,
         }
@@ -66,9 +102,9 @@ class AuditLogger:
             audit_record["error"] = error
 
         # Log to file
+        record_json = json.dumps(audit_record)
         try:
-            with open(self.log_file, "a", encoding="utf-8") as f:
-                f.write(json.dumps(audit_record) + "\n")
+            await anyio.to_thread.run_sync(self._write_record, record_json)
         except Exception as e:
             self.logger.error(f"Failed to write audit log: {e}")
 
@@ -84,10 +120,10 @@ class AuditLogger:
         else:
             self.logger.info(log_message, extra=audit_record)
 
-    def get_recent_operations(
+    async def get_recent_operations(
         self, limit: int = 100, operation: str | None = None
     ) -> list[dict[str, Any]]:
-        """Get recent audit log entries.
+        """Get recent audit log entries asynchronously.
 
         Args:
             limit: Maximum number of entries to return
@@ -99,30 +135,37 @@ class AuditLogger:
         if not self.log_file.exists():
             return []
 
-        entries = []
+        entries: list[dict[str, Any]] = []
         try:
-            with open(self.log_file, encoding="utf-8") as f:
-                # Read file in reverse to get most recent entries first
-                lines = f.readlines()
-                for line in reversed(lines):
-                    if not line.strip():
-                        continue
-
-                    try:
-                        entry = json.loads(line)
-                        if operation is None or entry.get("operation") == operation:
-                            entries.append(entry)
-
-                        if len(entries) >= limit:
-                            break
-                    except json.JSONDecodeError:
-                        self.logger.warning(f"Invalid JSON in audit log: {line}")
-                        continue
-
+            lines = await anyio.to_thread.run_sync(self._read_lines)
         except Exception as e:
             self.logger.error(f"Failed to read audit log: {e}")
+            return entries
+
+        for line in reversed(lines):
+            if not line.strip():
+                continue
+
+            try:
+                entry = json.loads(line)
+                if operation is None or entry.get("operation") == operation:
+                    entries.append(entry)
+
+                if len(entries) >= limit:
+                    break
+            except json.JSONDecodeError:
+                self.logger.warning(f"Invalid JSON in audit log: {line}")
+                continue
 
         return entries
+
+    def _write_record(self, record_json: str) -> None:
+        with open(self.log_file, "a", encoding="utf-8") as f:
+            f.write(record_json + "\n")
+
+    def _read_lines(self) -> list[str]:
+        with open(self.log_file, encoding="utf-8") as f:
+            return f.readlines()
 
 
 # Global audit logger instance
@@ -147,7 +190,7 @@ def get_audit_logger(log_file: str | Path | None = None, log_level: str = "INFO"
     return _audit_logger
 
 
-def log_audit(
+async def log_audit(
     operation: str,
     parameters: dict[str, Any],
     result: str,
@@ -157,7 +200,7 @@ def log_audit(
     error: str | None = None,
     log_file: str | Path | None = None,
 ) -> None:
-    """Convenience function to log an audit entry.
+    """Convenience coroutine to log an audit entry.
 
     Args:
         operation: Name of the operation
@@ -170,7 +213,7 @@ def log_audit(
         log_file: Path to audit log file
     """
     logger = get_audit_logger(log_file)
-    logger.log_operation(operation, parameters, result, user, site_id, dry_run, error)
+    await logger.log_operation(operation, parameters, result, user, site_id, dry_run, error)
 
 
 async def audit_action(
@@ -204,7 +247,7 @@ async def audit_action(
     # Get audit log file from settings if available
     log_file = getattr(settings, "audit_log_file", None)
 
-    log_audit(
+    await log_audit(
         operation=action_type,
         parameters=parameters,
         result="success",

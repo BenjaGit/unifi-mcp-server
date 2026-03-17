@@ -24,22 +24,47 @@ cp tests/integration/.env.example tests/integration/.env
 Edit `.env` and add your credentials:
 
 ```bash
+# Key designations used in integration tests:
+# - LOCAL key  (typically read/write): UNIFI_LOCAL_API_KEY
+# - REMOTE key (typically read-only):  UNIFI_REMOTE_API_KEY
+
+# Canonical LOCAL key (used by local suites)
+UNIFI_LOCAL_API_KEY=your-local-api-key
+
 # UniFi Lab Environment (Local API)
-UNIFI_LAB_API_KEY=P-la_4yXTA1sS6lFZs4VaoRgwoBXtAxi
+UNIFI_LAB_API_KEY=optional-lab-network-key-override
 UNIFI_LAB_HOST=10.2.0.1
 UNIFI_LAB_PORT=443
 UNIFI_LAB_VERIFY_SSL=false
 
 # UniFi Home Environment (Local API)
-UNIFI_HOME_API_KEY=9csiHHSfPIxp1Y7mINjMi2Af28QjOdV1
+UNIFI_HOME_API_KEY=optional-home-network-key-override
 UNIFI_HOME_HOST=192.168.2.1
 UNIFI_HOME_PORT=443
 UNIFI_HOME_VERIFY_SSL=false
 
-# UniFi Cloud Environment
-UNIFI_CLOUD_API_KEY=your-cloud-key-here
-UNIFI_CLOUD_API_TYPE=cloud-v1
+# Optional cloud-specific overrides
+UNIFI_CLOUD_V1_API_KEY=
+UNIFI_CLOUD_EA_API_KEY=
+
+# Canonical REMOTE key (recommended for cloud suites)
+UNIFI_REMOTE_API_KEY=your-remote-api-key
+
+# Backward-compatible aliases also accepted:
+# UNIFI_NETWORK_API_KEY=your-local-api-key
+# UNIFI_SITE_MANAGER_API_KEY=your-remote-api-key
+
+# Site Manager tools auto-enable when a remote key is present
 ```
+
+### Lab vs Home naming
+
+In this project, **Lab** and **Home** are just names for two optional test targets:
+
+- `unifi-lab` -> first target
+- `unifi-home` -> second target
+
+They are not special UniFi modes. If you only test one site, configure Lab only.
 
 ### 2. Install Dependencies
 
@@ -65,8 +90,8 @@ python tests/integration/run_all_tests.py --env unifi-lab
 # Test only on home environment
 python tests/integration/run_all_tests.py --env unifi-home
 
-# Test only on cloud
-python tests/integration/run_all_tests.py --env unifi-cloud
+# Test only on cloud-v1 lab site
+python tests/integration/run_all_tests.py --env unifi-cloud-v1-lab
 ```
 
 ### Run Specific Test Suite

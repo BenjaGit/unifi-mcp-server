@@ -7,7 +7,7 @@ removed because they backed tools using non-existent API endpoints
 
 from enum import Enum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class RouteAction(str, Enum):
@@ -22,6 +22,8 @@ class RouteAction(str, Enum):
 class MatchCriteria(BaseModel):
     """Traffic matching criteria for routing policies."""
 
+    model_config = ConfigDict(use_enum_values=True)
+
     source_ip: str | None = Field(None, description="Source IP address or CIDR")
     destination_ip: str | None = Field(None, description="Destination IP address or CIDR")
     source_port: int | None = Field(None, ge=1, le=65535, description="Source port")
@@ -29,14 +31,11 @@ class MatchCriteria(BaseModel):
     protocol: str | None = Field(None, description="Protocol (tcp, udp, icmp, all)")
     vlan_id: int | None = Field(None, ge=1, le=4094, description="VLAN ID")
 
-    class Config:
-        """Pydantic configuration."""
-
-        use_enum_values = True
-
 
 class RouteSchedule(BaseModel):
     """Time-based routing schedule."""
+
+    model_config = ConfigDict(use_enum_values=True)
 
     enabled: bool = Field(False, description="Enable time-based schedule")
     days: list[str] = Field(
@@ -45,14 +44,11 @@ class RouteSchedule(BaseModel):
     start_time: str | None = Field(None, description="Start time (HH:MM format)")
     end_time: str | None = Field(None, description="End time (HH:MM format)")
 
-    class Config:
-        """Pydantic configuration."""
-
-        use_enum_values = True
-
 
 class TrafficRoute(BaseModel):
     """Policy-based traffic routing configuration."""
+
+    model_config = ConfigDict(populate_by_name=True, use_enum_values=True)
 
     id: str = Field(alias="_id", description="Route ID")
     name: str = Field(..., description="Route name")
@@ -77,9 +73,3 @@ class TrafficRoute(BaseModel):
 
     # State
     site_id: str | None = Field(None, description="Site ID")
-
-    class Config:
-        """Pydantic configuration."""
-
-        populate_by_name = True
-        use_enum_values = True

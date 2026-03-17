@@ -5,22 +5,20 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 import src.tools.vpn as vpn_module
+from src.api.network_client import SiteInfo
 from src.tools.vpn import list_vpn_servers, list_vpn_tunnels
 
 
-@pytest.fixture
-def mock_settings():
-    """Create mock settings for testing."""
-    settings = MagicMock()
-    settings.log_level = "INFO"
-    settings.api_type = MagicMock()
-    settings.api_type.value = "local"
-    settings.base_url = "https://192.168.2.1"
-    settings.api_key = "test-key"
-    settings.local_host = "192.168.2.1"
-    settings.local_port = 443
-    settings.local_verify_ssl = False
-    return settings
+def _make_client(response: dict) -> MagicMock:
+    client = MagicMock()
+    client.is_authenticated = True
+    client.authenticate = AsyncMock()
+    client.get = AsyncMock(return_value=response)
+    client.resolve_site = AsyncMock(return_value=SiteInfo(name="default", uuid="uuid-default"))
+    client.integration_path = MagicMock(
+        side_effect=lambda uuid, ep: f"/integration/v1/sites/{uuid}/{ep}"
+    )
+    return client
 
 
 # =============================================================================
@@ -29,7 +27,7 @@ def mock_settings():
 
 
 @pytest.mark.asyncio
-async def test_list_vpn_tunnels_success(mock_settings):
+async def test_list_vpn_tunnels_success():
     """Test successful VPN tunnels listing."""
     mock_response = {
         "data": [
@@ -50,14 +48,10 @@ async def test_list_vpn_tunnels_success(mock_settings):
         ]
     }
 
-    mock_client = MagicMock()
-    mock_client.authenticate = AsyncMock()
-    mock_client.get = AsyncMock(return_value=mock_response)
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=None)
+    mock_client = _make_client(mock_response)
 
-    with patch.object(vpn_module, "UniFiClient", return_value=mock_client):
-        result = await list_vpn_tunnels("default", mock_settings)
+    with patch.object(vpn_module, "get_network_client", return_value=mock_client):
+        result = await list_vpn_tunnels("default")
 
     assert len(result) == 2
     assert result[0]["name"] == "Office-to-DC"
@@ -65,42 +59,34 @@ async def test_list_vpn_tunnels_success(mock_settings):
 
 
 @pytest.mark.asyncio
-async def test_list_vpn_tunnels_pagination(mock_settings):
+async def test_list_vpn_tunnels_pagination():
     """Test VPN tunnels listing with pagination."""
     mock_response = {"data": [{"_id": f"tunnel{i}", "name": f"Tunnel {i}"} for i in range(10)]}
 
-    mock_client = MagicMock()
-    mock_client.authenticate = AsyncMock()
-    mock_client.get = AsyncMock(return_value=mock_response)
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=None)
+    mock_client = _make_client(mock_response)
 
-    with patch.object(vpn_module, "UniFiClient", return_value=mock_client):
-        result = await list_vpn_tunnels("default", mock_settings, limit=3, offset=2)
+    with patch.object(vpn_module, "get_network_client", return_value=mock_client):
+        result = await list_vpn_tunnels("default", limit=3, offset=2)
 
     assert len(result) == 3
     assert result[0]["id"] == "tunnel2"
 
 
 @pytest.mark.asyncio
-async def test_list_vpn_tunnels_empty(mock_settings):
+async def test_list_vpn_tunnels_empty():
     """Test VPN tunnels listing with empty response."""
     mock_response = {"data": []}
 
-    mock_client = MagicMock()
-    mock_client.authenticate = AsyncMock()
-    mock_client.get = AsyncMock(return_value=mock_response)
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=None)
+    mock_client = _make_client(mock_response)
 
-    with patch.object(vpn_module, "UniFiClient", return_value=mock_client):
-        result = await list_vpn_tunnels("default", mock_settings)
+    with patch.object(vpn_module, "get_network_client", return_value=mock_client):
+        result = await list_vpn_tunnels("default")
 
     assert result == []
 
 
 @pytest.mark.asyncio
-async def test_list_vpn_tunnels_full_details(mock_settings):
+async def test_list_vpn_tunnels_full_details():
     """Test VPN tunnels listing with full details."""
     mock_response = {
         "data": [
@@ -118,14 +104,10 @@ async def test_list_vpn_tunnels_full_details(mock_settings):
         ]
     }
 
-    mock_client = MagicMock()
-    mock_client.authenticate = AsyncMock()
-    mock_client.get = AsyncMock(return_value=mock_response)
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=None)
+    mock_client = _make_client(mock_response)
 
-    with patch.object(vpn_module, "UniFiClient", return_value=mock_client):
-        result = await list_vpn_tunnels("default", mock_settings)
+    with patch.object(vpn_module, "get_network_client", return_value=mock_client):
+        result = await list_vpn_tunnels("default")
 
     assert len(result) == 1
     tunnel = result[0]
@@ -141,7 +123,7 @@ async def test_list_vpn_tunnels_full_details(mock_settings):
 
 
 @pytest.mark.asyncio
-async def test_list_vpn_servers_success(mock_settings):
+async def test_list_vpn_servers_success():
     """Test successful VPN servers listing."""
     mock_response = {
         "data": [
@@ -162,14 +144,10 @@ async def test_list_vpn_servers_success(mock_settings):
         ]
     }
 
-    mock_client = MagicMock()
-    mock_client.authenticate = AsyncMock()
-    mock_client.get = AsyncMock(return_value=mock_response)
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=None)
+    mock_client = _make_client(mock_response)
 
-    with patch.object(vpn_module, "UniFiClient", return_value=mock_client):
-        result = await list_vpn_servers("default", mock_settings)
+    with patch.object(vpn_module, "get_network_client", return_value=mock_client):
+        result = await list_vpn_servers("default")
 
     assert len(result) == 2
     assert result[0]["name"] == "Remote Access VPN"
@@ -177,41 +155,33 @@ async def test_list_vpn_servers_success(mock_settings):
 
 
 @pytest.mark.asyncio
-async def test_list_vpn_servers_empty(mock_settings):
+async def test_list_vpn_servers_empty():
     """Test VPN servers listing with empty response."""
     mock_response = {"data": []}
 
-    mock_client = MagicMock()
-    mock_client.authenticate = AsyncMock()
-    mock_client.get = AsyncMock(return_value=mock_response)
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=None)
+    mock_client = _make_client(mock_response)
 
-    with patch.object(vpn_module, "UniFiClient", return_value=mock_client):
-        result = await list_vpn_servers("default", mock_settings)
+    with patch.object(vpn_module, "get_network_client", return_value=mock_client):
+        result = await list_vpn_servers("default")
 
     assert result == []
 
 
 @pytest.mark.asyncio
-async def test_list_vpn_servers_pagination(mock_settings):
+async def test_list_vpn_servers_pagination():
     """Test VPN servers listing with pagination."""
     mock_response = {"data": [{"_id": f"server{i}", "name": f"Server {i}"} for i in range(5)]}
 
-    mock_client = MagicMock()
-    mock_client.authenticate = AsyncMock()
-    mock_client.get = AsyncMock(return_value=mock_response)
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=None)
+    mock_client = _make_client(mock_response)
 
-    with patch.object(vpn_module, "UniFiClient", return_value=mock_client):
-        result = await list_vpn_servers("default", mock_settings, limit=2, offset=1)
+    with patch.object(vpn_module, "get_network_client", return_value=mock_client):
+        result = await list_vpn_servers("default", limit=2, offset=1)
 
     assert len(result) == 2
 
 
 @pytest.mark.asyncio
-async def test_list_vpn_servers_full_details(mock_settings):
+async def test_list_vpn_servers_full_details():
     """Test VPN servers listing with full details."""
     mock_response = {
         "data": [
@@ -228,14 +198,10 @@ async def test_list_vpn_servers_full_details(mock_settings):
         ]
     }
 
-    mock_client = MagicMock()
-    mock_client.authenticate = AsyncMock()
-    mock_client.get = AsyncMock(return_value=mock_response)
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=None)
+    mock_client = _make_client(mock_response)
 
-    with patch.object(vpn_module, "UniFiClient", return_value=mock_client):
-        result = await list_vpn_servers("default", mock_settings)
+    with patch.object(vpn_module, "get_network_client", return_value=mock_client):
+        result = await list_vpn_servers("default")
 
     assert len(result) == 1
     server = result[0]

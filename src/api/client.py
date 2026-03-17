@@ -4,7 +4,7 @@ import asyncio
 import json
 import time
 from typing import Any
-from uuid import UUID
+from urllib.parse import urlparse
 
 import httpx
 
@@ -58,11 +58,12 @@ class RateLimiter:
 class UniFiClient:
     """Async HTTP client for UniFi API with authentication and rate limiting."""
 
-    def __init__(self, settings: Settings) -> None:
+    def __init__(self, settings: Settings, api_key: str | None = None) -> None:
         """Initialize UniFi API client.
 
         Args:
             settings: Application settings
+            api_key: Specific API key to use. If None, uses settings default.
         """
         self.settings = settings
         self.logger = get_logger(__name__, settings.log_level)
@@ -71,7 +72,7 @@ class UniFiClient:
         # Note: We construct full URLs explicitly in _request() to ensure HTTPS is preserved
         # Using base_url can cause protocol downgrade issues with httpx
         self.client = httpx.AsyncClient(
-            headers=settings.get_headers(),
+            headers=settings.get_headers(api_key),
             timeout=settings.request_timeout,
             verify=settings.verify_ssl,
             follow_redirects=False,  # Prevent HTTP redirects that might downgrade protocol
@@ -84,9 +85,6 @@ class UniFiClient:
         )
 
         self._authenticated = False
-        self._site_id_cache: dict[str, str] = {}
-        # Cache for site UUID -> internalReference mapping (needed for local API)
-        self._site_uuid_to_name: dict[str, str] = {}
 
     async def __aenter__(self) -> "UniFiClient":
         """Async context manager entry."""
@@ -109,89 +107,6 @@ class UniFiClient:
         """
         return self._authenticated
 
-    def _translate_endpoint(self, endpoint: str) -> str:
-        """Translate endpoints based on API type.
-
-        This method handles endpoint translation for different API modes:
-        - cloud-v1: Stable v1 API (no translation for /ea/ endpoints, maps to /v1/)
-        - cloud-ea: Early Access API (no translation needed)
-        - local: Gateway API (translates cloud format to local format)
-
-        Args:
-            endpoint: API endpoint (e.g., /ea/sites/{site_id}/devices or /v1/hosts)
-
-        Returns:
-            Translated endpoint appropriate for the configured API type
-
-        Examples:
-            Cloud EA: /ea/sites/default/devices -> /ea/sites/default/devices (unchanged)
-            Cloud V1: /v1/hosts -> /v1/hosts (unchanged)
-            Local: /ea/sites/default/devices -> /proxy/network/api/s/default/devices
-            Local: /ea/sites -> /proxy/network/integration/v1/sites (special case)
-        """
-        if self.settings.api_type in (APIType.CLOUD_V1, APIType.CLOUD_EA):
-            # Cloud APIs - no translation needed
-            return endpoint
-
-        # Local API - translate cloud format to local format
-        import re
-
-        # Special case: /ea/sites (without site_id) -> Integration API
-        if endpoint == "/ea/sites":
-            return "/proxy/network/integration/v1/sites"
-
-        # Pattern: /ea/sites/{site_id}/{rest_of_path}
-        # Transform to: /proxy/network/api/s/{site_name}/{local_path}
-        # Note: Local API uses site names (e.g., 'default'), not UUIDs
-        # AND different endpoint paths than cloud API
-        match = re.match(r"^/ea/sites/([^/]+)/(.+)$", endpoint)
-        if match:
-            site_id, cloud_path = match.groups()
-            # Translate UUID to site name if we have the mapping
-            site_name = self._site_uuid_to_name.get(site_id, site_id)
-            if site_id != site_name:
-                self.logger.debug(f"Translated site ID: {site_id} -> {site_name}")
-
-            # Map cloud API paths to local API paths
-            # Cloud API uses different endpoint naming than local API
-            path_mapping = {
-                "devices": "stat/device",
-                "sta": "stat/sta",  # clients
-                "rest/networkconf": "rest/networkconf",  # VLANs/networks
-            }
-
-            local_path = path_mapping.get(cloud_path, cloud_path)
-            if cloud_path != local_path:
-                self.logger.debug(f"Translated path: {cloud_path} -> {local_path}")
-
-            return f"/proxy/network/api/s/{site_name}/{local_path}"
-
-        # Pattern: /ea/sites/{site_id} (no trailing path)
-        match = re.match(r"^/ea/sites/([^/]+)$", endpoint)
-        if match:
-            site_id = match.group(1)
-            # Translate UUID to site name if we have the mapping
-            site_name = self._site_uuid_to_name.get(site_id, site_id)
-            if site_id != site_name:
-                self.logger.debug(f"Translated site ID: {site_id} -> {site_name}")
-            return f"/proxy/network/api/s/{site_name}/self"
-
-        # If no pattern matches, check if it's already a local endpoint
-        if endpoint.startswith("/proxy/network/"):
-            return endpoint
-
-        # Integration API endpoints need /proxy/network prefix on local gateway
-        if endpoint.startswith("/integration/"):
-            return f"/proxy/network{endpoint}"
-
-        # V1 API endpoints need /proxy/network prefix on local gateway
-        if endpoint.startswith("/v1/"):
-            return f"/proxy/network{endpoint}"
-
-        # If not recognized, return as-is and log warning
-        self.logger.warning(f"Endpoint does not match known patterns: {endpoint}")
-        return endpoint
-
     async def authenticate(self) -> None:
         """Authenticate with the UniFi API.
 
@@ -206,7 +121,7 @@ class UniFiClient:
             else:
                 test_endpoint = "/ea/sites"  # EA API or local (will be auto-translated)
 
-            response = await self._request("GET", test_endpoint)
+            response = await self._request("GET", test_endpoint, allow_reauth=False)
 
             # Handle both dict and list responses
             # Local API (after normalization) returns list directly
@@ -214,9 +129,6 @@ class UniFiClient:
             if isinstance(response, list):
                 # List response means we got data successfully (local API)
                 self._authenticated = True
-                # Build site UUID -> name mapping for local API
-                if self.settings.api_type == APIType.LOCAL:
-                    self._build_site_uuid_map(response)
             elif isinstance(response, dict):
                 # Dict response - check for success indicators
                 self._authenticated = (
@@ -234,24 +146,6 @@ class UniFiClient:
             self.logger.error(f"Authentication failed: {e}")
             raise AuthenticationError(f"Failed to authenticate with UniFi API: {e}") from e
 
-    def _build_site_uuid_map(self, sites: list[dict[str, Any]]) -> None:
-        """Build a mapping of site UUIDs to internal reference names.
-
-        This is required for local API, which uses site names (e.g., 'default')
-        instead of UUIDs in endpoint paths.
-
-        Args:
-            sites: List of site objects from /ea/sites endpoint
-        """
-        self._site_uuid_to_name.clear()
-        for site in sites:
-            site_id = site.get("id")
-            internal_ref = site.get("internalReference")
-            if site_id and internal_ref:
-                self._site_uuid_to_name[site_id] = internal_ref
-
-        self.logger.info(f"Built site UUID mapping: {len(self._site_uuid_to_name)} sites")
-
     async def _request(
         self,
         method: str,
@@ -259,7 +153,26 @@ class UniFiClient:
         params: dict[str, Any] | None = None,
         json_data: dict[str, Any] | None = None,
         retry_count: int = 0,
-    ) -> dict[str, Any]:
+        allow_reauth: bool = True,
+    ) -> Any:
+        """Make an HTTP request with retries and error handling."""
+
+        try:
+            return await self._perform_request(method, endpoint, params, json_data, retry_count)
+        except AuthenticationError:
+            if not allow_reauth:
+                raise
+            await self.authenticate()
+            return await self._perform_request(method, endpoint, params, json_data, retry_count)
+
+    async def _perform_request(
+        self,
+        method: str,
+        endpoint: str,
+        params: dict[str, Any] | None = None,
+        json_data: dict[str, Any] | None = None,
+        retry_count: int = 0,
+    ) -> Any:
         """Make an HTTP request with retries and error handling.
 
         Args:
@@ -283,19 +196,25 @@ class UniFiClient:
         start_time = time.time()
 
         try:
-            # Automatically translate endpoint based on API type
-            translated_endpoint = self._translate_endpoint(endpoint)
+            allowed_host = urlparse(self.settings.base_url).hostname
+            parsed_endpoint = urlparse(endpoint)
 
-            # ENHANCED LOGGING - Use INFO level to ensure visibility
-            if endpoint != translated_endpoint:
-                self.logger.info(f"Endpoint translation: {endpoint} -> {translated_endpoint}")
+            # Allow absolute URLs only when they target the configured UniFi host.
+            if parsed_endpoint.scheme or parsed_endpoint.netloc:
+                endpoint_host = parsed_endpoint.hostname
+                if (
+                    not allowed_host
+                    or not endpoint_host
+                    or endpoint_host.lower() != allowed_host.lower()
+                ):
+                    raise APIError(
+                        f"Blocked request to untrusted host in endpoint: {endpoint}",
+                    )
 
             # Construct full URL explicitly to ensure HTTPS protocol is preserved
             # httpx's base_url joining can have issues with protocol handling
             full_url = (
-                f"{self.settings.base_url}{translated_endpoint}"
-                if translated_endpoint.startswith("/")
-                else translated_endpoint
+                f"{self.settings.base_url}{endpoint}" if endpoint.startswith("/") else endpoint
             )
 
             # CRITICAL: Ensure HTTPS scheme - force replace http:// with https://
@@ -320,7 +239,7 @@ class UniFiClient:
                 log_api_request(
                     self.logger,
                     method=method,
-                    url=translated_endpoint,  # Log the translated endpoint, not the original
+                    url=endpoint,
                     status_code=response.status_code,
                     duration_ms=duration_ms,
                 )
@@ -333,7 +252,9 @@ class UniFiClient:
                 if retry_count < self.settings.max_retries:
                     self.logger.warning(f"Rate limited, retrying after {retry_after}s")
                     await asyncio.sleep(retry_after)
-                    return await self._request(method, endpoint, params, json_data, retry_count + 1)
+                    return await self._perform_request(
+                        method, endpoint, params, json_data, retry_count + 1
+                    )
 
                 raise RateLimitError(retry_after=retry_after)
 
@@ -398,7 +319,9 @@ class UniFiClient:
                 backoff = self.settings.retry_backoff_factor**retry_count
                 self.logger.warning(f"Request timeout, retrying in {backoff}s")
                 await asyncio.sleep(backoff)
-                return await self._request(method, endpoint, params, json_data, retry_count + 1)
+                return await self._perform_request(
+                    method, endpoint, params, json_data, retry_count + 1
+                )
 
             raise NetworkError(f"Request timeout: {e}") from e
 
@@ -408,7 +331,9 @@ class UniFiClient:
                 backoff = self.settings.retry_backoff_factor**retry_count
                 self.logger.warning(f"Network error, retrying in {backoff}s")
                 await asyncio.sleep(backoff)
-                return await self._request(method, endpoint, params, json_data, retry_count + 1)
+                return await self._perform_request(
+                    method, endpoint, params, json_data, retry_count + 1
+                )
 
             raise NetworkError(f"Network communication failed: {e}") from e
 
@@ -420,7 +345,7 @@ class UniFiClient:
             self.logger.error(f"Unexpected error during API request: {e}")
             raise APIError(f"Unexpected error: {e}") from e
 
-    async def get(self, endpoint: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+    async def get(self, endpoint: str, params: dict[str, Any] | None = None) -> Any:
         """Make a GET request.
 
         Args:
@@ -437,7 +362,7 @@ class UniFiClient:
         endpoint: str,
         json_data: dict[str, Any],
         params: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
+    ) -> Any:
         """Make a POST request.
 
         Args:
@@ -455,7 +380,7 @@ class UniFiClient:
         endpoint: str,
         json_data: dict[str, Any],
         params: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
+    ) -> Any:
         """Make a PUT request.
 
         Args:
@@ -468,7 +393,7 @@ class UniFiClient:
         """
         return await self._request("PUT", endpoint, params=params, json_data=json_data)
 
-    async def delete(self, endpoint: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+    async def delete(self, endpoint: str, params: dict[str, Any] | None = None) -> Any:
         """Make a DELETE request.
 
         Args:
@@ -479,364 +404,3 @@ class UniFiClient:
             Response data
         """
         return await self._request("DELETE", endpoint, params=params)
-
-    @staticmethod
-    def _looks_like_uuid(value: str | None) -> bool:
-        """Determine whether a string value appears to be a UUID."""
-        if not value:
-            return False
-
-        try:
-            UUID(value)
-            return True
-        except (ValueError, TypeError):
-            return False
-
-    async def resolve_site_id(self, site_identifier: str | None) -> str:
-        """Resolve a user-provided site identifier to the controller's UUID format.
-
-        Args:
-            site_identifier: Friendly site identifier (e.g., "default" or UUID)
-
-        Returns:
-            Resolved UUID for the site (or the original identifier for cloud API)
-
-        Raises:
-            ResourceNotFoundError: If the site cannot be located
-        """
-        if not site_identifier:
-            site_identifier = self.settings.default_site
-
-        if self.settings.api_type == APIType.CLOUD or self._looks_like_uuid(site_identifier):
-            return site_identifier
-
-        cached = self._site_id_cache.get(site_identifier)
-        if cached:
-            return cached
-
-        sites_endpoint = self.settings.get_integration_path("sites")
-        response = await self.get(sites_endpoint)
-        # Handle both list (when API returns {"data": [...]}) and dict responses
-        if isinstance(response, list):
-            sites = response
-        else:
-            sites = response.get("data", response.get("sites", []))
-
-        for site in sites:
-            site_id = site.get("id") or site.get("_id")
-            if not site_id:
-                continue
-
-            identifiers = {
-                site_id,
-                site.get("internalReference"),
-                site.get("name"),
-                site.get("shortName"),
-            }
-
-            if site_identifier in {value for value in identifiers if value}:
-                self._site_id_cache[site_identifier] = site_id
-                return site_id
-
-        raise ResourceNotFoundError("site", site_identifier)
-
-    # Backup and Restore Operations
-
-    async def trigger_backup(
-        self,
-        site_id: str,
-        backup_type: str = "network",
-        days: int = -1,
-    ) -> dict[str, Any]:
-        """Trigger a backup operation on the UniFi controller.
-
-        Args:
-            site_id: Site identifier
-            backup_type: Type of backup ("network" for network-only, "system" for full)
-            days: Number of days to retain backup (-1 for indefinite)
-
-        Returns:
-            Backup operation response including download URL
-
-        Note:
-            For local API, use: /proxy/network/api/s/{site}/cmd/backup
-            Response contains a URL in data.url for downloading the backup file
-        """
-        site_id = await self.resolve_site_id(site_id)
-
-        # For local API, translate to local endpoint format
-        if self.settings.api_type == APIType.LOCAL:
-            # Use site name (e.g., "default") not UUID for local API
-            site_name = self._site_uuid_to_name.get(site_id, site_id)
-            endpoint = f"/proxy/network/api/s/{site_name}/cmd/backup"
-        else:
-            # Cloud API
-            endpoint = f"/ea/sites/{site_id}/cmd/backup"
-
-        payload = {
-            "cmd": "backup",
-            "days": str(days),
-        }
-
-        return await self.post(endpoint, json_data=payload)
-
-    async def list_backups(self, site_id: str) -> list[dict[str, Any]]:
-        """List all available backups for a site.
-
-        Args:
-            site_id: Site identifier
-
-        Returns:
-            List of backup metadata dictionaries
-
-        Note:
-            For local API, use: /proxy/network/api/backup/list-backups
-            For cloud API, endpoint may differ
-        """
-        site_id = await self.resolve_site_id(site_id)
-
-        # For local API
-        if self.settings.api_type == APIType.LOCAL:
-            site_name = self._site_uuid_to_name.get(site_id, site_id)
-            endpoint = f"/proxy/network/api/backup/list-backups?site={site_name}"
-        else:
-            # Cloud API
-            endpoint = f"/ea/sites/{site_id}/backups"
-
-        response = await self.get(endpoint)
-
-        # Handle different response formats
-        if isinstance(response, list):
-            return response
-        return response.get("data", response.get("backups", []))
-
-    async def download_backup(
-        self,
-        site_id: str,
-        backup_filename: str,
-    ) -> bytes:
-        """Download a backup file.
-
-        Args:
-            site_id: Site identifier
-            backup_filename: Backup filename to download
-
-        Returns:
-            Backup file content as bytes
-
-        Note:
-            This method downloads the actual backup file content.
-            For local API: /proxy/network/data/backup/{filename}
-        """
-        site_id = await self.resolve_site_id(site_id)
-
-        # For local API
-        if self.settings.api_type == APIType.LOCAL:
-            endpoint = f"/proxy/network/data/backup/{backup_filename}"
-        else:
-            # Cloud API
-            endpoint = f"/ea/sites/{site_id}/backups/{backup_filename}/download"
-
-        # Use direct HTTP client for binary download
-        full_url = f"{self.settings.base_url}{endpoint}"
-
-        response = await self.client.get(full_url)
-        response.raise_for_status()
-
-        return response.content
-
-    async def delete_backup(
-        self,
-        site_id: str,
-        backup_filename: str,
-    ) -> dict[str, Any]:
-        """Delete a specific backup file.
-
-        Args:
-            site_id: Site identifier
-            backup_filename: Backup filename to delete
-
-        Returns:
-            Deletion confirmation response
-
-        Note:
-            For local API: DELETE /proxy/network/api/backup/delete-backup/{filename}
-        """
-        site_id = await self.resolve_site_id(site_id)
-
-        # For local API
-        if self.settings.api_type == APIType.LOCAL:
-            endpoint = f"/proxy/network/api/backup/delete-backup/{backup_filename}"
-        else:
-            # Cloud API
-            endpoint = f"/ea/sites/{site_id}/backups/{backup_filename}"
-
-        return await self.delete(endpoint)
-
-    async def restore_backup(
-        self,
-        site_id: str,
-        backup_filename: str,
-    ) -> dict[str, Any]:
-        """Restore the controller from a backup file.
-
-        Args:
-            site_id: Site identifier
-            backup_filename: Backup filename to restore from
-
-        Returns:
-            Restore operation response
-
-        Warning:
-            This is a destructive operation that will restore the controller
-            to the state captured in the backup. Use with extreme caution.
-
-        Note:
-            For local API: POST /proxy/network/api/backup/restore
-            Controller may restart during restore process
-        """
-        site_id = await self.resolve_site_id(site_id)
-
-        # For local API
-        if self.settings.api_type == APIType.LOCAL:
-            endpoint = "/proxy/network/api/backup/restore"
-            payload = {"filename": backup_filename}
-        else:
-            # Cloud API
-            endpoint = f"/ea/sites/{site_id}/backups/{backup_filename}/restore"
-            payload = {"backup_id": backup_filename}
-
-        return await self.post(endpoint, json_data=payload)
-
-    async def get_backup_status(
-        self,
-        site_id: str,
-        operation_id: str,
-    ) -> dict[str, Any]:
-        """Get the status of an ongoing backup operation.
-
-        Args:
-            site_id: Site identifier
-            operation_id: Backup operation ID
-
-        Returns:
-            Operation status including progress and any errors
-        """
-        site_id = await self.resolve_site_id(site_id)
-
-        # For local API
-        if self.settings.api_type == APIType.LOCAL:
-            site_name = self._site_uuid_to_name.get(site_id, site_id)
-            endpoint = f"/proxy/network/api/s/{site_name}/stat/backup/{operation_id}"
-        else:
-            # Cloud API
-            endpoint = f"/ea/sites/{site_id}/operations/{operation_id}"
-
-        return await self.get(endpoint)
-
-    async def get_restore_status(
-        self,
-        operation_id: str,
-    ) -> dict[str, Any]:
-        """Get the status of an ongoing restore operation.
-
-        Args:
-            operation_id: Restore operation ID
-
-        Returns:
-            Operation status including progress, step, and any errors
-        """
-        # UniFi does not expose a dedicated restore-status endpoint; return a
-        # response that honestly reflects this limitation rather than
-        # falsely claiming the restore is complete.
-        return {
-            "status": "not_supported",
-            "message": "Restore status tracking is not available via the UniFi API.",
-            "operation_id": operation_id,
-        }
-
-    async def configure_backup_schedule(
-        self,
-        site_id: str,
-        backup_type: str = "network",
-        frequency: str = "daily",
-        time_of_day: str = "02:00",
-        enabled: bool = True,
-        retention_days: int = 30,
-        max_backups: int = 10,
-        day_of_week: str | None = None,
-        day_of_month: int | None = None,
-        cloud_backup_enabled: bool = False,
-    ) -> dict[str, Any]:
-        """Configure the automated backup schedule for a site.
-
-        Args:
-            site_id: Site identifier
-            backup_type: Type of backup ("network" or "system")
-            frequency: Schedule frequency ("daily", "weekly", "monthly")
-            time_of_day: Time to run backup in HH:MM format
-            enabled: Whether the schedule is active
-            retention_days: Number of days to keep backups
-            max_backups: Maximum number of backups to retain
-            day_of_week: Day of week for weekly schedules (e.g. "monday")
-            day_of_month: Day of month for monthly schedules (1-28)
-            cloud_backup_enabled: Whether to also push backups to cloud storage
-
-        Returns:
-            Schedule configuration response
-
-        Note:
-            For local API: PUT /proxy/network/api/s/{site}/rest/backup/schedule
-        """
-        site_id = await self.resolve_site_id(site_id)
-
-        payload: dict[str, Any] = {
-            "enabled": enabled,
-            "backup_type": backup_type,
-            "frequency": frequency,
-            "time_of_day": time_of_day,
-            "retention_days": retention_days,
-            "max_backups": max_backups,
-            "cloud_backup_enabled": cloud_backup_enabled,
-        }
-        if day_of_week is not None:
-            payload["day_of_week"] = day_of_week
-        if day_of_month is not None:
-            payload["day_of_month"] = day_of_month
-
-        if self.settings.api_type == APIType.LOCAL:
-            site_name = self._site_uuid_to_name.get(site_id, site_id)
-            endpoint = f"/proxy/network/api/s/{site_name}/rest/backup/schedule"
-        else:
-            endpoint = f"/ea/sites/{site_id}/backup/schedule"
-
-        return await self.put(endpoint, json_data=payload)
-
-    async def get_backup_schedule(
-        self,
-        site_id: str,
-    ) -> dict[str, Any]:
-        """Retrieve the current backup schedule configuration for a site.
-
-        Args:
-            site_id: Site identifier
-
-        Returns:
-            Backup schedule configuration, or empty dict if none is configured
-
-        Note:
-            For local API: GET /proxy/network/api/s/{site}/rest/backup/schedule
-        """
-        site_id = await self.resolve_site_id(site_id)
-
-        if self.settings.api_type == APIType.LOCAL:
-            site_name = self._site_uuid_to_name.get(site_id, site_id)
-            endpoint = f"/proxy/network/api/s/{site_name}/rest/backup/schedule"
-        else:
-            endpoint = f"/ea/sites/{site_id}/backup/schedule"
-
-        response = await self.get(endpoint)
-
-        if isinstance(response, list):
-            return response[0] if response else {}
-        return response if isinstance(response, dict) else {}

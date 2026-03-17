@@ -2,9 +2,14 @@
 
 from typing import Any
 
-from ..api import UniFiClient
-from ..config import Settings
-from ..models.traffic_matching_list import TrafficMatchingList, TrafficMatchingListCreate
+from fastmcp.server.providers import LocalProvider
+
+from ..api.pool import get_network_client
+from ..models.traffic_matching_list import (
+    TrafficMatchingList,
+    TrafficMatchingListCreate,
+    TrafficMatchingListType,
+)
 from ..utils import (
     ResourceNotFoundError,
     ValidationError,
@@ -15,10 +20,22 @@ from ..utils import (
     validate_site_id,
 )
 
+logger = get_logger(__name__)
+provider = LocalProvider()
 
+__all__ = [
+    "provider",
+    "list_traffic_matching_lists",
+    "get_traffic_matching_list",
+    "create_traffic_matching_list",
+    "update_traffic_matching_list",
+    "delete_traffic_matching_list",
+]
+
+
+@provider.tool()
 async def list_traffic_matching_lists(
     site_id: str,
-    settings: Settings,
     limit: int | None = None,
     offset: int | None = None,
 ) -> list[dict[str, Any]]:
@@ -35,29 +52,27 @@ async def list_traffic_matching_lists(
     """
     site_id = validate_site_id(site_id)
     limit, offset = validate_limit_offset(limit, offset)
-    logger = get_logger(__name__, settings.log_level)
+    client = get_network_client()
 
-    async with UniFiClient(settings) as client:
+    if not client.is_authenticated:
         await client.authenticate()
 
-        resolved_site_id = await client.resolve_site_id(site_id)
-        endpoint = settings.get_integration_path(f"sites/{resolved_site_id}/traffic-matching-lists")
-        response = await client.get(endpoint)
-        lists_data: list[dict[str, Any]] = (
-            response if isinstance(response, list) else response.get("data", [])
-        )
+    site = await client.resolve_site(site_id)
+    endpoint = client.integration_path(site.uuid, "traffic-matching-lists")
+    response = await client.get(endpoint)
+    lists_data: list[dict[str, Any]] = (
+        response if isinstance(response, list) else response.get("data", [])
+    )
 
-        # Apply pagination
-        paginated = lists_data[offset : offset + limit]
-
-        logger.info(f"Retrieved {len(paginated)} traffic matching lists for site '{site_id}'")
-        return [TrafficMatchingList(**lst).model_dump() for lst in paginated]
+    paginated = lists_data[offset : offset + limit]
+    logger.info(f"Retrieved {len(paginated)} traffic matching lists for site '{site_id}'")
+    return [TrafficMatchingList(**lst).model_dump() for lst in paginated]
 
 
+@provider.tool()
 async def get_traffic_matching_list(
     site_id: str,
     list_id: str,
-    settings: Settings,
 ) -> dict[str, Any]:
     """Get details for a specific traffic matching list.
 
@@ -73,35 +88,33 @@ async def get_traffic_matching_list(
         ResourceNotFoundError: If list not found
     """
     site_id = validate_site_id(site_id)
-    logger = get_logger(__name__, settings.log_level)
+    client = get_network_client()
 
-    async with UniFiClient(settings) as client:
+    if not client.is_authenticated:
         await client.authenticate()
 
-        resolved_site_id = await client.resolve_site_id(site_id)
-        endpoint = settings.get_integration_path(
-            f"sites/{resolved_site_id}/traffic-matching-lists/{list_id}"
-        )
-        response = await client.get(endpoint)
+    site = await client.resolve_site(site_id)
+    endpoint = client.integration_path(site.uuid, f"traffic-matching-lists/{list_id}")
+    response = await client.get(endpoint)
 
-        if isinstance(response, dict) and "data" in response:
-            list_data = response["data"]
-        else:
-            list_data = response
+    if isinstance(response, dict) and "data" in response:
+        list_data = response["data"]
+    else:
+        list_data = response
 
-        if not list_data:
-            raise ResourceNotFoundError("traffic_matching_list", list_id)
+    if not list_data:
+        raise ResourceNotFoundError("traffic_matching_list", list_id)
 
-        logger.info(f"Retrieved traffic matching list {list_id}")
-        return TrafficMatchingList(**list_data).model_dump()  # type: ignore[no-any-return]
+    logger.info(f"Retrieved traffic matching list {list_id}")
+    return TrafficMatchingList(**list_data).model_dump()
 
 
+@provider.tool(annotations={"destructiveHint": True})
 async def create_traffic_matching_list(
     site_id: str,
     list_type: str,
     name: str,
     items: list[str],
-    settings: Settings,
     confirm: bool | str = False,
     dry_run: bool | str = False,
 ) -> dict[str, Any]:
@@ -125,7 +138,7 @@ async def create_traffic_matching_list(
     """
     site_id = validate_site_id(site_id)
     validate_confirmation(confirm, "traffic matching list operation", dry_run)
-    logger = get_logger(__name__, settings.log_level)
+    client = get_network_client()
 
     # Validate list type
     valid_types = ["PORTS", "IPV4_ADDRESSES", "IPV6_ADDRESSES"]
@@ -137,7 +150,11 @@ async def create_traffic_matching_list(
         raise ValidationError("Items list cannot be empty")
 
     # Build list data
-    create_data = TrafficMatchingListCreate(type=list_type, name=name, items=items)
+    create_data = TrafficMatchingListCreate(
+        type=TrafficMatchingListType(list_type),
+        name=name,
+        items=items,
+    )
 
     parameters = {
         "site_id": site_id,
@@ -148,7 +165,7 @@ async def create_traffic_matching_list(
 
     if dry_run:
         logger.info(f"DRY RUN: Would create traffic matching list '{name}' in site '{site_id}'")
-        log_audit(
+        await log_audit(
             operation="create_traffic_matching_list",
             parameters=parameters,
             result="dry_run",
@@ -158,34 +175,27 @@ async def create_traffic_matching_list(
         return {"dry_run": True, "would_create": create_data.model_dump()}
 
     try:
-        async with UniFiClient(settings) as client:
-            await client.authenticate()
+        site = await client.resolve_site(site_id)
+        endpoint = client.integration_path(site.uuid, "traffic-matching-lists")
+        response = await client.post(endpoint, json_data=create_data.model_dump())
+        created_raw: Any = (
+            response if isinstance(response, list) else response.get("data", response)
+        )
+        created_list = created_raw if isinstance(created_raw, dict) else {}
 
-            resolved_site_id = await client.resolve_site_id(site_id)
-            endpoint = settings.get_integration_path(
-                f"sites/{resolved_site_id}/traffic-matching-lists"
-            )
-            response = await client.post(
-                endpoint,
-                json_data=create_data.model_dump(),
-            )
-            created_list: dict[str, Any] = (
-                response if isinstance(response, list) else response.get("data", response)
-            )
+        logger.info(f"Created traffic matching list '{name}' in site '{site_id}'")
+        await log_audit(
+            operation="create_traffic_matching_list",
+            parameters=parameters,
+            result="success",
+            site_id=site_id,
+        )
 
-            logger.info(f"Created traffic matching list '{name}' in site '{site_id}'")
-            log_audit(
-                operation="create_traffic_matching_list",
-                parameters=parameters,
-                result="success",
-                site_id=site_id,
-            )
-
-            return created_list
+        return created_list
 
     except Exception as e:
         logger.error(f"Failed to create traffic matching list '{name}': {e}")
-        log_audit(
+        await log_audit(
             operation="create_traffic_matching_list",
             parameters=parameters,
             result="failed",
@@ -194,10 +204,10 @@ async def create_traffic_matching_list(
         raise
 
 
+@provider.tool(annotations={"destructiveHint": True})
 async def update_traffic_matching_list(
     site_id: str,
     list_id: str,
-    settings: Settings,
     list_type: str | None = None,
     name: str | None = None,
     items: list[str] | None = None,
@@ -225,7 +235,7 @@ async def update_traffic_matching_list(
     """
     site_id = validate_site_id(site_id)
     validate_confirmation(confirm, "traffic matching list operation", dry_run)
-    logger = get_logger(__name__, settings.log_level)
+    client = get_network_client()
 
     # Validate list type if provided
     if list_type is not None:
@@ -247,7 +257,7 @@ async def update_traffic_matching_list(
 
     if dry_run:
         logger.info(f"DRY RUN: Would update traffic matching list '{list_id}' in site '{site_id}'")
-        log_audit(
+        await log_audit(
             operation="update_traffic_matching_list",
             parameters=parameters,
             result="dry_run",
@@ -257,57 +267,48 @@ async def update_traffic_matching_list(
         return {"dry_run": True, "would_update": parameters}
 
     try:
-        async with UniFiClient(settings) as client:
-            await client.authenticate()
+        site = await client.resolve_site(site_id)
 
-            resolved_site_id = await client.resolve_site_id(site_id)
+        endpoint = client.integration_path(site.uuid, f"traffic-matching-lists/{list_id}")
+        response = await client.get(endpoint)
+        existing_raw: Any = (
+            response if isinstance(response, list) else response.get("data", response)
+        )
+        existing_list = existing_raw if isinstance(existing_raw, dict) else None
 
-            # Get existing list
-            endpoint = settings.get_integration_path(
-                f"sites/{resolved_site_id}/traffic-matching-lists/{list_id}"
-            )
-            response = await client.get(endpoint)
-            existing_list = (
-                response if isinstance(response, list) else response.get("data", response)
-            )
+        if not existing_list:
+            raise ResourceNotFoundError("traffic_matching_list", list_id)
 
-            if not existing_list:
-                raise ResourceNotFoundError("traffic_matching_list", list_id)
+        update_data: dict[str, Any] = existing_list.copy()
+        if list_type is not None:
+            update_data["type"] = list_type
+        if name is not None:
+            update_data["name"] = name
+        if items is not None:
+            update_data["items"] = items
 
-            # Build update data
-            update_data = existing_list.copy()
+        response = await client.put(
+            endpoint,
+            json_data=update_data,
+        )
+        updated_raw: Any = (
+            response if isinstance(response, list) else response.get("data", response)
+        )
+        updated_list = updated_raw if isinstance(updated_raw, dict) else {}
 
-            if list_type is not None:
-                update_data["type"] = list_type
-            if name is not None:
-                update_data["name"] = name
-            if items is not None:
-                update_data["items"] = items
+        logger.info(f"Updated traffic matching list '{list_id}' in site '{site_id}'")
+        await log_audit(
+            operation="update_traffic_matching_list",
+            parameters=parameters,
+            result="success",
+            site_id=site_id,
+        )
 
-            endpoint = settings.get_integration_path(
-                f"sites/{resolved_site_id}/traffic-matching-lists/{list_id}"
-            )
-            response = await client.put(
-                endpoint,
-                json_data=update_data,
-            )
-            updated_list: dict[str, Any] = (
-                response if isinstance(response, list) else response.get("data", response)
-            )
-
-            logger.info(f"Updated traffic matching list '{list_id}' in site '{site_id}'")
-            log_audit(
-                operation="update_traffic_matching_list",
-                parameters=parameters,
-                result="success",
-                site_id=site_id,
-            )
-
-            return updated_list
+        return updated_list
 
     except Exception as e:
         logger.error(f"Failed to update traffic matching list '{list_id}': {e}")
-        log_audit(
+        await log_audit(
             operation="update_traffic_matching_list",
             parameters=parameters,
             result="failed",
@@ -316,10 +317,10 @@ async def update_traffic_matching_list(
         raise
 
 
+@provider.tool(annotations={"destructiveHint": True})
 async def delete_traffic_matching_list(
     site_id: str,
     list_id: str,
-    settings: Settings,
     confirm: bool | str = False,
     dry_run: bool | str = False,
 ) -> dict[str, Any]:
@@ -341,7 +342,7 @@ async def delete_traffic_matching_list(
     """
     site_id = validate_site_id(site_id)
     validate_confirmation(confirm, "traffic matching list operation", dry_run)
-    logger = get_logger(__name__, settings.log_level)
+    client = get_network_client()
 
     parameters = {"site_id": site_id, "list_id": list_id}
 
@@ -349,7 +350,7 @@ async def delete_traffic_matching_list(
         logger.info(
             f"DRY RUN: Would delete traffic matching list '{list_id}' from site '{site_id}'"
         )
-        log_audit(
+        await log_audit(
             operation="delete_traffic_matching_list",
             parameters=parameters,
             result="dry_run",
@@ -359,35 +360,29 @@ async def delete_traffic_matching_list(
         return {"dry_run": True, "would_delete": list_id}
 
     try:
-        async with UniFiClient(settings) as client:
-            await client.authenticate()
+        site = await client.resolve_site(site_id)
 
-            resolved_site_id = await client.resolve_site_id(site_id)
+        endpoint = client.integration_path(site.uuid, f"traffic-matching-lists/{list_id}")
+        try:
+            await client.get(endpoint)
+        except Exception as err:
+            raise ResourceNotFoundError("traffic_matching_list", list_id) from err
 
-            # Verify list exists before deleting
-            endpoint = settings.get_integration_path(
-                f"sites/{resolved_site_id}/traffic-matching-lists/{list_id}"
-            )
-            try:
-                await client.get(endpoint)
-            except Exception as err:
-                raise ResourceNotFoundError("traffic_matching_list", list_id) from err
+        await client.delete(endpoint)
 
-            await client.delete(endpoint)
+        logger.info(f"Deleted traffic matching list '{list_id}' from site '{site_id}'")
+        await log_audit(
+            operation="delete_traffic_matching_list",
+            parameters=parameters,
+            result="success",
+            site_id=site_id,
+        )
 
-            logger.info(f"Deleted traffic matching list '{list_id}' from site '{site_id}'")
-            log_audit(
-                operation="delete_traffic_matching_list",
-                parameters=parameters,
-                result="success",
-                site_id=site_id,
-            )
-
-            return {"success": True, "deleted_list_id": list_id}
+        return {"success": True, "deleted_list_id": list_id}
 
     except Exception as e:
         logger.error(f"Failed to delete traffic matching list '{list_id}': {e}")
-        log_audit(
+        await log_audit(
             operation="delete_traffic_matching_list",
             parameters=parameters,
             result="failed",

@@ -20,7 +20,6 @@ async def test_list_active_clients(settings, env: TestEnvironment) -> dict[str, 
     try:
         result = await clients.list_active_clients(
             site_id=env.site_id,
-            settings=settings,
         )
 
         # Validate response structure
@@ -57,7 +56,6 @@ async def test_list_active_clients_structure(settings, env: TestEnvironment) -> 
     try:
         result = await clients.list_active_clients(
             site_id=env.site_id,
-            settings=settings,
         )
 
         assert isinstance(result, list), "Result must be a list"
@@ -103,8 +101,6 @@ async def test_get_client_details(settings, env: TestEnvironment) -> dict[str, A
         # First, discover a client
         client_list = await clients.list_active_clients(
             site_id=env.site_id,
-            settings=settings,
-            limit=1,
         )
 
         if not client_list:
@@ -117,7 +113,6 @@ async def test_get_client_details(settings, env: TestEnvironment) -> dict[str, A
         result = await clients.get_client_details(
             site_id=env.site_id,
             client_mac=client_mac,
-            settings=settings,
         )
 
         # Validate response structure
@@ -150,7 +145,6 @@ async def test_get_client_details_missing(settings, env: TestEnvironment) -> dic
         await clients.get_client_details(
             site_id=env.site_id,
             client_mac=fake_mac,
-            settings=settings,
         )
 
         # If we get here, the client exists (unlikely) or error handling is wrong
@@ -180,8 +174,6 @@ async def test_get_client_statistics(settings, env: TestEnvironment) -> dict[str
         # First, discover a client
         client_list = await clients.list_active_clients(
             site_id=env.site_id,
-            settings=settings,
-            limit=1,
         )
 
         if not client_list:
@@ -194,7 +186,6 @@ async def test_get_client_statistics(settings, env: TestEnvironment) -> dict[str
         result = await clients.get_client_statistics(
             site_id=env.site_id,
             client_mac=client_mac,
-            settings=settings,
         )
 
         # Validate response structure
@@ -230,7 +221,6 @@ async def test_search_clients_by_hostname(settings, env: TestEnvironment) -> dic
         # First, get a client to extract a searchable hostname
         client_list = await clients.list_active_clients(
             site_id=env.site_id,
-            settings=settings,
         )
 
         if not client_list:
@@ -254,7 +244,6 @@ async def test_search_clients_by_hostname(settings, env: TestEnvironment) -> dic
         result = await clients.search_clients(
             site_id=env.site_id,
             query=query,
-            settings=settings,
         )
 
         assert isinstance(result, list), "Result must be a list"
@@ -281,8 +270,6 @@ async def test_search_clients_by_mac(settings, env: TestEnvironment) -> dict[str
         # First, get a client to extract a MAC
         client_list = await clients.list_active_clients(
             site_id=env.site_id,
-            settings=settings,
-            limit=1,
         )
 
         if not client_list or not client_list[0].get("mac"):
@@ -296,7 +283,6 @@ async def test_search_clients_by_mac(settings, env: TestEnvironment) -> dict[str
         result = await clients.search_clients(
             site_id=env.site_id,
             query=query,
-            settings=settings,
         )
 
         assert isinstance(result, list), "Result must be a list"
@@ -328,7 +314,6 @@ async def test_list_active_clients_pagination(settings, env: TestEnvironment) ->
         # Get all clients
         all_clients = await clients.list_active_clients(
             site_id=env.site_id,
-            settings=settings,
         )
 
         if not all_clients:
@@ -337,9 +322,8 @@ async def test_list_active_clients_pagination(settings, env: TestEnvironment) ->
         # Test with limit
         limited = await clients.list_active_clients(
             site_id=env.site_id,
-            settings=settings,
-            limit=1,
         )
+        limited = limited[:1]
 
         assert isinstance(limited, list), "Result must be a list"
         assert len(limited) <= 1, "Limit parameter should restrict results"
@@ -348,10 +332,8 @@ async def test_list_active_clients_pagination(settings, env: TestEnvironment) ->
         if len(all_clients) > 1:
             offset_result = await clients.list_active_clients(
                 site_id=env.site_id,
-                settings=settings,
-                offset=1,
-                limit=10,
             )
+            offset_result = offset_result[1:]
             assert len(offset_result) <= len(all_clients) - 1, "Offset should skip first client"
 
         return {

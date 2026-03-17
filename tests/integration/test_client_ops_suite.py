@@ -30,7 +30,6 @@ async def test_block_client_without_confirmation(settings, env: TestEnvironment)
         await client_management.block_client(
             site_id=env.site_id,
             client_mac="00:00:00:00:00:01",  # Fake MAC for validation test
-            settings=settings,
             confirm=False,  # Should raise error
         )
 
@@ -66,7 +65,6 @@ async def test_block_client_dry_run(settings, env: TestEnvironment) -> dict[str,
         result = await client_management.block_client(
             site_id=env.site_id,
             client_mac="00:11:22:33:44:55",  # Test MAC
-            settings=settings,
             confirm=True,
             dry_run=True,  # DRY-RUN ONLY - never actually block
         )
@@ -97,7 +95,6 @@ async def test_unblock_client_dry_run(settings, env: TestEnvironment) -> dict[st
         result = await client_management.unblock_client(
             site_id=env.site_id,
             client_mac="00:11:22:33:44:55",  # Test MAC
-            settings=settings,
             confirm=True,
             dry_run=True,  # DRY-RUN ONLY - never actually unblock
         )
@@ -128,7 +125,6 @@ async def test_reconnect_client_dry_run(settings, env: TestEnvironment) -> dict[
         result = await client_management.reconnect_client(
             site_id=env.site_id,
             client_mac="00:11:22:33:44:55",  # Test MAC
-            settings=settings,
             confirm=True,
             dry_run=True,  # DRY-RUN ONLY - never actually reconnect
         )

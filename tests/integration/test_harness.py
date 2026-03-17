@@ -24,6 +24,7 @@ from typing import Any
 
 from dotenv import load_dotenv
 
+from src.api import pool
 from src.config import Settings
 
 
@@ -66,14 +67,22 @@ class TestEnvironment:
 
         # Temporarily set environment variables
         env_backup = {
-            "UNIFI_API_KEY": os.getenv("UNIFI_API_KEY"),
+            "UNIFI_LOCAL_API_KEY": os.getenv("UNIFI_LOCAL_API_KEY"),
+            "UNIFI_REMOTE_API_KEY": os.getenv("UNIFI_REMOTE_API_KEY"),
+            "UNIFI_NETWORK_API_KEY": os.getenv("UNIFI_NETWORK_API_KEY"),
+            "UNIFI_SITE_MANAGER_API_KEY": os.getenv("UNIFI_SITE_MANAGER_API_KEY"),
             "UNIFI_API_TYPE": os.getenv("UNIFI_API_TYPE"),
             "UNIFI_LOCAL_HOST": os.getenv("UNIFI_LOCAL_HOST"),
             "UNIFI_LOCAL_PORT": os.getenv("UNIFI_LOCAL_PORT"),
             "UNIFI_LOCAL_VERIFY_SSL": os.getenv("UNIFI_LOCAL_VERIFY_SSL"),
         }
 
-        os.environ["UNIFI_API_KEY"] = self.api_key
+        if self.api_type == "local":
+            os.environ["UNIFI_LOCAL_API_KEY"] = self.api_key
+            os.environ["UNIFI_NETWORK_API_KEY"] = self.api_key
+        else:
+            os.environ["UNIFI_REMOTE_API_KEY"] = self.api_key
+            os.environ["UNIFI_SITE_MANAGER_API_KEY"] = self.api_key
         os.environ["UNIFI_API_TYPE"] = self.api_type
         if self.local_host:
             os.environ["UNIFI_LOCAL_HOST"] = self.local_host
@@ -124,24 +133,31 @@ class TestHarness:
 
         import os
 
+        def first_env(*keys: str) -> str | None:
+            for key in keys:
+                value = os.getenv(key)
+                if value:
+                    return value
+            return None
+
         environments = []
 
         # Load unifi-lab environment
-        lab_key = os.getenv("UNIFI_LAB_API_KEY")
+        lab_key = first_env("UNIFI_LAB_API_KEY", "UNIFI_LOCAL_API_KEY", "UNIFI_NETWORK_API_KEY")
         if lab_key:
             environments.append(
                 TestEnvironment(
                     name="unifi-lab",
                     api_type="local",
                     api_key=lab_key,
-                    local_host=os.getenv("UNIFI_LAB_HOST", "10.2.0.1"),
+                    local_host=first_env("UNIFI_LAB_HOST", "UNIFI_LOCAL_HOST") or "10.2.0.1",
                     local_port=int(os.getenv("UNIFI_LAB_PORT", "443")),
                     verify_ssl=os.getenv("UNIFI_LAB_VERIFY_SSL", "false").lower() == "true",
                 )
             )
 
         # Load unifi-home environment
-        home_key = os.getenv("UNIFI_HOME_API_KEY")
+        home_key = first_env("UNIFI_HOME_API_KEY", "UNIFI_LOCAL_API_KEY", "UNIFI_NETWORK_API_KEY")
         if home_key:
             environments.append(
                 TestEnvironment(
@@ -155,7 +171,14 @@ class TestHarness:
             )
 
         # Load cloud-v1 environment (lab site)
-        cloud_v1_key = os.getenv("UNIFI_CLOUD_V1_API_KEY") or os.getenv("UNIFI_CLOUD_API_KEY")
+        # Preference: explicit cloud override -> REMOTE key -> LOCAL key
+        cloud_v1_key = first_env(
+            "UNIFI_CLOUD_V1_API_KEY",
+            "UNIFI_REMOTE_API_KEY",
+            "UNIFI_SITE_MANAGER_API_KEY",
+            "UNIFI_LOCAL_API_KEY",
+            "UNIFI_NETWORK_API_KEY",
+        )
         cloud_site_lab = os.getenv("UNIFI_CLOUD_SITE_LAB", "63be0605bc01d21891cef8df")
         if cloud_v1_key:
             environments.append(
@@ -168,7 +191,14 @@ class TestHarness:
             )
 
         # Load cloud-ea environment (lab site)
-        cloud_ea_key = os.getenv("UNIFI_CLOUD_EA_API_KEY") or os.getenv("UNIFI_CLOUD_API_KEY")
+        # Preference: explicit cloud override -> REMOTE key -> LOCAL key
+        cloud_ea_key = first_env(
+            "UNIFI_CLOUD_EA_API_KEY",
+            "UNIFI_REMOTE_API_KEY",
+            "UNIFI_SITE_MANAGER_API_KEY",
+            "UNIFI_LOCAL_API_KEY",
+            "UNIFI_NETWORK_API_KEY",
+        )
         if cloud_ea_key:
             environments.append(
                 TestEnvironment(
@@ -303,27 +333,32 @@ class TestHarness:
 
         for env in envs:
             settings = env.to_settings()
+            await pool.initialize(settings)
 
-            # Run suite setup if defined
-            if suite.setup:
-                try:
-                    await suite.setup(settings, env)
-                except Exception as e:
-                    print(f"⚠️  Suite setup failed for {env.name}: {e}")
-                    continue
+            try:
+                # Run suite setup if defined
+                if suite.setup:
+                    try:
+                        await suite.setup(settings, env)
+                    except Exception as e:
+                        print(f"⚠️  Suite setup failed for {env.name}: {e}")
+                        continue
 
-            # Run all tests in the suite
-            for test_func in suite.tests:
-                result = await self.run_test(test_func, env, settings)
-                results.append(result)
-                self._print_result(result)
+                # Run all tests in the suite
+                for test_func in suite.tests:
+                    result = await self.run_test(test_func, env, settings)
+                    results.append(result)
+                    self.results.append(result)
+                    self._print_result(result)
 
-            # Run suite teardown if defined
-            if suite.teardown:
-                try:
-                    await suite.teardown(settings, env)
-                except Exception as e:
-                    print(f"⚠️  Suite teardown failed for {env.name}: {e}")
+                # Run suite teardown if defined
+                if suite.teardown:
+                    try:
+                        await suite.teardown(settings, env)
+                    except Exception as e:
+                        print(f"⚠️  Suite teardown failed for {env.name}: {e}")
+            finally:
+                await pool.shutdown()
 
         return results
 
@@ -345,7 +380,6 @@ class TestHarness:
         for suite_name in self.test_suites:
             results = await self.run_suite(suite_name, environment_filter)
             all_results[suite_name] = results
-            self.results.extend(results)
 
         return all_results
 

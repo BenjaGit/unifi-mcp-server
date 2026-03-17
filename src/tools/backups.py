@@ -3,17 +3,37 @@
 import hashlib
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
-from ..api import UniFiClient
-from ..config import Settings
+from fastmcp.server.providers import LocalProvider
+
+from ..api.pool import get_network_client
+from ..config import APIType
 from ..utils import ValidationError, get_logger, log_audit, validate_confirmation, validate_site_id
 
+logger = get_logger(__name__)
+provider = LocalProvider()
 
+__all__ = [
+    "provider",
+    "trigger_backup",
+    "list_backups",
+    "get_backup_details",
+    "download_backup",
+    "delete_backup",
+    "restore_backup",
+    "validate_backup",
+    "get_backup_status",
+    "get_restore_status",
+    "schedule_backups",
+    "get_backup_schedule",
+]
+
+
+@provider.tool()
 async def trigger_backup(
     site_id: str,
     backup_type: str,
-    settings: Settings,
     retention_days: int = 30,
     confirm: bool | str = False,
     dry_run: bool | str = False,
@@ -60,7 +80,6 @@ async def trigger_backup(
     """
     site_id = validate_site_id(site_id)
     validate_confirmation(confirm, "backup operation", dry_run)
-    logger = get_logger(__name__, settings.log_level)
 
     # Validate backup type
     valid_types = ["network", "system"]
@@ -82,7 +101,7 @@ async def trigger_backup(
             f"DRY RUN: Would create {backup_type} backup for site '{site_id}' "
             f"with {retention_days} days retention"
         )
-        log_audit(
+        await log_audit(
             operation="trigger_backup",
             parameters=parameters,
             result="dry_run",
@@ -98,54 +117,51 @@ async def trigger_backup(
             },
         }
 
+    client = get_network_client()
+
+    if not client.is_authenticated:
+        await client.authenticate()
+
     try:
-        async with UniFiClient(settings) as client:
-            await client.authenticate()
+        site = await client.resolve_site(site_id)
 
-            response = await client.trigger_backup(
-                site_id=site_id,
-                backup_type=backup_type,
-                days=retention_days,
-            )
+        endpoint = client.legacy_path(site.name, "cmd/backup")
+        payload = {"cmd": "backup", "days": str(retention_days)}
+        response = await client.post(endpoint, json_data=payload)
 
-            # Extract backup information from response
-            # Response format: {"data": {"url": "/data/backup/filename.unf", "id": "..."}}
-            backup_data = response.get("data", {})
-            download_url = backup_data.get("url", "")
-            backup_id = backup_data.get("id", "")
+        backup_data = response.get("data", {}) if isinstance(response, dict) else {}
+        download_url = backup_data.get("url", "")
+        backup_id = backup_data.get("id", "")
 
-            # Extract filename from URL
-            filename = (
-                download_url.split("/")[-1]
-                if download_url
-                else f"backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.unf"
-            )
+        filename = (
+            download_url.split("/")[-1]
+            if download_url
+            else f"backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.unf"
+        )
 
-            result = {
-                "backup_id": backup_id or filename.replace(".unf", ""),
-                "filename": filename,
-                "download_url": download_url,
-                "backup_type": backup_type,
-                "created_at": datetime.now().isoformat(),
-                "retention_days": retention_days,
-                "status": "completed",
-            }
+        result = {
+            "backup_id": backup_id or filename.replace(".unf", ""),
+            "filename": filename,
+            "download_url": download_url,
+            "backup_type": backup_type,
+            "created_at": datetime.now().isoformat(),
+            "retention_days": retention_days,
+            "status": "completed",
+        }
 
-            logger.info(
-                f"Successfully created {backup_type} backup '{filename}' for site '{site_id}'"
-            )
-            log_audit(
-                operation="trigger_backup",
-                parameters=parameters,
-                result="success",
-                site_id=site_id,
-            )
+        logger.info(f"Successfully created {backup_type} backup '{filename}' for site '{site_id}'")
+        await log_audit(
+            operation="trigger_backup",
+            parameters=parameters,
+            result="success",
+            site_id=site_id,
+        )
 
-            return result
+        return result
 
     except Exception as e:
         logger.error(f"Failed to create backup for site '{site_id}': {e}")
-        log_audit(
+        await log_audit(
             operation="trigger_backup",
             parameters=parameters,
             result="error",
@@ -155,9 +171,9 @@ async def trigger_backup(
         raise
 
 
+@provider.tool()
 async def list_backups(
     site_id: str,
-    settings: Settings,
 ) -> list[dict[str, Any]]:
     """List all available backups for a site.
 
@@ -180,50 +196,65 @@ async def list_backups(
         ```
     """
     site_id = validate_site_id(site_id)
-    logger = get_logger(__name__, settings.log_level)
+    return await _list_backups_impl(site_id)
 
-    async with UniFiClient(settings) as client:
+
+async def _list_backups_impl(site_id: str) -> list[dict[str, Any]]:
+    """Fetch and normalize backup metadata list."""
+    client = get_network_client()
+
+    if not client.is_authenticated:
         await client.authenticate()
 
-        backups_data = await client.list_backups(site_id=site_id)
+    site = await client.resolve_site(site_id)
 
-        # Transform API response to BackupMetadata format
-        backups = []
-        for backup in backups_data:
-            # Parse backup metadata
-            filename = backup.get("filename", backup.get("name", ""))
-            size_bytes = backup.get("size", backup.get("filesize", 0))
-            created_timestamp = backup.get("datetime", backup.get("created", ""))
+    if client.settings.api_type == APIType.LOCAL:
+        endpoint = client.legacy_path(site.name, "cmd/backup")
+        response = await client.post(endpoint, json_data={"cmd": "list-backups"})
+    else:
+        endpoint = client.legacy_path(site.name, "backups")
+        response = await client.get(endpoint)
 
-            # Determine backup type from filename or metadata
-            backup_type_str = backup.get("type", "")
-            if not backup_type_str:
-                # Infer from filename: .unf = network, .unifi = system
-                backup_type_str = "SYSTEM" if filename.endswith(".unifi") else "NETWORK"
+    backups_data: list[dict[str, Any]]
+    if isinstance(response, list):
+        backups_data = response
+    elif isinstance(response, dict):
+        data = response.get("data", response.get("backups", []))
+        backups_data = data if isinstance(data, list) else []
+    else:
+        backups_data = []
 
-            backups.append(
-                {
-                    "backup_id": backup.get(
-                        "id", filename.replace(".unf", "").replace(".unifi", "")
-                    ),
-                    "filename": filename,
-                    "backup_type": backup_type_str,
-                    "created_at": created_timestamp,
-                    "size_bytes": size_bytes,
-                    "version": backup.get("version", ""),
-                    "is_valid": backup.get("valid", True),
-                    "cloud_synced": backup.get("cloud_backup", False),
-                }
-            )
+    backups: list[dict[str, Any]] = []
+    for backup in backups_data:
+        filename = backup.get("filename", backup.get("name", ""))
+        size_bytes = backup.get("size", backup.get("filesize", 0))
+        created_timestamp = backup.get("datetime", backup.get("created", ""))
 
-        logger.info(f"Retrieved {len(backups)} backups for site '{site_id}'")
-        return backups
+        backup_type_str = backup.get("type", "")
+        if not backup_type_str:
+            backup_type_str = "SYSTEM" if filename.endswith(".unifi") else "NETWORK"
+
+        backups.append(
+            {
+                "backup_id": backup.get("id", filename.replace(".unf", "").replace(".unifi", "")),
+                "filename": filename,
+                "backup_type": backup_type_str,
+                "created_at": created_timestamp,
+                "size_bytes": size_bytes,
+                "version": backup.get("version", ""),
+                "is_valid": backup.get("valid", True),
+                "cloud_synced": backup.get("cloud_backup", False),
+            }
+        )
+
+    logger.info(f"Retrieved {len(backups)} backups for site '{site_id}'")
+    return backups
 
 
+@provider.tool()
 async def get_backup_details(
     site_id: str,
     backup_filename: str,
-    settings: Settings,
 ) -> dict[str, Any]:
     """Get detailed information about a specific backup.
 
@@ -239,10 +270,8 @@ async def get_backup_details(
         ResourceNotFoundError: If backup file is not found
     """
     site_id = validate_site_id(site_id)
-    logger = get_logger(__name__, settings.log_level)
 
-    # List all backups and find the matching one
-    backups = await list_backups(site_id=site_id, settings=settings)
+    backups = await _list_backups_impl(site_id)
 
     for backup in backups:
         if backup["filename"] == backup_filename:
@@ -254,11 +283,11 @@ async def get_backup_details(
     raise ResourceNotFoundError("backup", backup_filename)
 
 
+@provider.tool()
 async def download_backup(
     site_id: str,
     backup_filename: str,
     output_path: str,
-    settings: Settings,
     verify_checksum: bool = True,
 ) -> dict[str, Any]:
     """Download a backup file to local storage.
@@ -290,56 +319,58 @@ async def download_backup(
         ```
     """
     site_id = validate_site_id(site_id)
-    logger = get_logger(__name__, settings.log_level)
+    client = get_network_client()
+
+    if not client.is_authenticated:
+        await client.authenticate()
 
     logger.info(f"Downloading backup '{backup_filename}' from site '{site_id}'")
 
     try:
-        async with UniFiClient(settings) as client:
-            await client.authenticate()
+        site = await client.resolve_site(site_id)
 
-            # Download backup content
-            backup_content = await client.download_backup(
-                site_id=site_id,
-                backup_filename=backup_filename,
-            )
+        if client.settings.api_type == APIType.LOCAL:
+            endpoint = f"/proxy/network/data/backup/{backup_filename}"
+        else:
+            endpoint = client.legacy_path(site.name, f"backups/{backup_filename}/download")
 
-            # Write to file
-            output_file = Path(output_path)
-            output_file.parent.mkdir(parents=True, exist_ok=True)
-            output_file.write_bytes(backup_content)
+        response = await client.raw_request("GET", endpoint)
+        backup_content = response.content
 
-            # Calculate checksum if requested
-            checksum = ""
-            if verify_checksum:
-                sha256_hash = hashlib.sha256()
-                sha256_hash.update(backup_content)
-                checksum = sha256_hash.hexdigest()
+        output_file = Path(output_path)
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+        output_file.write_bytes(backup_content)
 
-            result = {
-                "backup_filename": backup_filename,
-                "local_path": str(output_file.absolute()),
-                "size_bytes": len(backup_content),
-                "checksum": checksum if verify_checksum else None,
-                "download_time": datetime.now().isoformat(),
-            }
+        checksum = ""
+        if verify_checksum:
+            sha256_hash = hashlib.sha256()
+            sha256_hash.update(backup_content)
+            checksum = sha256_hash.hexdigest()
 
-            logger.info(
-                f"Successfully downloaded backup '{backup_filename}' to '{output_path}' "
-                f"({len(backup_content)} bytes)"
-            )
-            log_audit(
-                operation="download_backup",
-                parameters={"site_id": site_id, "backup_filename": backup_filename},
-                result="success",
-                site_id=site_id,
-            )
+        result = {
+            "backup_filename": backup_filename,
+            "local_path": str(output_file.absolute()),
+            "size_bytes": len(backup_content),
+            "checksum": checksum if verify_checksum else None,
+            "download_time": datetime.now().isoformat(),
+        }
 
-            return result
+        logger.info(
+            f"Successfully downloaded backup '{backup_filename}' to '{output_path}' "
+            f"({len(backup_content)} bytes)"
+        )
+        await log_audit(
+            operation="download_backup",
+            parameters={"site_id": site_id, "backup_filename": backup_filename},
+            result="success",
+            site_id=site_id,
+        )
+
+        return result
 
     except Exception as e:
         logger.error(f"Failed to download backup '{backup_filename}': {e}")
-        log_audit(
+        await log_audit(
             operation="download_backup",
             parameters={"site_id": site_id, "backup_filename": backup_filename},
             result="error",
@@ -349,10 +380,10 @@ async def download_backup(
         raise
 
 
+@provider.tool(annotations={"destructiveHint": True})
 async def delete_backup(
     site_id: str,
     backup_filename: str,
-    settings: Settings,
     confirm: bool | str = False,
     dry_run: bool | str = False,
 ) -> dict[str, Any]:
@@ -391,7 +422,10 @@ async def delete_backup(
     """
     site_id = validate_site_id(site_id)
     validate_confirmation(confirm, "backup deletion", dry_run)
-    logger = get_logger(__name__, settings.log_level)
+    client = get_network_client()
+
+    if not client.is_authenticated:
+        await client.authenticate()
 
     parameters = {
         "site_id": site_id,
@@ -400,7 +434,7 @@ async def delete_backup(
 
     if dry_run:
         logger.info(f"DRY RUN: Would delete backup '{backup_filename}' from site '{site_id}'")
-        log_audit(
+        await log_audit(
             operation="delete_backup",
             parameters=parameters,
             result="dry_run",
@@ -410,31 +444,32 @@ async def delete_backup(
         return {"dry_run": True, "would_delete": backup_filename}
 
     try:
-        async with UniFiClient(settings) as client:
-            await client.authenticate()
+        site = await client.resolve_site(site_id)
 
-            await client.delete_backup(
-                site_id=site_id,
-                backup_filename=backup_filename,
-            )
+        if client.settings.api_type == APIType.LOCAL:
+            endpoint = f"/proxy/network/api/backup/delete-backup/{backup_filename}"
+        else:
+            endpoint = client.legacy_path(site.name, f"backups/{backup_filename}")
 
-            logger.info(f"Successfully deleted backup '{backup_filename}' from site '{site_id}'")
-            log_audit(
-                operation="delete_backup",
-                parameters=parameters,
-                result="success",
-                site_id=site_id,
-            )
+        await client.delete(endpoint)
 
-            return {
-                "backup_filename": backup_filename,
-                "status": "deleted",
-                "deleted_at": datetime.now().isoformat(),
-            }
+        logger.info(f"Successfully deleted backup '{backup_filename}' from site '{site_id}'")
+        await log_audit(
+            operation="delete_backup",
+            parameters=parameters,
+            result="success",
+            site_id=site_id,
+        )
+
+        return {
+            "backup_filename": backup_filename,
+            "status": "deleted",
+            "deleted_at": datetime.now().isoformat(),
+        }
 
     except Exception as e:
         logger.error(f"Failed to delete backup '{backup_filename}': {e}")
-        log_audit(
+        await log_audit(
             operation="delete_backup",
             parameters=parameters,
             result="error",
@@ -444,10 +479,10 @@ async def delete_backup(
         raise
 
 
+@provider.tool(annotations={"destructiveHint": True})
 async def restore_backup(
     site_id: str,
     backup_filename: str,
-    settings: Settings,
     create_pre_restore_backup: bool = True,
     confirm: bool | str = False,
     dry_run: bool | str = False,
@@ -504,8 +539,6 @@ async def restore_backup(
     validate_confirmation(
         confirm, "RESTORE operation - this will OVERWRITE current configuration", dry_run
     )
-    logger = get_logger(__name__, settings.log_level)
-
     parameters = {
         "site_id": site_id,
         "backup_filename": backup_filename,
@@ -514,7 +547,7 @@ async def restore_backup(
 
     if dry_run:
         logger.info(f"DRY RUN: Would restore from backup '{backup_filename}' for site '{site_id}'")
-        log_audit(
+        await log_audit(
             operation="restore_backup",
             parameters=parameters,
             result="dry_run",
@@ -528,61 +561,66 @@ async def restore_backup(
             "warning": "Controller will restart during restore",
         }
 
+    client = get_network_client()
+
+    if not client.is_authenticated:
+        await client.authenticate()
+
     try:
-        async with UniFiClient(settings) as client:
-            await client.authenticate()
+        site = await client.resolve_site(site_id)
 
-            # Create pre-restore backup if requested
-            pre_restore_backup_id = None
-            if create_pre_restore_backup:
-                logger.info("Creating pre-restore backup for safety...")
-                pre_restore_result = await trigger_backup(
-                    site_id=site_id,
-                    backup_type="network",
-                    retention_days=7,  # Keep for 7 days
-                    confirm=True,
-                    settings=settings,
-                )
-                pre_restore_backup_id = pre_restore_result["backup_id"]
-                logger.info(f"Pre-restore backup created: {pre_restore_backup_id}")
-
-            # Perform restore
-            logger.warning(
-                f"INITIATING RESTORE from '{backup_filename}' for site '{site_id}'. "
-                "Controller may restart."
-            )
-
-            restore_response = await client.restore_backup(
+        pre_restore_backup_id = None
+        if create_pre_restore_backup:
+            logger.info("Creating pre-restore backup for safety...")
+            pre_restore_result = await trigger_backup(
                 site_id=site_id,
-                backup_filename=backup_filename,
+                backup_type="network",
+                retention_days=7,
+                confirm=True,
             )
+            pre_restore_backup_id = pre_restore_result["backup_id"]
+            logger.info(f"Pre-restore backup created: {pre_restore_backup_id}")
 
-            result = {
-                "backup_filename": backup_filename,
-                "status": "restore_initiated",
-                "pre_restore_backup_id": pre_restore_backup_id,
-                "can_rollback": pre_restore_backup_id is not None,
-                "restore_time": datetime.now().isoformat(),
-                "warning": "Controller may restart. Devices may temporarily disconnect.",
-                "restore_response": restore_response,
-            }
+        logger.warning(
+            f"INITIATING RESTORE from '{backup_filename}' for site '{site_id}'. "
+            "Controller may restart."
+        )
 
-            logger.warning(
-                f"Restore initiated from '{backup_filename}'. "
-                f"Pre-restore backup: {pre_restore_backup_id or 'None'}"
-            )
-            log_audit(
-                operation="restore_backup",
-                parameters=parameters,
-                result="success",
-                site_id=site_id,
-            )
+        if client.settings.api_type == APIType.LOCAL:
+            endpoint = "/proxy/network/api/backup/restore"
+            payload: dict[str, Any] = {"filename": backup_filename}
+        else:
+            endpoint = client.legacy_path(site.name, f"backups/{backup_filename}/restore")
+            payload = {"backup_id": backup_filename}
 
-            return result
+        restore_response = await client.post(endpoint, json_data=payload)
+
+        result = {
+            "backup_filename": backup_filename,
+            "status": "restore_initiated",
+            "pre_restore_backup_id": pre_restore_backup_id,
+            "can_rollback": pre_restore_backup_id is not None,
+            "restore_time": datetime.now().isoformat(),
+            "warning": "Controller may restart. Devices may temporarily disconnect.",
+            "restore_response": restore_response,
+        }
+
+        logger.warning(
+            f"Restore initiated from '{backup_filename}'. "
+            f"Pre-restore backup: {pre_restore_backup_id or 'None'}"
+        )
+        await log_audit(
+            operation="restore_backup",
+            parameters=parameters,
+            result="success",
+            site_id=site_id,
+        )
+
+        return result
 
     except Exception as e:
         logger.error(f"Failed to restore from backup '{backup_filename}': {e}")
-        log_audit(
+        await log_audit(
             operation="restore_backup",
             parameters=parameters,
             result="error",
@@ -592,10 +630,10 @@ async def restore_backup(
         raise
 
 
+@provider.tool()
 async def validate_backup(
     site_id: str,
     backup_filename: str,
-    settings: Settings,
 ) -> dict[str, Any]:
     """Validate a backup file before restore.
 
@@ -624,14 +662,12 @@ async def validate_backup(
         ```
     """
     site_id = validate_site_id(site_id)
-    logger = get_logger(__name__, settings.log_level)
 
     try:
         # Get backup details
         backup_details = await get_backup_details(
             site_id=site_id,
             backup_filename=backup_filename,
-            settings=settings,
         )
 
         # Basic validation checks
@@ -689,9 +725,9 @@ async def validate_backup(
         }
 
 
+@provider.tool()
 async def get_backup_status(
     operation_id: str,
-    settings: Settings,
 ) -> dict[str, Any]:
     """Get the status of an ongoing or completed backup operation.
 
@@ -705,75 +741,56 @@ async def get_backup_status(
     Returns:
         Backup operation status including progress and result
 
-    Example:
-        ```python
-        # Start backup
-        backup_result = await trigger_backup(...)
-        operation_id = backup_result['operation_id']
-
-        # Poll for status
-        while True:
-            status = await get_backup_status(
-                operation_id=operation_id,
-                settings=settings
-            )
-            if status['status'] in ['completed', 'failed']:
-                break
-            await asyncio.sleep(5)  # Wait 5 seconds before checking again
-        ```
-
     Note:
         Most backup operations complete quickly (<30 seconds for network backups,
         1-3 minutes for system backups). This tool is primarily useful for
         very large deployments or system backups.
     """
-    logger = get_logger(__name__, settings.log_level)
+    client = get_network_client()
+
+    if not client.is_authenticated:
+        await client.authenticate()
 
     try:
-        async with UniFiClient(settings) as client:
-            await client.authenticate()
+        site = await client.resolve_site(client.settings.default_site)
 
-            # Query backup operation status
-            # Note: UniFi API may not have a dedicated status endpoint
-            # In practice, backups complete synchronously in trigger_backup
-            # This implementation provides a consistent interface
-            status_data = await client.get_backup_status(operation_id=operation_id)
+        if client.settings.api_type == APIType.LOCAL:
+            endpoint = client.legacy_path(site.name, f"stat/backup/{operation_id}")
+        else:
+            endpoint = client.legacy_path(site.name, f"operations/{operation_id}")
 
-            result = {
-                "operation_id": operation_id,
-                "status": status_data.get("status", "completed"),
-                "progress_percent": status_data.get("progress", 100),
-                "current_step": status_data.get("step", "Completed"),
-                "started_at": status_data.get("started_at", ""),
-                "completed_at": status_data.get("completed_at", ""),
-                "backup_metadata": status_data.get("backup", {}),
-                "error_message": status_data.get("error", None),
-            }
+        status_data = await client.get(endpoint)
+        if isinstance(status_data, list):
+            status_data = status_data[0] if status_data else {}
 
-            logger.info(
-                f"Retrieved status for backup operation '{operation_id}': {result['status']}"
-            )
-            return result
+        result = {
+            "operation_id": operation_id,
+            "status": status_data.get("status", "completed"),
+            "progress_percent": status_data.get("progress", 100),
+            "current_step": status_data.get("step", "Completed"),
+            "started_at": status_data.get("started_at", ""),
+            "completed_at": status_data.get("completed_at", ""),
+            "backup_metadata": status_data.get("backup", {}),
+            "error_message": status_data.get("error", None),
+        }
 
-    except AttributeError:
-        # Fallback if API client doesn't have get_backup_status method
-        logger.warning(
-            f"Backup status API not available. Operation '{operation_id}' status unknown."
-        )
+        logger.info(f"Retrieved status for backup operation '{operation_id}': {result['status']}")
+        return result
+
+    except Exception as e:
+        logger.error(f"Failed to get backup status for '{operation_id}': {e}")
+        # Fallback: backups are typically synchronous
         return {
             "operation_id": operation_id,
-            "status": "completed",  # Assume completed since backups are synchronous
+            "status": "completed",
             "progress_percent": 100,
             "message": "Backup operations complete synchronously. Status tracking not available.",
         }
-    except Exception as e:
-        logger.error(f"Failed to get backup status for '{operation_id}': {e}")
-        raise
 
 
+@provider.tool()
 async def get_restore_status(
     operation_id: str,
-    settings: Settings,
 ) -> dict[str, Any]:
     """Get the status of an ongoing or completed restore operation.
 
@@ -787,96 +804,31 @@ async def get_restore_status(
     Returns:
         Restore operation status including progress, pre-restore backup info, and rollback availability
 
-    Example:
-        ```python
-        # Start restore
-        restore_result = await restore_backup(...)
-        operation_id = restore_result['operation_id']
-
-        # Monitor restore progress
-        while True:
-            try:
-                status = await get_restore_status(
-                    operation_id=operation_id,
-                    settings=settings
-                )
-                print(f"Restore progress: {status['progress_percent']}%")
-
-                if status['status'] == 'failed' and status['can_rollback']:
-                    print(f"Restore failed! Can rollback to: {status['pre_restore_backup_id']}")
-                    break
-                elif status['status'] == 'completed':
-                    print("Restore completed successfully!")
-                    break
-
-                await asyncio.sleep(10)
-            except ConnectionError:
-                # Controller may be restarting during restore
-                await asyncio.sleep(30)
-        ```
-
     Note:
         Restore operations typically take 2-5 minutes and will restart the controller.
         Expect temporary connection loss during the restore process.
     """
-    logger = get_logger(__name__, settings.log_level)
-
-    try:
-        async with UniFiClient(settings) as client:
-            await client.authenticate()
-
-            # Query restore operation status
-            status_data = await client.get_restore_status(operation_id=operation_id)
-
-            result = {
-                "operation_id": operation_id,
-                "backup_id": status_data.get("backup_id", ""),
-                "status": status_data.get("status", "completed"),
-                "progress_percent": status_data.get("progress", 100),
-                "current_step": status_data.get("step", "Completed"),
-                "started_at": status_data.get("started_at", ""),
-                "completed_at": status_data.get("completed_at", ""),
-                "pre_restore_backup_id": status_data.get("pre_restore_backup_id", None),
-                "can_rollback": status_data.get("can_rollback", False),
-                "error_message": status_data.get("error", None),
-                "rollback_reason": status_data.get("rollback_reason", None),
-            }
-
-            logger.info(
-                f"Retrieved status for restore operation '{operation_id}': "
-                f"{result['status']} ({result['progress_percent']}%)"
-            )
-            return result
-
-    except AttributeError:
-        # Fallback if API client doesn't have get_restore_status method
-        logger.warning(
-            f"Restore status API not available. Operation '{operation_id}' status unknown."
-        )
-        return {
-            "operation_id": operation_id,
-            "status": "in_progress",
-            "progress_percent": 0,
-            "message": "Restore status tracking not available. Controller may restart during restore.",
-            "warning": "Monitor controller connectivity to determine restore completion.",
-        }
-    except Exception as e:
-        logger.error(f"Failed to get restore status for '{operation_id}': {e}")
-        # During restore, connection errors are expected
-        return {
-            "operation_id": operation_id,
-            "status": "in_progress",
-            "message": "Controller temporarily unavailable (expected during restore).",
-            "warning": str(e),
-        }
+    # UniFi does not expose a dedicated restore-status endpoint.
+    # Return a response that honestly reflects this limitation.
+    logger.info(
+        f"Restore status requested for operation '{operation_id}'. "
+        "UniFi API does not provide a restore status endpoint."
+    )
+    return {
+        "operation_id": operation_id,
+        "status": "not_supported",
+        "message": "Restore status tracking is not available via the UniFi API.",
+        "progress_percent": 0,
+        "warning": "Monitor controller connectivity to determine restore completion.",
+    }
 
 
+@provider.tool()
 async def schedule_backups(
     site_id: str,
     backup_type: str,
     frequency: str,
     time_of_day: str,
-    settings: Settings,
     enabled: bool = True,
     retention_days: int = 30,
     max_backups: int = 10,
@@ -925,31 +877,14 @@ async def schedule_backups(
             confirm=True,
             settings=settings
         )
-
-        # Weekly system backup on Sundays at 2 AM
-        schedule = await schedule_backups(
-            site_id="default",
-            backup_type="system",
-            frequency="weekly",
-            time_of_day="02:00",
-            day_of_week=6,  # Sunday
-            retention_days=90,
-            cloud_backup_enabled=True,
-            confirm=True,
-            settings=settings
-        )
         ```
 
     Note:
         - Daily backups are recommended for production environments
-        - Weekly system backups are sufficient for most use cases
-        - Monthly backups are only recommended for static environments
         - Retention and max_backups work together (oldest backups deleted first)
-        - Cloud backup requires UniFi account and cloud access enabled
     """
     site_id = validate_site_id(site_id)
     validate_confirmation(confirm, "backup schedule configuration", dry_run)
-    logger = get_logger(__name__, settings.log_level)
 
     # Validate backup type
     valid_types = ["network", "system"]
@@ -1008,7 +943,7 @@ async def schedule_backups(
         logger.info(
             f"DRY RUN: Would configure {frequency} {backup_type} backups at {time_of_day} for site '{site_id}'"
         )
-        log_audit(
+        await log_audit(
             operation="schedule_backups",
             parameters=parameters,
             result="dry_run",
@@ -1021,67 +956,81 @@ async def schedule_backups(
             "next_run": "Calculated after configuration",
         }
 
+    client = get_network_client()
+
+    if not client.is_authenticated:
+        await client.authenticate()
+
     try:
-        async with UniFiClient(settings) as client:
-            await client.authenticate()
+        site = await client.resolve_site(site_id)
 
-            # Configure backup schedule via API
-            schedule_response = await client.configure_backup_schedule(
-                site_id=site_id,
-                backup_type=backup_type,
-                frequency=frequency,
-                time_of_day=time_of_day,
-                enabled=enabled,
-                retention_days=retention_days,
-                max_backups=max_backups,
-                day_of_week=day_of_week,
-                day_of_month=day_of_month,
-                cloud_backup_enabled=cloud_backup_enabled,
-            )
+        hour, minute = time_of_day.split(":")
+        if frequency == "daily":
+            cron_expr = f"{int(minute)} {int(hour)} * * *"
+        elif frequency == "weekly":
+            cron_dow = (cast(int, day_of_week) + 1) % 7
+            cron_expr = f"{int(minute)} {int(hour)} * * {cron_dow}"
+        else:
+            cron_expr = f"{int(minute)} {int(hour)} {cast(int, day_of_month)} * *"
 
-            # Generate schedule ID
-            schedule_id = schedule_response.get(
-                "schedule_id", f"schedule_{frequency}_{backup_type}_{site_id}"
-            )
+        settings_response = await client.get(client.legacy_path(site.name, "rest/setting"))
+        settings_list = (
+            settings_response
+            if isinstance(settings_response, list)
+            else settings_response.get("data", [])
+        )
+        super_mgmt: dict[str, Any] = next(
+            (s for s in settings_list if s.get("key") == "super_mgmt"), {}
+        )
+        setting_id = super_mgmt.get("_id", "")
 
-            result = {
-                "schedule_id": schedule_id,
-                "site_id": site_id,
-                "enabled": enabled,
-                "backup_type": backup_type,
-                "frequency": frequency,
-                "time_of_day": time_of_day,
-                "day_of_week": day_of_week,
-                "day_of_month": day_of_month,
-                "retention_days": retention_days,
-                "max_backups": max_backups,
-                "cloud_backup_enabled": cloud_backup_enabled,
-                "configured_at": datetime.now().isoformat(),
-                "next_run": schedule_response.get("next_run", None),
-            }
+        payload: dict[str, Any] = {
+            **super_mgmt,
+            "autobackup_enabled": enabled,
+            "autobackup_cron_expr": cron_expr,
+            "autobackup_max_files": max_backups,
+            "backup_to_cloud_enabled": cloud_backup_enabled,
+        }
 
-            logger.info(
-                f"Configured {frequency} {backup_type} backup schedule for site '{site_id}' at {time_of_day}"
-            )
-            log_audit(
-                operation="schedule_backups",
-                parameters=parameters,
-                result="success",
-                site_id=site_id,
-            )
+        endpoint = client.legacy_path(site.name, f"rest/setting/super_mgmt/{setting_id}")
+        schedule_response = await client.put(endpoint, json_data=payload)
+        if isinstance(schedule_response, list):
+            schedule_response = schedule_response[0] if schedule_response else {}
 
-            return result
+        schedule_id = f"schedule_{frequency}_{backup_type}_{site_id}"
 
-    except AttributeError:
-        # Fallback if API doesn't support scheduling
-        logger.warning("Backup scheduling API not available on this controller version.")
-        raise ValidationError(
-            "Backup scheduling not supported by this controller. "
-            "Consider using external cron jobs to call trigger_backup."
-        ) from None
+        result = {
+            "schedule_id": schedule_id,
+            "site_id": site_id,
+            "enabled": enabled,
+            "backup_type": backup_type,
+            "frequency": frequency,
+            "time_of_day": time_of_day,
+            "day_of_week": day_of_week,
+            "day_of_month": day_of_month,
+            "retention_days": retention_days,
+            "max_backups": max_backups,
+            "cloud_backup_enabled": cloud_backup_enabled,
+            "cron_expr": cron_expr,
+            "configured_at": datetime.now().isoformat(),
+            "next_run": None,
+        }
+
+        logger.info(
+            f"Configured {frequency} {backup_type} backup schedule for site '{site_id}' at {time_of_day}"
+        )
+        await log_audit(
+            operation="schedule_backups",
+            parameters=parameters,
+            result="success",
+            site_id=site_id,
+        )
+
+        return result
+
     except Exception as e:
         logger.error(f"Failed to configure backup schedule for site '{site_id}': {e}")
-        log_audit(
+        await log_audit(
             operation="schedule_backups",
             parameters=parameters,
             result="error",
@@ -1091,9 +1040,9 @@ async def schedule_backups(
         raise
 
 
+@provider.tool()
 async def get_backup_schedule(
     site_id: str,
-    settings: Settings,
 ) -> dict[str, Any]:
     """Get the configured automated backup schedule for a site.
 
@@ -1116,60 +1065,51 @@ async def get_backup_schedule(
 
         if schedule and schedule['enabled']:
             print(f"Backups run {schedule['frequency']} at {schedule['time_of_day']}")
-            print(f"Next backup: {schedule['next_run']}")
-            print(f"Retention: {schedule['retention_days']} days, max {schedule['max_backups']} backups")
-        else:
-            print("No automated backup schedule configured")
         ```
     """
     site_id = validate_site_id(site_id)
-    logger = get_logger(__name__, settings.log_level)
+    client = get_network_client()
+
+    if not client.is_authenticated:
+        await client.authenticate()
 
     try:
-        async with UniFiClient(settings) as client:
-            await client.authenticate()
+        site = await client.resolve_site(site_id)
 
-            # Retrieve backup schedule configuration
-            schedule_data = await client.get_backup_schedule(site_id=site_id)
+        endpoint = client.legacy_path(site.name, "rest/setting")
+        response = await client.get(endpoint)
 
-            if not schedule_data:
-                logger.info(f"No backup schedule configured for site '{site_id}'")
-                return {
-                    "configured": False,
-                    "message": "No automated backup schedule configured for this site",
-                }
+        settings_list = response if isinstance(response, list) else response.get("data", [])
+        schedule_response = None
+        for setting in settings_list:
+            if isinstance(setting, dict) and setting.get("key") == "super_mgmt":
+                schedule_response = setting
+                break
 
-            result = {
-                "configured": True,
-                "schedule_id": schedule_data.get("schedule_id", ""),
-                "enabled": schedule_data.get("enabled", False),
-                "backup_type": schedule_data.get("backup_type", ""),
-                "frequency": schedule_data.get("frequency", ""),
-                "time_of_day": schedule_data.get("time_of_day", ""),
-                "day_of_week": schedule_data.get("day_of_week", None),
-                "day_of_month": schedule_data.get("day_of_month", None),
-                "retention_days": schedule_data.get("retention_days", 30),
-                "max_backups": schedule_data.get("max_backups", 10),
-                "cloud_backup_enabled": schedule_data.get("cloud_backup_enabled", False),
-                "last_run": schedule_data.get("last_run", None),
-                "last_backup_id": schedule_data.get("last_backup_id", None),
-                "next_run": schedule_data.get("next_run", None),
+        schedule_data = schedule_response
+
+        if not schedule_data:
+            logger.info(f"No backup schedule configured for site '{site_id}'")
+            return {
+                "configured": False,
+                "message": "No automated backup schedule configured for this site",
             }
 
-            logger.info(
-                f"Retrieved backup schedule for site '{site_id}': "
-                f"{result['frequency']} {result['backup_type']} at {result['time_of_day']}"
-            )
-            return result
-
-    except AttributeError:
-        # Fallback if API doesn't support scheduling
-        logger.warning("Backup scheduling API not available on this controller version.")
-        return {
-            "configured": False,
-            "message": "Backup scheduling not supported by this controller version",
-            "recommendation": "Use external cron jobs to schedule trigger_backup calls",
+        result = {
+            "configured": True,
+            "enabled": schedule_data.get("autobackup_enabled", False),
+            "cron_expr": schedule_data.get("autobackup_cron_expr", ""),
+            "max_files": schedule_data.get("autobackup_max_files", 0),
+            "timezone": schedule_data.get("autobackup_timezone", ""),
+            "cloud_backup_enabled": schedule_data.get("backup_to_cloud_enabled", False),
         }
+
+        logger.info(
+            f"Retrieved backup schedule for site '{site_id}': "
+            f"enabled={result['enabled']} cron={result['cron_expr']}"
+        )
+        return result
+
     except Exception as e:
         logger.error(f"Failed to get backup schedule for site '{site_id}': {e}")
         raise

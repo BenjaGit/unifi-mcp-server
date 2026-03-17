@@ -10,19 +10,19 @@ from collections.abc import Callable
 from functools import wraps
 from typing import Any
 
+from .config import Settings
+from .utils import get_logger
+
+redis: Any = None
+RedisError: type[Exception] = Exception
+
 try:
     import redis.asyncio as redis
-    from redis.asyncio import Redis
     from redis.exceptions import RedisError
 
     REDIS_AVAILABLE = True
 except ImportError:
     REDIS_AVAILABLE = False
-    Redis = None
-    RedisError = Exception
-
-from .config import Settings
-from .utils import get_logger
 
 
 class CacheConfig:
@@ -73,7 +73,7 @@ class CacheClient:
         self.settings = settings
         self.enabled = enabled and REDIS_AVAILABLE
         self.logger = logger or get_logger(__name__, settings.log_level)
-        self._redis: Redis | None = None
+        self._redis: Any | None = None
         self._connected = False
 
         if not REDIS_AVAILABLE and enabled:
@@ -101,6 +101,8 @@ class CacheClient:
             redis_port = getattr(self.settings, "redis_port", 6379)
             redis_db = getattr(self.settings, "redis_db", 0)
             redis_password = getattr(self.settings, "redis_password", None)
+
+            assert redis is not None
 
             self._redis = redis.Redis(
                 host=redis_host,
@@ -399,6 +401,8 @@ async def warm_cache(settings: Settings) -> dict[str, int]:
     try:
         async with UniFiClient(settings) as client:
             await client.authenticate()
+
+            sites: list[dict[str, Any]] = []
 
             # Warm sites cache
             try:

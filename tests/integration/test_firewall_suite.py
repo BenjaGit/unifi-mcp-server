@@ -31,7 +31,6 @@ async def test_list_firewall_rules(settings, env: TestEnvironment) -> dict[str, 
     try:
         result = await firewall.list_firewall_rules(
             site_id=env.site_id,
-            settings=settings,
         )
 
         # Validate response structure
@@ -74,7 +73,6 @@ async def test_list_firewall_rules_pagination(settings, env: TestEnvironment) ->
         # Get all rules
         all_rules = await firewall.list_firewall_rules(
             site_id=env.site_id,
-            settings=settings,
         )
 
         if not all_rules:
@@ -83,7 +81,6 @@ async def test_list_firewall_rules_pagination(settings, env: TestEnvironment) ->
         # Test with limit
         limited = await firewall.list_firewall_rules(
             site_id=env.site_id,
-            settings=settings,
             limit=1,
         )
 
@@ -119,7 +116,6 @@ async def test_create_firewall_rule_without_confirmation(
             site_id=env.site_id,
             name=f"{TEST_PREFIX}TEST_RULE",
             action="drop",
-            settings=settings,
             protocol="tcp",
             port=9999,
             enabled=False,
@@ -161,8 +157,7 @@ async def test_create_and_delete_firewall_rule(settings, env: TestEnvironment) -
             site_id=env.site_id,
             name=f"{TEST_PREFIX}RULE_DELETE_ME",
             action="drop",
-            settings=settings,
-            source="192.0.2.0/24",  # TEST-NET-1 (RFC 5737) - test source
+            src_address="192.0.2.0/24",  # TEST-NET-1 (RFC 5737) - test source
             protocol="all",  # Use "all" protocol for simpler rule
             enabled=False,  # Keep disabled for safety
             ruleset="WAN_LOCAL",  # Use WAN_LOCAL ruleset
@@ -178,7 +173,6 @@ async def test_create_and_delete_firewall_rule(settings, env: TestEnvironment) -
         # Verify rule exists in list
         rules = await firewall.list_firewall_rules(
             site_id=env.site_id,
-            settings=settings,
         )
         assert any(r.get("_id") == rule_id for r in rules), "Created rule must be in list"
 
@@ -186,7 +180,6 @@ async def test_create_and_delete_firewall_rule(settings, env: TestEnvironment) -
         delete_result = await firewall.delete_firewall_rule(
             site_id=env.site_id,
             rule_id=rule_id,
-            settings=settings,
             confirm=True,
         )
 
@@ -196,7 +189,6 @@ async def test_create_and_delete_firewall_rule(settings, env: TestEnvironment) -
         # Verify rule no longer exists
         rules_after = await firewall.list_firewall_rules(
             site_id=env.site_id,
-            settings=settings,
         )
         assert not any(
             r.get("_id") == rule_id for r in rules_after
@@ -222,7 +214,6 @@ async def test_create_and_delete_firewall_rule(settings, env: TestEnvironment) -
                 await firewall.delete_firewall_rule(
                     site_id=env.site_id,
                     rule_id=rule_id,
-                    settings=settings,
                     confirm=True,
                 )
                 print(f"Cleanup: Deleted test rule {rule_id}")
@@ -243,8 +234,7 @@ async def test_update_firewall_rule(settings, env: TestEnvironment) -> dict[str,
             site_id=env.site_id,
             name=f"{TEST_PREFIX}UPDATE_TEST",
             action="accept",
-            settings=settings,
-            source="192.0.2.0/24",  # TEST-NET-1
+            src_address="192.0.2.0/24",  # TEST-NET-1
             protocol="all",  # Use "all" protocol
             enabled=False,
             ruleset="WAN_LOCAL",  # Use WAN_LOCAL ruleset
@@ -259,7 +249,6 @@ async def test_update_firewall_rule(settings, env: TestEnvironment) -> dict[str,
         updated = await firewall.update_firewall_rule(
             site_id=env.site_id,
             rule_id=rule_id,
-            settings=settings,
             name=f"{TEST_PREFIX}UPDATED_RULE",
             action="drop",
             confirm=True,
@@ -289,7 +278,6 @@ async def test_update_firewall_rule(settings, env: TestEnvironment) -> dict[str,
                 await firewall.delete_firewall_rule(
                     site_id=env.site_id,
                     rule_id=rule_id,
-                    settings=settings,
                     confirm=True,
                 )
             except Exception as cleanup_err:
@@ -308,7 +296,6 @@ async def test_delete_firewall_rule_missing(settings, env: TestEnvironment) -> d
         await firewall.delete_firewall_rule(
             site_id=env.site_id,
             rule_id=fake_id,
-            settings=settings,
             confirm=True,
         )
 
@@ -343,7 +330,6 @@ async def test_create_firewall_rule_dry_run(settings, env: TestEnvironment) -> d
             site_id=env.site_id,
             name=f"{TEST_PREFIX}DRY_RUN_TEST",
             action="drop",
-            settings=settings,
             protocol="tcp",
             port=9999,
             enabled=False,
@@ -358,7 +344,6 @@ async def test_create_firewall_rule_dry_run(settings, env: TestEnvironment) -> d
         # Verify rule was NOT created
         rules = await firewall.list_firewall_rules(
             site_id=env.site_id,
-            settings=settings,
         )
         assert not any(
             r.get("name") == f"{TEST_PREFIX}DRY_RUN_TEST" for r in rules
@@ -389,7 +374,6 @@ async def test_create_firewall_rule_invalid_action(
             site_id=env.site_id,
             name=f"{TEST_PREFIX}INVALID_ACTION",
             action="invalid_action",  # Invalid action
-            settings=settings,
             confirm=True,
         )
 
@@ -427,7 +411,6 @@ async def test_create_firewall_rule_invalid_protocol(
             site_id=env.site_id,
             name=f"{TEST_PREFIX}INVALID_PROTOCOL",
             action="drop",
-            settings=settings,
             protocol="invalid_protocol",  # Invalid protocol
             confirm=True,
         )

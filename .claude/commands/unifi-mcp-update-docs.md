@@ -1,5 +1,5 @@
 ---
-description: Auto-generate and update API.md documentation from tool docstrings
+description: Auto-generate and update docs/api/mcp-tools.md documentation from tool docstrings
 allowed-tools:
   - Read
   - Edit
@@ -11,9 +11,9 @@ author: project
 version: 1.0.0
 ---
 
-Automatically generate and update API.md documentation from tool docstrings and code.
+Automatically generate and update docs/api/mcp-tools.md documentation from tool docstrings and code.
 
-This command scans all MCP tools and resources, extracts documentation from code, and updates API.md to ensure it stays in sync with the implementation.
+This command scans all MCP tools and resources, extracts documentation from code, and updates docs/api/mcp-tools.md to ensure it stays in sync with the implementation.
 
 **Steps to execute:**
 
@@ -46,7 +46,7 @@ This command scans all MCP tools and resources, extracts documentation from code
    - Vouchers
    - Webhooks
 
-4. Read current API.md to preserve:
+4. Read current docs/api/mcp-tools.md to preserve:
    - Overview and introduction sections
    - Authentication details
    - Rate limiting information
@@ -80,7 +80,7 @@ This command scans all MCP tools and resources, extracts documentation from code
 
      ```
 
-6. Update API.md:
+6. Update docs/api/mcp-tools.md:
    - Preserve manual sections (overview, auth, errors)
    - Replace tool documentation sections
    - Add new tools that aren't documented
@@ -133,7 +133,7 @@ Categories:
 - Traffic Flows: 3 tools
 - Other: 2 tools
 
-API.md updated successfully!
+docs/api/mcp-tools.md updated successfully!
 Last updated: 2025-01-15
 ```
 

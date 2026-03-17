@@ -352,7 +352,7 @@ This is the definitive v0.2.0 release with all 7 planned feature phases complete
 - PyPI: unifi-mcp-server==0.2.0
 - GitHub: <https://github.com/enuno/unifi-mcp-server/releases/tag/v0.2.0>
 
-See [VERIFICATION_REPORT.md](VERIFICATION_REPORT.md) for complete details.
+See the [v0.2.0 release](https://github.com/enuno/unifi-mcp-server/releases/tag/v0.2.0) for complete details.
 
 ---
 
@@ -418,7 +418,7 @@ The true v0.2.0 release is planned for Q1 2025 and will include:
 - Backup and restore operations
 - 80%+ test coverage (currently 34%)
 
-See [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) for the complete roadmap.
+See [CHANGELOG.md](CHANGELOG.md) for the complete version history.
 
 ### Original v0.2.0 Release Notes (For Reference)
 
@@ -476,6 +476,10 @@ See [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) for the complete roadmap.
 - WiFi network configuration
 - Comprehensive test suite
 
+[0.2.4]: https://github.com/enuno/unifi-mcp-server/compare/v0.2.3...v0.2.4
+[0.2.3]: https://github.com/enuno/unifi-mcp-server/compare/v0.2.2...v0.2.3
+[0.2.2]: https://github.com/enuno/unifi-mcp-server/compare/v0.2.1...v0.2.2
+[0.2.1]: https://github.com/enuno/unifi-mcp-server/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/enuno/unifi-mcp-server/compare/v0.1.3...v0.2.0
 [0.1.4]: https://github.com/enuno/unifi-mcp-server/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/enuno/unifi-mcp-server/releases/tag/v0.1.3

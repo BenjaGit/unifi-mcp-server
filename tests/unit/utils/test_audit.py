@@ -43,15 +43,16 @@ class TestAuditLoggerInit:
         assert logger is not None
 
 
+@pytest.mark.anyio
 class TestAuditLoggerLogOperation:
     """Tests for AuditLogger.log_operation method."""
 
-    def test_log_operation_basic(self, tmp_path):
+    async def test_log_operation_basic(self, tmp_path):
         """Test basic log_operation functionality."""
         log_path = tmp_path / "audit.log"
         logger = AuditLogger(log_file=log_path)
 
-        logger.log_operation(
+        await logger.log_operation(
             operation="create_network",
             parameters={"name": "TestNet", "vlan_id": 100},
             result="success",
@@ -66,12 +67,12 @@ class TestAuditLoggerLogOperation:
         assert record["result"] == "success"
         assert "timestamp" in record
 
-    def test_log_operation_with_user(self, tmp_path):
+    async def test_log_operation_with_user(self, tmp_path):
         """Test log_operation with user parameter."""
         log_path = tmp_path / "audit.log"
         logger = AuditLogger(log_file=log_path)
 
-        logger.log_operation(
+        await logger.log_operation(
             operation="delete_firewall_rule",
             parameters={"rule_id": "rule-123"},
             result="success",
@@ -83,12 +84,12 @@ class TestAuditLoggerLogOperation:
 
         assert record["user"] == "admin@example.com"
 
-    def test_log_operation_with_site_id(self, tmp_path):
+    async def test_log_operation_with_site_id(self, tmp_path):
         """Test log_operation with site_id parameter."""
         log_path = tmp_path / "audit.log"
         logger = AuditLogger(log_file=log_path)
 
-        logger.log_operation(
+        await logger.log_operation(
             operation="update_wlan",
             parameters={"wlan_id": "wlan-456"},
             result="success",
@@ -100,12 +101,12 @@ class TestAuditLoggerLogOperation:
 
         assert record["site_id"] == "default"
 
-    def test_log_operation_dry_run(self, tmp_path):
+    async def test_log_operation_dry_run(self, tmp_path):
         """Test log_operation with dry_run flag."""
         log_path = tmp_path / "audit.log"
         logger = AuditLogger(log_file=log_path)
 
-        logger.log_operation(
+        await logger.log_operation(
             operation="create_firewall_zone",
             parameters={"name": "IoT"},
             result="preview",
@@ -117,13 +118,13 @@ class TestAuditLoggerLogOperation:
 
         assert record["dry_run"] is True
 
-    def test_log_operation_failed_result(self, tmp_path):
+    async def test_log_operation_failed_result(self, tmp_path):
         """Test log_operation with failed result logs warning."""
         log_path = tmp_path / "audit.log"
         logger = AuditLogger(log_file=log_path)
 
         with patch.object(logger.logger, "warning") as mock_warning:
-            logger.log_operation(
+            await logger.log_operation(
                 operation="delete_network",
                 parameters={"network_id": "net-999"},
                 result="failed",
@@ -131,13 +132,13 @@ class TestAuditLoggerLogOperation:
 
             mock_warning.assert_called()
 
-    def test_log_operation_success_logs_info(self, tmp_path):
+    async def test_log_operation_success_logs_info(self, tmp_path):
         """Test log_operation with success result logs info."""
         log_path = tmp_path / "audit.log"
         logger = AuditLogger(log_file=log_path)
 
         with patch.object(logger.logger, "info") as mock_info:
-            logger.log_operation(
+            await logger.log_operation(
                 operation="restart_device",
                 parameters={"device_mac": "aa:bb:cc:dd:ee:ff"},
                 result="success",
@@ -145,7 +146,7 @@ class TestAuditLoggerLogOperation:
 
             mock_info.assert_called()
 
-    def test_log_operation_file_write_error(self, tmp_path):
+    async def test_log_operation_file_write_error(self, tmp_path):
         """Test log_operation handles file write errors gracefully."""
         log_path = tmp_path / "audit.log"
         logger = AuditLogger(log_file=log_path)
@@ -153,24 +154,24 @@ class TestAuditLoggerLogOperation:
         with patch("builtins.open", side_effect=OSError("Permission denied")):
             with patch.object(logger.logger, "error") as mock_error:
                 # Should not raise, but log error
-                logger.log_operation(
+                await logger.log_operation(
                     operation="test_op",
                     parameters={},
                     result="success",
                 )
                 mock_error.assert_called()
 
-    def test_log_operation_multiple_entries(self, tmp_path):
+    async def test_log_operation_multiple_entries(self, tmp_path):
         """Test log_operation appends multiple entries."""
         log_path = tmp_path / "audit.log"
         logger = AuditLogger(log_file=log_path)
 
-        logger.log_operation(
+        await logger.log_operation(
             operation="op1",
             parameters={"key": "value1"},
             result="success",
         )
-        logger.log_operation(
+        await logger.log_operation(
             operation="op2",
             parameters={"key": "value2"},
             result="success",
@@ -185,90 +186,134 @@ class TestAuditLoggerLogOperation:
         assert record1["operation"] == "op1"
         assert record2["operation"] == "op2"
 
+    async def test_log_operation_redacts_nested_sensitive_fields(self, tmp_path):
+        """Test log_operation redacts nested sensitive fields."""
+        log_path = tmp_path / "audit.log"
+        logger = AuditLogger(log_file=log_path)
 
+        parameters = {
+            "name": "CorpNet",
+            "api_key": "top-secret-api-key",
+            "nested": {
+                "token": "nested-token",
+                "credentials": {
+                    "password": "super-secret-password",
+                    "note": "keep-me",
+                },
+            },
+            "items": [
+                {"secret": "list-secret", "label": "first"},
+                {"x_api_key": "another-secret", "enabled": True},
+            ],
+        }
+
+        with patch.object(logger.logger, "info") as mock_info:
+            await logger.log_operation(
+                operation="update_network",
+                parameters=parameters,
+                result="success",
+            )
+
+        record = json.loads(log_path.read_text().strip())
+        assert record["parameters"]["api_key"] == "***REDACTED***"
+        assert record["parameters"]["nested"]["token"] == "***REDACTED***"
+        assert record["parameters"]["nested"]["credentials"]["password"] == "***REDACTED***"
+        assert record["parameters"]["items"][0]["secret"] == "***REDACTED***"
+        assert record["parameters"]["items"][1]["x_api_key"] == "***REDACTED***"
+        assert record["parameters"]["name"] == "CorpNet"
+        assert record["parameters"]["nested"]["credentials"]["note"] == "keep-me"
+        assert record["parameters"]["items"][0]["label"] == "first"
+
+        log_extra = mock_info.call_args.kwargs["extra"]
+        assert log_extra["parameters"]["api_key"] == "***REDACTED***"
+        assert log_extra["parameters"]["nested"]["token"] == "***REDACTED***"
+        assert log_extra["parameters"]["items"][0]["secret"] == "***REDACTED***"
+
+
+@pytest.mark.anyio
 class TestAuditLoggerGetRecentOperations:
     """Tests for AuditLogger.get_recent_operations method."""
 
-    def test_get_recent_operations_empty_file(self, tmp_path):
+    async def test_get_recent_operations_empty_file(self, tmp_path):
         """Test get_recent_operations with no log file."""
         log_path = tmp_path / "nonexistent.log"
         logger = AuditLogger(log_file=log_path)
 
-        result = logger.get_recent_operations()
+        result = await logger.get_recent_operations()
 
         assert result == []
 
-    def test_get_recent_operations_basic(self, tmp_path):
+    async def test_get_recent_operations_basic(self, tmp_path):
         """Test get_recent_operations returns entries."""
         log_path = tmp_path / "audit.log"
         logger = AuditLogger(log_file=log_path)
 
         # Add some entries
         for i in range(5):
-            logger.log_operation(
+            await logger.log_operation(
                 operation=f"operation_{i}",
                 parameters={"index": i},
                 result="success",
             )
 
-        result = logger.get_recent_operations()
+        result = await logger.get_recent_operations()
 
         assert len(result) == 5
         # Should be in reverse order (most recent first)
         assert result[0]["operation"] == "operation_4"
         assert result[4]["operation"] == "operation_0"
 
-    def test_get_recent_operations_with_limit(self, tmp_path):
+    async def test_get_recent_operations_with_limit(self, tmp_path):
         """Test get_recent_operations respects limit."""
         log_path = tmp_path / "audit.log"
         logger = AuditLogger(log_file=log_path)
 
         for i in range(10):
-            logger.log_operation(
+            await logger.log_operation(
                 operation=f"operation_{i}",
                 parameters={"index": i},
                 result="success",
             )
 
-        result = logger.get_recent_operations(limit=3)
+        result = await logger.get_recent_operations(limit=3)
 
         assert len(result) == 3
         # Most recent entries
         assert result[0]["operation"] == "operation_9"
 
-    def test_get_recent_operations_filter_by_operation(self, tmp_path):
+    async def test_get_recent_operations_filter_by_operation(self, tmp_path):
         """Test get_recent_operations filters by operation name."""
         log_path = tmp_path / "audit.log"
         logger = AuditLogger(log_file=log_path)
 
-        logger.log_operation(
+        await logger.log_operation(
             operation="create_network",
             parameters={"name": "Net1"},
             result="success",
         )
-        logger.log_operation(
+        await logger.log_operation(
             operation="delete_network",
             parameters={"name": "Net2"},
             result="success",
         )
-        logger.log_operation(
+        await logger.log_operation(
             operation="create_network",
             parameters={"name": "Net3"},
             result="success",
         )
 
-        result = logger.get_recent_operations(operation="create_network")
+        result = await logger.get_recent_operations(operation="create_network")
 
         assert len(result) == 2
         assert all(r["operation"] == "create_network" for r in result)
 
-    def test_get_recent_operations_invalid_json(self, tmp_path):
+    async def test_get_recent_operations_invalid_json(self, tmp_path):
         """Test get_recent_operations handles invalid JSON lines."""
         log_path = tmp_path / "audit.log"
         logger = AuditLogger(log_file=log_path)
 
         # Write valid entry
-        logger.log_operation(
+        await logger.log_operation(
             operation="valid_op",
             parameters={},
             result="success",
@@ -279,25 +324,25 @@ class TestAuditLoggerGetRecentOperations:
             f.write("this is not valid json\n")
 
         # Write another valid entry
-        logger.log_operation(
+        await logger.log_operation(
             operation="another_valid",
             parameters={},
             result="success",
         )
 
         with patch.object(logger.logger, "warning") as mock_warning:
-            result = logger.get_recent_operations()
+            result = await logger.get_recent_operations()
 
             # Should skip invalid JSON and return valid entries
             assert len(result) == 2
             mock_warning.assert_called()
 
-    def test_get_recent_operations_empty_lines(self, tmp_path):
+    async def test_get_recent_operations_empty_lines(self, tmp_path):
         """Test get_recent_operations handles empty lines."""
         log_path = tmp_path / "audit.log"
         logger = AuditLogger(log_file=log_path)
 
-        logger.log_operation(
+        await logger.log_operation(
             operation="test_op",
             parameters={},
             result="success",
@@ -307,11 +352,11 @@ class TestAuditLoggerGetRecentOperations:
         with open(log_path, "a") as f:
             f.write("\n\n")
 
-        result = logger.get_recent_operations()
+        result = await logger.get_recent_operations()
 
         assert len(result) == 1
 
-    def test_get_recent_operations_read_error(self, tmp_path):
+    async def test_get_recent_operations_read_error(self, tmp_path):
         """Test get_recent_operations handles read errors."""
         log_path = tmp_path / "audit.log"
         logger = AuditLogger(log_file=log_path)
@@ -321,7 +366,7 @@ class TestAuditLoggerGetRecentOperations:
 
         with patch("builtins.open", side_effect=OSError("Read error")):
             with patch.object(logger.logger, "error") as mock_error:
-                result = logger.get_recent_operations()
+                result = await logger.get_recent_operations()
 
                 assert result == []
                 mock_error.assert_called()
@@ -355,17 +400,18 @@ class TestGetAuditLogger:
         assert logger1 is logger2
 
 
+@pytest.mark.anyio
 class TestLogAudit:
     """Tests for log_audit convenience function."""
 
-    def test_log_audit_basic(self, tmp_path):
+    async def test_log_audit_basic(self, tmp_path):
         """Test log_audit convenience function."""
         import src.utils.audit as audit_module
 
         audit_module._audit_logger = None
 
         log_path = tmp_path / "audit.log"
-        log_audit(
+        await log_audit(
             operation="create_wlan",
             parameters={"name": "GuestWiFi"},
             result="success",
@@ -379,14 +425,14 @@ class TestLogAudit:
         assert record["operation"] == "create_wlan"
         assert record["result"] == "success"
 
-    def test_log_audit_with_all_params(self, tmp_path):
+    async def test_log_audit_with_all_params(self, tmp_path):
         """Test log_audit with all parameters."""
         import src.utils.audit as audit_module
 
         audit_module._audit_logger = None
 
         log_path = tmp_path / "audit.log"
-        log_audit(
+        await log_audit(
             operation="delete_client",
             parameters={"mac": "aa:bb:cc:dd:ee:ff"},
             result="success",
@@ -407,7 +453,7 @@ class TestLogAudit:
 class TestAuditAction:
     """Tests for audit_action async function."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_audit_action_basic(self, tmp_path):
         """Test audit_action basic functionality."""
         import src.utils.audit as audit_module
@@ -435,7 +481,7 @@ class TestAuditAction:
         assert record["parameters"]["resource_id"] == "zone-123"
         assert record["parameters"]["site_id"] == "default"
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_audit_action_with_details(self, tmp_path):
         """Test audit_action with additional details."""
         import src.utils.audit as audit_module
@@ -461,7 +507,7 @@ class TestAuditAction:
         assert record["parameters"]["details"]["old_name"] == "OldNet"
         assert record["parameters"]["details"]["new_name"] == "NewNet"
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_audit_action_no_audit_log_file(self, tmp_path):
         """Test audit_action when settings has no audit_log_file."""
         import src.utils.audit as audit_module
@@ -479,7 +525,7 @@ class TestAuditAction:
             site_id="default",
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_audit_action_none_details(self, tmp_path):
         """Test audit_action with None details."""
         import src.utils.audit as audit_module
@@ -503,3 +549,34 @@ class TestAuditAction:
         record = json.loads(content.strip())
 
         assert "details" not in record["parameters"]
+
+    @pytest.mark.anyio
+    async def test_audit_action_redacts_sensitive_details(self, tmp_path):
+        """Test audit_action redacts sensitive fields in details."""
+        import src.utils.audit as audit_module
+
+        audit_module._audit_logger = None
+
+        log_path = tmp_path / "audit.log"
+        mock_settings = MagicMock()
+        mock_settings.audit_log_file = str(log_path)
+
+        await audit_action(
+            settings=mock_settings,
+            action_type="update_auth",
+            resource_type="integration",
+            resource_id="int-123",
+            site_id="default",
+            details={
+                "x_password": "sensitive-password",
+                "config": {
+                    "passphrase": "sensitive-passphrase",
+                    "region": "us-east-1",
+                },
+            },
+        )
+
+        record = json.loads(log_path.read_text().strip())
+        assert record["parameters"]["details"]["x_password"] == "***REDACTED***"
+        assert record["parameters"]["details"]["config"]["passphrase"] == "***REDACTED***"
+        assert record["parameters"]["details"]["config"]["region"] == "us-east-1"

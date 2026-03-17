@@ -83,7 +83,7 @@ class TestTopologyNode:
         with pytest.raises(ValidationError) as exc_info:
             TopologyNode(
                 node_id="invalid_001",
-                node_type="invalid_type",  # type: ignore
+                node_type="invalid_type",
             )
 
         assert "node_type" in str(exc_info.value)
@@ -190,7 +190,7 @@ class TestTopologyConnection:
                 connection_id="invalid_001",
                 source_node_id="device_001",
                 target_node_id="device_002",
-                connection_type="invalid_type",  # type: ignore
+                connection_type="invalid_type",
             )
 
         assert "connection_type" in str(exc_info.value)

@@ -32,7 +32,6 @@ async def test_restart_device_without_confirmation(
         await device_control.restart_device(
             site_id=env.site_id,
             device_mac="00:00:00:00:00:01",  # Fake MAC for validation test
-            settings=settings,
             confirm=False,  # Should raise error
         )
 
@@ -68,7 +67,6 @@ async def test_restart_device_dry_run(settings, env: TestEnvironment) -> dict[st
         result = await device_control.restart_device(
             site_id=env.site_id,
             device_mac="00:11:22:33:44:55",  # Test MAC
-            settings=settings,
             confirm=True,
             dry_run=True,  # DRY-RUN ONLY - NEVER actually restart
         )
@@ -99,7 +97,6 @@ async def test_locate_device_dry_run(settings, env: TestEnvironment) -> dict[str
         result = await device_control.locate_device(
             site_id=env.site_id,
             device_mac="00:11:22:33:44:55",  # Test MAC
-            settings=settings,
             enabled=True,
             confirm=True,
             dry_run=True,  # DRY-RUN ONLY - never actually enable locate
@@ -133,7 +130,6 @@ async def test_upgrade_device_dry_run(settings, env: TestEnvironment) -> dict[st
         result = await device_control.upgrade_device(
             site_id=env.site_id,
             device_mac="00:11:22:33:44:55",  # Test MAC
-            settings=settings,
             confirm=True,
             dry_run=True,  # DRY-RUN ONLY - NEVER actually upgrade
         )
@@ -164,14 +160,13 @@ async def test_adopt_device_dry_run(settings, env: TestEnvironment) -> dict[str,
         # Device ID must be 24-char hex string (MongoDB ObjectId format)
         result = await devices.adopt_device(
             site_id=env.site_id,
-            device_id="000000000000000000000001",  # Valid format fake ID
-            settings=settings,
+            mac_address="00:00:00:00:00:01",  # Valid format fake MAC
             confirm=True,
             dry_run=True,  # DRY-RUN ONLY - never actually adopt
         )
 
         assert result.get("dry_run") is True, "Must be dry-run mode"
-        assert "would_adopt" in result or "device_id" in result, "Should indicate planned action"
+        assert "mac_address" in result, "Should include target MAC"
 
         return {
             "status": "PASS",

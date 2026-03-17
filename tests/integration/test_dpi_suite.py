@@ -27,7 +27,6 @@ async def test_get_dpi_statistics(settings, env: TestEnvironment) -> dict[str, A
     try:
         result = await dpi.get_dpi_statistics(
             site_id=env.site_id,
-            settings=settings,
             time_range="24h",
         )
 
@@ -70,7 +69,6 @@ async def test_get_dpi_statistics_time_ranges(settings, env: TestEnvironment) ->
         for time_range in valid_ranges[:3]:  # Test first 3 ranges
             result = await dpi.get_dpi_statistics(
                 site_id=env.site_id,
-                settings=settings,
                 time_range=time_range,
             )
             assert isinstance(result, dict), f"Result for {time_range} must be a dictionary"
@@ -103,7 +101,6 @@ async def test_get_dpi_statistics_invalid_time_range(
     try:
         await dpi.get_dpi_statistics(
             site_id=env.site_id,
-            settings=settings,
             time_range="invalid",  # Invalid time range
         )
 
@@ -137,7 +134,6 @@ async def test_list_top_applications(settings, env: TestEnvironment) -> dict[str
     try:
         result = await dpi.list_top_applications(
             site_id=env.site_id,
-            settings=settings,
             limit=5,
             time_range="24h",
         )
@@ -186,8 +182,6 @@ async def test_get_client_dpi(settings, env: TestEnvironment) -> dict[str, Any]:
 
         client_list = await clients.list_active_clients(
             site_id=env.site_id,
-            settings=settings,
-            limit=1,
         )
 
         if not client_list:
@@ -200,7 +194,6 @@ async def test_get_client_dpi(settings, env: TestEnvironment) -> dict[str, Any]:
         result = await dpi.get_client_dpi(
             site_id=env.site_id,
             client_mac=client_mac,
-            settings=settings,
             time_range="24h",
         )
 

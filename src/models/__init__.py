@@ -13,6 +13,7 @@ from .backup import (
 )
 from .client import Client
 from .device import Device
+from .dns_policy import DNSPolicy
 from .dpi import Country, DPIApplication, DPICategory
 from .firewall_policy import (
     ConnectionStateType,
@@ -32,12 +33,7 @@ from .qos_profile import MatchCriteria, RouteAction, RouteSchedule, TrafficRoute
 from .radius import RADIUSProfile
 from .reference_data import DeviceTag
 from .site import Site
-from .site_manager import (
-    CrossSiteStatistics,
-    InternetHealthMetrics,
-    SiteHealthSummary,
-    VantagePoint,
-)
+from .site_manager import CrossSiteStatistics, InternetHealthMetrics, SiteHealthSummary
 from .traffic_flow import FlowRisk, FlowStatistics, FlowView, TrafficFlow
 from .traffic_matching_list import (
     TrafficMatchingList,
@@ -90,7 +86,6 @@ __all__ = [
     "SiteHealthSummary",
     "InternetHealthMetrics",
     "CrossSiteStatistics",
-    "VantagePoint",
     "BackupMetadata",
     "BackupOperation",
     "BackupSchedule",
@@ -106,4 +101,5 @@ __all__ = [
     "PortProfile",
     "PortOverride",
     "PortTableEntry",
+    "DNSPolicy",
 ]

@@ -5,10 +5,6 @@ allowed-tools:
   - Bash(isort:*)
   - Bash(ruff:*)
   - Bash(mypy:*)
-  - Bash(/Users/elvis/Library/Python/3.12/bin/black:*)
-  - Bash(/Users/elvis/Library/Python/3.12/bin/isort:*)
-  - Bash(/Users/elvis/Library/Python/3.12/bin/ruff:*)
-  - Bash(/Users/elvis/Library/Python/3.12/bin/mypy:*)
 author: project
 version: 1.0.0
 ---

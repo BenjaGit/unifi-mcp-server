@@ -12,7 +12,7 @@ This project uses the **official UniFi Cloud API** with API key authentication.
 
 **Authentication Method:**
 
-- Use `UNIFI_API_KEY` environment variable for authentication
+- Use `UNIFI_NETWORK_API_KEY` environment variable for authentication
 - API key is passed via the `X-API-Key` HTTP header
 - No session management or cookies required (stateless authentication)
 
@@ -148,7 +148,7 @@ async def safe_api_request(
     except httpx.HTTPStatusError as e:
         if e.response.status_code == 401:
             raise UniFiAuthenticationError(
-                "Invalid API key. Please check your UNIFI_API_KEY."
+                "Invalid API key. Please check your UNIFI_NETWORK_API_KEY."
             )
         elif e.response.status_code == 429:
             retry_after = e.response.headers.get("Retry-After", 60)

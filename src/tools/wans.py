@@ -1,30 +1,27 @@
 """WAN connection management tools."""
 
-from ..api.client import UniFiClient
-from ..config import Settings
+from fastmcp.server.providers import LocalProvider
+
+from ..api.pool import get_network_client
 from ..models import WANConnection
 from ..utils import get_logger
 
 logger = get_logger(__name__)
+provider = LocalProvider()
+
+__all__ = ["provider", "list_wan_connections"]
 
 
-async def list_wan_connections(site_id: str, settings: Settings) -> list[dict]:
-    """List all WAN connections for a site.
+@provider.tool()
+async def list_wan_connections(site_id: str) -> list[dict]:
+    """List all WAN connections for a site."""
+    client = get_network_client()
+    logger.info(f"Listing WAN connections for site {site_id}")
 
-    Args:
-        site_id: Site identifier
-        settings: Application settings
+    if not client.is_authenticated:
+        await client.authenticate()
 
-    Returns:
-        List of WAN connections
-    """
-    async with UniFiClient(settings) as client:
-        logger.info(f"Listing WAN connections for site {site_id}")
-
-        if not client.is_authenticated:
-            await client.authenticate()
-
-        response = await client.get(f"/integration/v1/sites/{site_id}/wans")
-        data = response.get("data", [])
-
-        return [WANConnection(**wan).model_dump() for wan in data]
+    site = await client.resolve_site(site_id)
+    response = await client.get(client.integration_path(site.uuid, "wans"))
+    data = response if isinstance(response, list) else response.get("data", [])
+    return [WANConnection(**wan).model_dump() for wan in data]

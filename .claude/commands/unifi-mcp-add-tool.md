@@ -7,7 +7,6 @@ allowed-tools:
   - Grep
   - Glob
   - Bash(pytest:*)
-  - Bash(/Users/elvis/Library/Python/3.12/bin/pytest:*)
 author: project
 version: 1.0.0
 ---
@@ -55,7 +54,7 @@ This command creates all necessary files and code for a new tool following the p
      - Confirmation/dry-run mode (if applicable)
    - Aim for 80%+ coverage
 
-6. Update API.md documentation:
+6. Update docs/api/mcp-tools.md documentation:
    - Add tool to appropriate category section
    - Include description, parameters, returns, example
 
@@ -70,7 +69,7 @@ This command creates all necessary files and code for a new tool following the p
 - Tool registration confirmation
 - Test results
 - Next steps for integration testing
-- Reminder to update TESTING_PLAN.md if needed
+- Reminder to update docs/testing/test-plan.md if needed
 
 **Example workflow:**
 
@@ -81,7 +80,7 @@ Assistant:
 2. Creates src/tools/wifi.py with get_wlan_groups() function
 3. Updates src/main.py to register the tool
 4. Creates tests/unit/test_wifi_tools.py
-5. Updates API.md with documentation
+5. Updates docs/api/mcp-tools.md with documentation
 6. Runs tests and reports results
 ```
 

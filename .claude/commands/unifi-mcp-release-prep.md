@@ -10,10 +10,6 @@ allowed-tools:
   - Bash(black:*)
   - Bash(ruff:*)
   - Bash(mypy:*)
-  - Bash(/Users/elvis/Library/Python/3.12/bin/pytest:*)
-  - Bash(/Users/elvis/Library/Python/3.12/bin/black:*)
-  - Bash(/Users/elvis/Library/Python/3.12/bin/ruff:*)
-  - Bash(/Users/elvis/Library/Python/3.12/bin/mypy:*)
 author: project
 version: 1.0.0
 ---
@@ -67,7 +63,7 @@ This command orchestrates the complete release preparation process including ver
    - Update CHANGELOG.md with new version section
 
 7. Update documentation:
-   - Run /unifi-mcp-update-docs to sync API.md
+   - Run /unifi-mcp-update-docs to sync docs/api/mcp-tools.md
    - Verify README.md is current
    - Check that examples still work
    - Update compatibility matrix if needed

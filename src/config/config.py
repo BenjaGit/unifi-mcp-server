@@ -3,7 +3,7 @@
 from enum import Enum
 from typing import Literal
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import AliasChoices, Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -13,9 +13,6 @@ class APIType(str, Enum):
     CLOUD_V1 = "cloud-v1"  # Official stable v1 API
     CLOUD_EA = "cloud-ea"  # Early Access API
     LOCAL = "local"  # Direct gateway access
-
-    # Legacy alias for backward compatibility (defaults to EA)
-    CLOUD = "cloud-ea"
 
 
 class Settings(BaseSettings):
@@ -28,11 +25,32 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # API Configuration
-    api_key: str = Field(
-        ...,
-        description="UniFi API key (X-API-Key header)",
-        validation_alias="UNIFI_API_KEY",
+    # API Keys.
+    # Project terminology:
+    # - LOCAL key  -> UNIFI_LOCAL_API_KEY (alias: UNIFI_NETWORK_API_KEY)
+    # - REMOTE key -> UNIFI_REMOTE_API_KEY (alias: UNIFI_SITE_MANAGER_API_KEY)
+    #
+    # Network and Site Manager use different authentication systems:
+    # - LOCAL key is typically used for local gateway access
+    # - REMOTE key is typically used for cloud access
+    # Protect keys are generated in UniFi Protect.
+
+    network_api_key: SecretStr | None = Field(
+        default=None,
+        description="API key for the Network API (generated in gateway UI)",
+        validation_alias=AliasChoices("UNIFI_LOCAL_API_KEY", "UNIFI_NETWORK_API_KEY"),
+    )
+
+    site_manager_api_key: SecretStr | None = Field(
+        default=None,
+        description="API key for the Site Manager API (generated at account.ui.com/api)",
+        validation_alias=AliasChoices("UNIFI_REMOTE_API_KEY", "UNIFI_SITE_MANAGER_API_KEY"),
+    )
+
+    protect_api_key: SecretStr | None = Field(
+        default=None,
+        description="API key for the Protect API",
+        validation_alias="UNIFI_PROTECT_API_KEY",
     )
 
     api_type: APIType = Field(
@@ -62,7 +80,7 @@ class Settings(BaseSettings):
     )
 
     local_verify_ssl: bool = Field(
-        default=True,
+        default=False,
         description="Verify SSL certificates for local controller",
         validation_alias="UNIFI_LOCAL_VERIFY_SSL",
     )
@@ -181,17 +199,37 @@ class Settings(BaseSettings):
         return v
 
     @model_validator(mode="after")
-    def validate_local_configuration(self) -> "Settings":
-        """Validate that local API has required configuration.
+    def validate_configuration(self) -> "Settings":
+        """Validate required configuration.
 
         Returns:
             Validated settings instance
 
         Raises:
-            ValueError: If local API is selected but host is not provided
+            ValueError: If required configuration is missing
         """
         if self.api_type == APIType.LOCAL and not self.local_host:
             raise ValueError("local_host is required when api_type is 'local'")
+
+        # Key requirements by connection type:
+        # - local: requires local Network key
+        # - cloud: accepts local Network key or remote Site Manager key
+        if self.api_type == APIType.LOCAL and not self.network_api_key:
+            raise ValueError(
+                "UNIFI_LOCAL_API_KEY (or UNIFI_NETWORK_API_KEY) must be set for local API mode"
+            )
+
+        if self.api_type in (APIType.CLOUD_V1, APIType.CLOUD_EA):
+            if not self.network_api_key and not self.site_manager_api_key:
+                raise ValueError(
+                    "Either UNIFI_REMOTE_API_KEY (or UNIFI_SITE_MANAGER_API_KEY) "
+                    "or UNIFI_LOCAL_API_KEY (or UNIFI_NETWORK_API_KEY) must be set"
+                )
+
+        # Auto-enable Site Manager features whenever a remote key is present.
+        if self.site_manager_api_key:
+            self.site_manager_enabled = True
+
         return self
 
     @property
@@ -219,103 +257,48 @@ class Settings(BaseSettings):
             return True
         return self.local_verify_ssl
 
-    def get_integration_path(self, endpoint: str) -> str:
-        """Get the correct integration API endpoint path based on API type.
+    @property
+    def resolved_network_api_key(self) -> str:
+        """Get the API key for the Network API.
 
-        For Cloud V1 API: Returns /v1/{endpoint}
-        For Cloud EA API: Returns /integration/v1/{endpoint} (ZBF not supported on Cloud)
-        For Local API: Returns /proxy/network/integration/v1/{endpoint}
-
-        Args:
-            endpoint: The endpoint path starting with /sites/... (e.g., "/sites/default/firewall/zones")
-
-        Returns:
-            Complete endpoint path with correct prefix
-
-        Example:
-            >>> settings.get_integration_path("/sites/abc/firewall/zones")
-            # Cloud V1: "/v1/sites/abc/firewall/zones"
-            # Cloud EA: "/integration/v1/sites/abc/firewall/zones"
-            # Local: "/proxy/network/integration/v1/sites/abc/firewall/zones"
+        In cloud modes, prefers UNIFI_REMOTE_API_KEY (cloud-scoped)
+        and falls back to UNIFI_LOCAL_API_KEY.
+        In local mode, uses UNIFI_LOCAL_API_KEY.
         """
-        # Remove leading slash if present for consistency
-        endpoint = endpoint.lstrip("/")
-
-        if self.api_type == APIType.CLOUD_V1:
-            return f"/v1/{endpoint}"
-        elif self.api_type == APIType.CLOUD_EA:
-            return f"/integration/v1/{endpoint}"
+        if self.api_type in (APIType.CLOUD_V1, APIType.CLOUD_EA):
+            key = self.site_manager_api_key or self.network_api_key
         else:
-            # Local gateways require /proxy/network/ prefix
-            return f"/proxy/network/integration/v1/{endpoint}"
+            key = self.network_api_key
+        return key.get_secret_value() if key else ""
 
-    def get_site_api_path(self, site_id: str, endpoint: str) -> str:
-        """Get the correct standard UniFi API endpoint path based on API type.
+    @property
+    def resolved_site_manager_api_key(self) -> str | None:
+        """Get the API key for the Site Manager API.
 
-        For Cloud V1 API: Returns /v1/{endpoint} (site-less endpoints like /hosts)
-        For Cloud EA API: Returns /ea/sites/{site_id}/{endpoint}
-        For Local API: Returns /proxy/network/api/s/{site_id}/{endpoint}
-
-        Args:
-            site_id: The site ID (may be unused for Cloud V1 top-level endpoints)
-            endpoint: The endpoint path (e.g., "devices", "sta", "rest/networkconf")
-
-        Returns:
-            Complete endpoint path with correct prefix
-
-        Example:
-            >>> settings.get_site_api_path("default", "devices")
-            # Cloud V1: "/v1/hosts" (devices are under hosts endpoint)
-            # Cloud EA: "/ea/sites/default/devices"
-            # Local: "/proxy/network/api/s/default/devices"
+        Returns None if UNIFI_SITE_MANAGER_API_KEY is not set.
         """
-        # Remove leading slash if present for consistency
-        endpoint = endpoint.lstrip("/")
+        return self.site_manager_api_key.get_secret_value() if self.site_manager_api_key else None
 
-        if self.api_type == APIType.CLOUD_V1:
-            # V1 API uses top-level endpoints without site_id in path
-            # Note: For v1, endpoints like "devices" are accessed via /v1/hosts
-            return f"/v1/{endpoint}"
-        elif self.api_type == APIType.CLOUD_EA:
-            return f"/ea/sites/{site_id}/{endpoint}"
-        else:
-            # Local gateways use /proxy/network/api/s/ prefix
-            return f"/proxy/network/api/s/{site_id}/{endpoint}"
+    @property
+    def resolved_protect_api_key(self) -> str | None:
+        """Get the API key for the Protect API.
 
-    def get_v2_api_path(self, site_id: str) -> str:
-        """Get the v2 API endpoint path for local gateway access.
-
-        The v2 API is only available on local gateways and provides access to
-        features like firewall policies that are not available via the cloud API.
-
-        Args:
-            site_id: The site identifier
-
-        Returns:
-            Complete endpoint path: /proxy/network/v2/api/site/{site_id}
-
-        Raises:
-            NotImplementedError: If api_type is not LOCAL (v2 API only works locally)
-
-        Example:
-            >>> settings.get_v2_api_path("default")
-            # Local: "/proxy/network/v2/api/site/default"
+        Returns None if UNIFI_PROTECT_API_KEY is not set.
         """
-        if self.api_type != APIType.LOCAL:
-            raise NotImplementedError(
-                "v2 API is only available with local gateway access. "
-                "Set UNIFI_API_TYPE=local and configure UNIFI_LOCAL_HOST."
-            )
-        return f"/proxy/network/v2/api/site/{site_id}"
+        return self.protect_api_key.get_secret_value() if self.protect_api_key else None
 
-    def get_headers(self) -> dict[str, str]:
+    def get_headers(self, api_key: str | None = None) -> dict[str, str]:
         """Get HTTP headers for API requests.
+
+        Args:
+            api_key: Specific API key to use. If None, uses the network key.
 
         Returns:
             Dictionary of HTTP headers
         """
+        key = api_key or self.resolved_network_api_key
         return {
-            "X-API-KEY": self.api_key,  # UniFi API expects all caps
+            "X-API-KEY": key,
             "Content-Type": "application/json",
             "Accept": "application/json",
         }

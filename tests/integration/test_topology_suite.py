@@ -27,7 +27,6 @@ async def test_get_network_topology(settings, env: TestEnvironment) -> dict[str,
     try:
         result = await topology.get_network_topology(
             site_id=env.site_id,
-            settings=settings,
             include_coordinates=False,
         )
 
@@ -67,7 +66,6 @@ async def test_export_topology_json(settings, env: TestEnvironment) -> dict[str,
         result = await topology.export_topology(
             site_id=env.site_id,
             format="json",
-            settings=settings,
         )
 
         # Validate response
@@ -97,7 +95,6 @@ async def test_export_topology_graphml(settings, env: TestEnvironment) -> dict[s
         result = await topology.export_topology(
             site_id=env.site_id,
             format="graphml",
-            settings=settings,
         )
 
         # Validate response
@@ -127,7 +124,6 @@ async def test_export_topology_dot(settings, env: TestEnvironment) -> dict[str, 
         result = await topology.export_topology(
             site_id=env.site_id,
             format="dot",
-            settings=settings,
         )
 
         # Validate response
@@ -155,7 +151,6 @@ async def test_get_topology_statistics(settings, env: TestEnvironment) -> dict[s
     try:
         result = await topology.get_topology_statistics(
             site_id=env.site_id,
-            settings=settings,
         )
 
         # Validate response structure
@@ -184,7 +179,7 @@ async def test_get_device_connections(settings, env: TestEnvironment) -> dict[st
 
     try:
         # First get topology to find a device
-        topo = await topology.get_network_topology(site_id=env.site_id, settings=settings)
+        topo = await topology.get_network_topology(site_id=env.site_id)
 
         devices = [n for n in topo.get("nodes", []) if n.get("node_type") == "device"]
         if not devices:
@@ -196,7 +191,6 @@ async def test_get_device_connections(settings, env: TestEnvironment) -> dict[st
         result = await topology.get_device_connections(
             site_id=env.site_id,
             device_id=device_id,
-            settings=settings,
         )
 
         # Validate response
@@ -223,7 +217,6 @@ async def test_get_device_connections_all(settings, env: TestEnvironment) -> dic
         result = await topology.get_device_connections(
             site_id=env.site_id,
             device_id=None,
-            settings=settings,
         )
 
         # Validate response
@@ -248,7 +241,7 @@ async def test_get_port_mappings(settings, env: TestEnvironment) -> dict[str, An
 
     try:
         # First get topology to find a device
-        topo = await topology.get_network_topology(site_id=env.site_id, settings=settings)
+        topo = await topology.get_network_topology(site_id=env.site_id)
 
         devices = [n for n in topo.get("nodes", []) if n.get("node_type") == "device"]
         if not devices:
@@ -260,7 +253,6 @@ async def test_get_port_mappings(settings, env: TestEnvironment) -> dict[str, An
         result = await topology.get_port_mappings(
             site_id=env.site_id,
             device_id=device_id,
-            settings=settings,
         )
 
         # Validate response

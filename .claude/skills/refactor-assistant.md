@@ -65,7 +65,7 @@ Read the target file and analyze:
 # Before: Hard to test function
 async def process_device_data(site_id: str):
     # Code smell: Hardcoded UniFi client
-    client = UniFiClient(api_key=os.getenv("UNIFI_API_KEY"))
+    client = UniFiClient(api_key=os.getenv("UNIFI_LOCAL_API_KEY"))
 
     # Code smell: Long function with multiple responsibilities
     devices = await client.request("GET", f"/api/s/{site_id}/stat/device")
@@ -168,7 +168,7 @@ Make dependencies explicit for easier testing:
 ```python
 # Before: Hard to test (hardcoded dependency)
 async def get_devices(site_id: str):
-    client = UniFiClient(api_key=os.getenv("UNIFI_API_KEY"))
+    client = UniFiClient(api_key=os.getenv("UNIFI_LOCAL_API_KEY"))
     return await client.request("GET", f"/api/s/{site_id}/stat/device")
 
 # After: Easy to test (injected dependency)
@@ -594,7 +594,7 @@ Load for context:
 
 - `src/tools/[module].py` - Code to refactor
 - `tests/unit/test_[module].py` - Existing tests
-- `AGENTS.md` - Code quality standards
+- `CONTRIBUTING.md` - Code quality standards
 - `pyproject.toml` - Tool configurations (black, ruff, mypy)
 
 ## Success Metrics

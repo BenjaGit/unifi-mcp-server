@@ -157,6 +157,15 @@ class TestValidateDeviceId:
         result = validate_device_id("507F1F77BCF86CD799439011")
         assert result == "507f1f77bcf86cd799439011"
 
+    def test_valid_uuid(self):
+        uuid = "123e4567-e89b-12d3-a456-426614174000"
+        result = validate_device_id(uuid)
+        assert result == uuid
+
+    def test_valid_uuid_uppercase(self):
+        result = validate_device_id("123E4567-E89B-12D3-A456-426614174000")
+        assert result == "123e4567-e89b-12d3-a456-426614174000"
+
     def test_invalid_empty(self):
         with pytest.raises(ValidationError, match="cannot be empty"):
             validate_device_id("")
@@ -176,6 +185,10 @@ class TestValidateDeviceId:
     def test_invalid_non_hex(self):
         with pytest.raises(ValidationError, match="Invalid device ID"):
             validate_device_id("507f1f77bcf86cd79943901g")
+
+    def test_invalid_uuid_format(self):
+        with pytest.raises(ValidationError, match="Invalid device ID"):
+            validate_device_id("123e4567-e89b-12d3-a456-42661417400")
 
 
 class TestCoerceBool:

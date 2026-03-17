@@ -10,7 +10,7 @@ author: project
 version: 1.0.0
 ---
 
-Scrape the latest UniFi API documentation from developer.ui.com and update docs/UNIFI_API.md with newly discovered endpoints.
+Scrape the latest UniFi API documentation from developer.ui.com and update docs/api/unifi-api-reference.md with newly discovered endpoints.
 
 This command runs the `scripts/update-api-docs.js` Puppeteer-based scraper to fetch API documentation from the official UniFi developer site and compare it against the current documentation.
 
@@ -44,7 +44,7 @@ This command runs the `scripts/update-api-docs.js` Puppeteer-based scraper to fe
 4. Show summary:
 
    ```bash
-   git diff --stat docs/UNIFI_API.md
+   git diff --stat docs/api/unifi-api-reference.md
    ```
 
 **What the script does:**
@@ -55,7 +55,7 @@ This command runs the `scripts/update-api-docs.js` Puppeteer-based scraper to fe
    - Filters out non-API pages (getting started, guides, etc.)
 
 2. **Compares with existing documentation**:
-   - Loads current docs/UNIFI_API.md
+   - Loads current docs/api/unifi-api-reference.md
    - Checks if each endpoint is already documented
    - Identifies new endpoints to add
 
@@ -106,7 +106,7 @@ Processing Protect v6.2.83...
     [... more endpoints ...]
 
 Generating updated documentation...
-✓ Updated documentation saved to: docs/UNIFI_API.md
+✓ Updated documentation saved to: docs/api/unifi-api-reference.md
 
 📊 Summary:
   Site Manager: +4 new endpoints

@@ -47,7 +47,7 @@ cd unifi-mcp-server
 3. Add the upstream repository as a remote:
 
 ```bash
-git remote add upstream https://github.com/elvis/unifi-mcp-server.git
+git remote add upstream https://github.com/enuno/unifi-mcp-server.git
 ```
 
 ## Development Setup
@@ -86,31 +86,36 @@ cp .env.example .env
 
 #### Obtain Your UniFi API Key
 
-Before configuring the environment, you need to obtain an API key:
+Before configuring the environment, define your key type:
 
-1. Log in to [UniFi Site Manager](https://unifi.ui.com)
-2. Navigate to **Settings → Control Plane → Integrations**
-3. Click **Create API Key**
-4. **Copy and save the key immediately** - it's only shown once!
+1. **LOCAL key** (`UNIFI_LOCAL_API_KEY`)
+   - Sign in to your local site
+   - Navigate to **Integrations**
+   - Create API Key and save it immediately
+2. **REMOTE key** (`UNIFI_REMOTE_API_KEY`)
+   - Sign in to [UniFi Site Manager](https://unifi.ui.com)
+   - Go to **API** (GA) or **Settings → API Keys** (EA)
+   - Create API Key and save it immediately
 
 #### Configure Your Environment
 
-Edit the `.env` file with your UniFi API key:
+Edit the `.env` file with your UniFi API keys:
 
 ```env
-# Required: Your UniFi API Key
-UNIFI_API_KEY=your-api-key-here
+# Required for local mode: LOCAL key
+UNIFI_LOCAL_API_KEY=your-local-api-key-here
 
-# For cloud API (recommended)
-UNIFI_API_TYPE=cloud
-UNIFI_HOST=api.ui.com
-UNIFI_PORT=443
-UNIFI_VERIFY_SSL=true
+# Recommended for cloud mode: REMOTE key
+# UNIFI_REMOTE_API_KEY=your-remote-api-key-here
+
+# For cloud API
+UNIFI_API_TYPE=cloud-ea
+UNIFI_CLOUD_API_URL=https://api.ui.com
 
 # OR for local gateway proxy
 # UNIFI_API_TYPE=local
-# UNIFI_HOST=192.168.2.1
-# UNIFI_VERIFY_SSL=false
+# UNIFI_LOCAL_HOST=192.168.2.1
+# UNIFI_LOCAL_VERIFY_SSL=false
 ```
 
 **CRITICAL SECURITY NOTES:**
@@ -120,7 +125,7 @@ UNIFI_VERIFY_SSL=true
 - **Store keys securely** using environment variables or secret management systems
 - **Rotate keys regularly** for security best practices
 - **Monitor key usage** for suspicious activity
-- The API is currently **read-only** in Early Access, but will support write operations in future versions
+- The server supports both read and write operations across network, firewall, device, and site management
 
 ## Development Workflow
 
@@ -261,7 +266,7 @@ expired. Now it automatically re-authenticates.
 1. Ensure all tests pass: `pytest`
 2. Ensure code passes all pre-commit checks: `pre-commit run --all-files`
 3. Update the `README.md` or other documentation with details of changes
-4. Update the `API.md` if you've added new MCP tools or resources
+4. Update `docs/api/mcp-tools.md` if you've added new MCP tools or resources
 5. Rebase your branch on the latest `main` if needed
 
 ### Submitting a Pull Request
@@ -342,13 +347,10 @@ This PR was created with assistance from [AI Tool Name].
 
 ### AI-Specific Guidelines
 
-- AI assistants should follow the guidelines in `AGENTS.md`
 - Never commit sensitive data (credentials, API keys, etc.)
 - Always use environment variables for configuration
 - Follow the principle of least privilege for permissions
 - Include clear explanations for complex logic
-
-See `AI_GIT_PRACTICES.md` and `CONTRIBUTION_BEST_PRACTICES.md` for additional AI-specific guidance.
 
 ## Automated Workflows
 
@@ -380,7 +382,7 @@ The repository includes an automated bug report handler that activates when issu
 
 To get the most helpful automated response:
 
-- Use the bug report template (`.github/ISSUE_TEMPLATE/bug_report.md`)
+- Use the bug report template (`.github/ISSUE_TEMPLATE/mcp-bug-report.md`)
 - Include complete error messages and stack traces
 - Specify your environment (API mode, UniFi version, Python version)
 - Describe steps to reproduce the issue
@@ -403,8 +405,8 @@ pytest
 # Run with coverage report
 pytest --cov=src --cov-report=html
 
-# Run specific test file
-pytest tests/test_api.py
+# Run specific test directory
+pytest tests/unit/
 
 # Run tests matching a pattern
 pytest -k "test_authentication"
@@ -475,8 +477,8 @@ def function(arg1: str, arg2: int) -> bool:
 ### Project Documentation
 
 - Update `README.md` for user-facing changes
-- Update `API.md` for new MCP tools or resources
-- Update `CHANGELOG.md` (if exists) with notable changes
+- Update `docs/api/mcp-tools.md` for new MCP tools or resources
+- Update `CHANGELOG.md` with notable changes
 - Add examples for new features
 
 ## Questions?

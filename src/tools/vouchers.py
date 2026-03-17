@@ -2,81 +2,74 @@
 
 from typing import Any
 
-from ..api.client import UniFiClient
-from ..config import Settings
+from fastmcp.server.providers import LocalProvider
+
+from ..api.pool import get_network_client
 from ..models import Voucher
 from ..utils import audit_action, get_logger, validate_confirmation
 
 logger = get_logger(__name__)
+provider = LocalProvider()
+
+__all__ = [
+    "provider",
+    "list_vouchers",
+    "get_voucher",
+    "create_vouchers",
+    "delete_voucher",
+    "bulk_delete_vouchers",
+]
 
 
+@provider.tool()
 async def list_vouchers(
     site_id: str,
-    settings: Settings,
     limit: int | None = None,
     offset: int | None = None,
     filter_expr: str | None = None,
-) -> list[dict]:
-    """List all hotspot vouchers for a site.
+) -> list[dict[str, Any]]:
+    """List all hotspot vouchers for a site."""
+    client = get_network_client()
+    if not client.is_authenticated:
+        await client.authenticate()
 
-    Args:
-        site_id: Site identifier
-        settings: Application settings
-        limit: Maximum number of results
-        offset: Starting position
-        filter_expr: Filter expression
+    site = await client.resolve_site(site_id)
+    params: dict[str, Any] = {}
+    if limit is not None:
+        params["limit"] = limit
+    if offset is not None:
+        params["offset"] = offset
+    if filter_expr:
+        params["filter"] = filter_expr
 
-    Returns:
-        List of vouchers
-    """
-    async with UniFiClient(settings) as client:
-        logger.info(f"Listing vouchers for site {site_id}")
-
-        if not client.is_authenticated:
-            await client.authenticate()
-
-        params: dict[str, Any] = {}
-        if limit is not None:
-            params["limit"] = limit
-        if offset is not None:
-            params["offset"] = offset
-        if filter_expr:
-            params["filter"] = filter_expr
-
-        response = await client.get(f"/integration/v1/sites/{site_id}/vouchers", params=params)
-        data = response.get("data", [])
-
-        return [Voucher(**voucher).model_dump() for voucher in data]
+    logger.info(f"Listing vouchers for site {site_id}")
+    response = await client.get(client.legacy_path(site.name, "stat/voucher"), params=params)
+    data = response if isinstance(response, list) else response.get("data", [])
+    return [Voucher(**voucher).model_dump() for voucher in data]
 
 
-async def get_voucher(site_id: str, voucher_id: str, settings: Settings) -> dict:
-    """Get details for a specific voucher.
+@provider.tool()
+async def get_voucher(site_id: str, voucher_id: str) -> dict[str, Any]:
+    """Get details for a specific voucher."""
+    client = get_network_client()
+    if not client.is_authenticated:
+        await client.authenticate()
 
-    Args:
-        site_id: Site identifier
-        voucher_id: Voucher identifier
-        settings: Application settings
-
-    Returns:
-        Voucher details
-    """
-    async with UniFiClient(settings) as client:
-        logger.info(f"Getting voucher {voucher_id} for site {site_id}")
-
-        if not client.is_authenticated:
-            await client.authenticate()
-
-        response = await client.get(f"/integration/v1/sites/{site_id}/vouchers/{voucher_id}")
-        data = response.get("data", response)
-
-        return Voucher(**data).model_dump()  # type: ignore[no-any-return]
+    site = await client.resolve_site(site_id)
+    logger.info(f"Getting voucher {voucher_id} for site {site_id}")
+    response = await client.get(client.legacy_path(site.name, "stat/voucher"))
+    data = response if isinstance(response, list) else response.get("data", [])
+    voucher_data = next((voucher for voucher in data if voucher.get("_id") == voucher_id), None)
+    if not voucher_data:
+        raise ValueError(f"Voucher {voucher_id} not found")
+    return Voucher(**voucher_data).model_dump()
 
 
+@provider.tool()
 async def create_vouchers(
     site_id: str,
     count: int,
     duration: int,
-    settings: Settings,
     upload_limit_kbps: int | None = None,
     download_limit_kbps: int | None = None,
     upload_quota_mb: int | None = None,
@@ -84,166 +77,145 @@ async def create_vouchers(
     note: str | None = None,
     confirm: bool | str = False,
     dry_run: bool | str = False,
-) -> dict:
-    """Create new hotspot vouchers.
-
-    Args:
-        site_id: Site identifier
-        count: Number of vouchers to create
-        duration: Duration in seconds
-        settings: Application settings
-        upload_limit_kbps: Upload speed limit in kbps
-        download_limit_kbps: Download speed limit in kbps
-        upload_quota_mb: Upload quota in MB
-        download_quota_mb: Download quota in MB
-        note: Admin notes
-        confirm: Confirmation flag (required)
-        dry_run: If True, validate but don't execute
-
-    Returns:
-        Created voucher codes
-    """
+) -> dict[str, Any]:
+    """Create new hotspot vouchers."""
     validate_confirmation(confirm, "create vouchers", dry_run)
 
-    async with UniFiClient(settings) as client:
-        logger.info(f"Creating {count} vouchers for site {site_id}")
+    payload: dict[str, Any] = {
+        "cmd": "create-voucher",
+        "n": count,
+        "expire": duration,
+        "quota": 0,
+    }
+    if upload_limit_kbps is not None:
+        payload["up"] = upload_limit_kbps
+    if download_limit_kbps is not None:
+        payload["down"] = download_limit_kbps
+    if download_quota_mb is not None:
+        payload["bytes"] = download_quota_mb
+    elif upload_quota_mb is not None:
+        payload["bytes"] = upload_quota_mb
+    if note:
+        payload["note"] = note
 
-        if not client.is_authenticated:
-            await client.authenticate()
+    if dry_run:
+        logger.info(f"[DRY RUN] Would create vouchers with payload: {payload}")
+        return {"dry_run": True, "payload": payload}
 
-        # Build request payload
-        payload: dict[str, Any] = {
-            "count": count,
-            "duration": duration,
-        }
+    client = get_network_client()
+    if not client.is_authenticated:
+        await client.authenticate()
 
-        if upload_limit_kbps is not None:
-            payload["uploadLimit"] = upload_limit_kbps
-        if download_limit_kbps is not None:
-            payload["downloadLimit"] = download_limit_kbps
-        if upload_quota_mb is not None:
-            payload["uploadQuota"] = upload_quota_mb
-        if download_quota_mb is not None:
-            payload["downloadQuota"] = download_quota_mb
-        if note:
-            payload["note"] = note
+    site = await client.resolve_site(site_id)
+    logger.info(f"Creating {count} vouchers for site {site_id}")
+    response = await client.post(client.legacy_path(site.name, "cmd/hotspot"), json_data=payload)
+    data = response if isinstance(response, list) else response.get("data", response)
+    if isinstance(data, dict):
+        data = [data]
 
-        if dry_run:
-            logger.info(f"[DRY RUN] Would create vouchers with payload: {payload}")
-            return {"dry_run": True, "payload": payload}
+    await audit_action(
+        getattr(client, "settings", None),
+        action_type="create_vouchers",
+        resource_type="voucher",
+        resource_id="bulk",
+        site_id=site_id,
+        details={"count": count, "duration": duration},
+    )
 
-        response = await client.post(f"/integration/v1/sites/{site_id}/vouchers", json_data=payload)
-        data = response.get("data", response)
-
-        # Audit the action
-        await audit_action(
-            settings,
-            action_type="create_vouchers",
-            resource_type="voucher",
-            resource_id="bulk",
-            site_id=site_id,
-            details={"count": count, "duration": duration},
-        )
-
-        return {
-            "success": True,
-            "count": count,
-            "vouchers": data if isinstance(data, list) else [data],
-        }
+    return {"success": True, "count": count, "vouchers": data if isinstance(data, list) else [data]}
 
 
+@provider.tool(annotations={"destructiveHint": True})
 async def delete_voucher(
     site_id: str,
     voucher_id: str,
-    settings: Settings,
     confirm: bool | str = False,
     dry_run: bool | str = False,
-) -> dict:
-    """Delete a specific voucher.
-
-    Args:
-        site_id: Site identifier
-        voucher_id: Voucher identifier
-        settings: Application settings
-        confirm: Confirmation flag (required)
-        dry_run: If True, validate but don't execute
-
-    Returns:
-        Deletion status
-    """
+) -> dict[str, Any]:
+    """Delete a specific voucher."""
     validate_confirmation(confirm, "delete voucher", dry_run)
 
-    async with UniFiClient(settings) as client:
-        logger.info(f"Deleting voucher {voucher_id} for site {site_id}")
+    if dry_run:
+        logger.info(f"[DRY RUN] Would delete voucher {voucher_id}")
+        return {"dry_run": True, "voucher_id": voucher_id}
 
-        if not client.is_authenticated:
-            await client.authenticate()
+    client = get_network_client()
+    if not client.is_authenticated:
+        await client.authenticate()
 
-        if dry_run:
-            logger.info(f"[DRY RUN] Would delete voucher {voucher_id}")
-            return {"dry_run": True, "voucher_id": voucher_id}
+    site = await client.resolve_site(site_id)
+    logger.info(f"Deleting voucher {voucher_id} for site {site_id}")
+    await client.post(
+        client.legacy_path(site.name, "cmd/hotspot"),
+        json_data={"cmd": "delete-voucher", "_id": voucher_id},
+    )
 
-        await client.delete(f"/integration/v1/sites/{site_id}/vouchers/{voucher_id}")
+    await audit_action(
+        getattr(client, "settings", None),
+        action_type="delete_voucher",
+        resource_type="voucher",
+        resource_id=voucher_id,
+        site_id=site_id,
+        details={},
+    )
 
-        # Audit the action
-        await audit_action(
-            settings,
-            action_type="delete_voucher",
-            resource_type="voucher",
-            resource_id=voucher_id,
-            site_id=site_id,
-            details={},
-        )
-
-        return {"success": True, "message": f"Voucher {voucher_id} deleted successfully"}
+    return {"success": True, "message": f"Voucher {voucher_id} deleted successfully"}
 
 
+@provider.tool(annotations={"destructiveHint": True})
 async def bulk_delete_vouchers(
     site_id: str,
     filter_expr: str,
-    settings: Settings,
     confirm: bool | str = False,
     dry_run: bool | str = False,
-) -> dict:
-    """Bulk delete vouchers using a filter expression.
-
-    Args:
-        site_id: Site identifier
-        filter_expr: Filter expression to select vouchers
-        settings: Application settings
-        confirm: Confirmation flag (required)
-        dry_run: If True, validate but don't execute
-
-    Returns:
-        Deletion status
-    """
+) -> dict[str, Any]:
+    """Bulk delete vouchers using a filter expression."""
     validate_confirmation(confirm, "bulk delete vouchers", dry_run)
 
-    async with UniFiClient(settings) as client:
-        logger.info(f"Bulk deleting vouchers for site {site_id} with filter: {filter_expr}")
+    if dry_run:
+        logger.info(f"[DRY RUN] Would bulk delete vouchers with filter: {filter_expr}")
+        return {"dry_run": True, "filter": filter_expr}
 
-        if not client.is_authenticated:
-            await client.authenticate()
+    client = get_network_client()
+    if not client.is_authenticated:
+        await client.authenticate()
 
-        if dry_run:
-            logger.info(f"[DRY RUN] Would bulk delete vouchers with filter: {filter_expr}")
-            return {"dry_run": True, "filter": filter_expr}
+    site = await client.resolve_site(site_id)
+    logger.info(f"Bulk deleting vouchers for site {site_id} with filter: {filter_expr}")
 
-        params = {"filter": filter_expr}
-        response = await client.delete(f"/integration/v1/sites/{site_id}/vouchers", params=params)
+    list_response = await client.get(client.legacy_path(site.name, "stat/voucher"))
+    all_vouchers = (
+        list_response if isinstance(list_response, list) else list_response.get("data", [])
+    )
 
-        # Audit the action
-        await audit_action(
-            settings,
-            action_type="bulk_delete_vouchers",
-            resource_type="voucher",
-            resource_id="bulk",
-            site_id=site_id,
-            details={"filter": filter_expr},
-        )
+    filtered = all_vouchers
+    if filter_expr and "==" in filter_expr:
+        field, value = filter_expr.split("==", 1)
+        field = field.strip()
+        value = value.strip()
+        filtered = [voucher for voucher in all_vouchers if str(voucher.get(field, "")) == value]
 
-        return {
-            "success": True,
-            "message": "Vouchers deleted successfully",
-            "deleted_count": response.get("data", {}).get("count", 0),
-        }
+    deleted_count = 0
+    for voucher in filtered:
+        voucher_id = voucher.get("_id", "")
+        if voucher_id:
+            await client.post(
+                client.legacy_path(site.name, "cmd/hotspot"),
+                json_data={"cmd": "delete-voucher", "_id": voucher_id},
+            )
+            deleted_count += 1
+
+    await audit_action(
+        getattr(client, "settings", None),
+        action_type="bulk_delete_vouchers",
+        resource_type="voucher",
+        resource_id="bulk",
+        site_id=site_id,
+        details={"filter": filter_expr},
+    )
+
+    return {
+        "success": True,
+        "message": "Vouchers deleted successfully",
+        "deleted_count": deleted_count,
+    }

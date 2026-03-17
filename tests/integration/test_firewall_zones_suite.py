@@ -32,7 +32,6 @@ async def test_local_api_requirement(settings, env: TestEnvironment) -> dict[str
         # Attempt to list zones on cloud API (should raise ValidationError)
         await firewall_zones.list_firewall_zones(
             site_id=env.site_id,
-            settings=settings,
         )
 
         # If we get here, the local API check failed
@@ -69,7 +68,6 @@ async def test_list_firewall_zones(settings, env: TestEnvironment) -> dict[str, 
     try:
         result = await firewall_zones.list_firewall_zones(
             site_id=env.site_id,
-            settings=settings,
         )
 
         # Validate response structure
@@ -114,7 +112,6 @@ async def test_create_firewall_zone_without_confirmation(
         await firewall_zones.create_firewall_zone(
             site_id=env.site_id,
             name=f"{TEST_PREFIX}TEST_ZONE",
-            settings=settings,
             confirm=False,  # Should raise error
         )
 
@@ -152,7 +149,6 @@ async def test_create_and_delete_firewall_zone(settings, env: TestEnvironment) -
         result = await firewall_zones.create_firewall_zone(
             site_id=env.site_id,
             name=f"{TEST_PREFIX}ZONE_DELETE_ME",
-            settings=settings,
             confirm=True,
         )
 
@@ -163,7 +159,6 @@ async def test_create_and_delete_firewall_zone(settings, env: TestEnvironment) -
         # Verify zone exists in list
         zones = await firewall_zones.list_firewall_zones(
             site_id=env.site_id,
-            settings=settings,
         )
         assert any(
             z.get("id") == zone_id or z.get("_id") == zone_id for z in zones
@@ -173,7 +168,6 @@ async def test_create_and_delete_firewall_zone(settings, env: TestEnvironment) -
         delete_result = await firewall_zones.delete_firewall_zone(
             site_id=env.site_id,
             zone_id=zone_id,
-            settings=settings,
             confirm=True,
         )
 
@@ -183,7 +177,6 @@ async def test_create_and_delete_firewall_zone(settings, env: TestEnvironment) -
         # Verify zone no longer exists
         zones_after = await firewall_zones.list_firewall_zones(
             site_id=env.site_id,
-            settings=settings,
         )
         assert not any(
             z.get("id") == zone_id or z.get("_id") == zone_id for z in zones_after
@@ -209,7 +202,6 @@ async def test_create_and_delete_firewall_zone(settings, env: TestEnvironment) -
                 await firewall_zones.delete_firewall_zone(
                     site_id=env.site_id,
                     zone_id=zone_id,
-                    settings=settings,
                     confirm=True,
                 )
                 print(f"Cleanup: Deleted test zone {zone_id}")
@@ -229,7 +221,6 @@ async def test_update_firewall_zone(settings, env: TestEnvironment) -> dict[str,
         created = await firewall_zones.create_firewall_zone(
             site_id=env.site_id,
             name=f"{TEST_PREFIX}UPDATE_TEST",
-            settings=settings,
             confirm=True,
         )
 
@@ -240,7 +231,6 @@ async def test_update_firewall_zone(settings, env: TestEnvironment) -> dict[str,
         updated = await firewall_zones.update_firewall_zone(
             site_id=env.site_id,
             firewall_zone_id=zone_id,
-            settings=settings,
             name=f"{TEST_PREFIX}UPDATED_ZONE",
             confirm=True,
         )
@@ -269,7 +259,6 @@ async def test_update_firewall_zone(settings, env: TestEnvironment) -> dict[str,
                 await firewall_zones.delete_firewall_zone(
                     site_id=env.site_id,
                     zone_id=zone_id,
-                    settings=settings,
                     confirm=True,
                 )
             except Exception as cleanup_err:
@@ -286,7 +275,6 @@ async def test_create_firewall_zone_dry_run(settings, env: TestEnvironment) -> d
         result = await firewall_zones.create_firewall_zone(
             site_id=env.site_id,
             name=f"{TEST_PREFIX}DRY_RUN_TEST",
-            settings=settings,
             confirm=True,
             dry_run=True,  # Should not create zone
         )
@@ -298,7 +286,6 @@ async def test_create_firewall_zone_dry_run(settings, env: TestEnvironment) -> d
         # Verify zone was NOT created
         zones = await firewall_zones.list_firewall_zones(
             site_id=env.site_id,
-            settings=settings,
         )
         assert not any(
             z.get("name") == f"{TEST_PREFIX}DRY_RUN_TEST" for z in zones
@@ -328,7 +315,6 @@ async def test_get_zone_networks(settings, env: TestEnvironment) -> dict[str, An
         zone = await firewall_zones.create_firewall_zone(
             site_id=env.site_id,
             name=f"{TEST_PREFIX}NETWORKS_TEST",
-            settings=settings,
             confirm=True,
         )
 
@@ -339,7 +325,6 @@ async def test_get_zone_networks(settings, env: TestEnvironment) -> dict[str, An
         result = await firewall_zones.get_zone_networks(
             site_id=env.site_id,
             zone_id=zone_id,
-            settings=settings,
         )
 
         assert isinstance(result, list), "Result must be a list"
@@ -361,7 +346,6 @@ async def test_get_zone_networks(settings, env: TestEnvironment) -> dict[str, An
                 await firewall_zones.delete_firewall_zone(
                     site_id=env.site_id,
                     zone_id=zone_id,
-                    settings=settings,
                     confirm=True,
                 )
             except Exception as cleanup_err:
@@ -380,7 +364,6 @@ async def test_delete_firewall_zone_dry_run(settings, env: TestEnvironment) -> d
         zone = await firewall_zones.create_firewall_zone(
             site_id=env.site_id,
             name=f"{TEST_PREFIX}DRY_DELETE_TEST",
-            settings=settings,
             confirm=True,
         )
 
@@ -391,7 +374,6 @@ async def test_delete_firewall_zone_dry_run(settings, env: TestEnvironment) -> d
         result = await firewall_zones.delete_firewall_zone(
             site_id=env.site_id,
             zone_id=zone_id,
-            settings=settings,
             confirm=True,
             dry_run=True,  # Should not actually delete
         )
@@ -402,7 +384,6 @@ async def test_delete_firewall_zone_dry_run(settings, env: TestEnvironment) -> d
         # Verify zone still exists
         zones = await firewall_zones.list_firewall_zones(
             site_id=env.site_id,
-            settings=settings,
         )
         assert any(
             z.get("id") == zone_id or z.get("_id") == zone_id for z in zones
@@ -425,7 +406,6 @@ async def test_delete_firewall_zone_dry_run(settings, env: TestEnvironment) -> d
                 await firewall_zones.delete_firewall_zone(
                     site_id=env.site_id,
                     zone_id=zone_id,
-                    settings=settings,
                     confirm=True,
                 )
             except Exception as cleanup_err:

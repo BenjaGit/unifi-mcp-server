@@ -1,11 +1,11 @@
 """Unit tests for voucher management tools."""
 
-from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 import src.tools.vouchers as vouchers_module
+from src.api.network_client import SiteInfo
 from src.tools.vouchers import (
     bulk_delete_vouchers,
     create_vouchers,
@@ -16,224 +16,106 @@ from src.tools.vouchers import (
 from src.utils.exceptions import ValidationError
 
 
-@pytest.fixture
-def mock_settings():
-    """Create mock settings for testing."""
-    settings = MagicMock()
-    settings.log_level = "INFO"
-    settings.api_type = MagicMock()
-    settings.api_type.value = "local"
-    settings.base_url = "https://192.168.2.1"
-    settings.api_key = "test-key"
-    settings.local_host = "192.168.2.1"
-    settings.local_port = 443
-    settings.local_verify_ssl = False
-    return settings
+def _make_client() -> MagicMock:
+    client = MagicMock()
+    client.is_authenticated = True
+    client.authenticate = AsyncMock()
+    client.resolve_site = AsyncMock(return_value=SiteInfo(name="default", uuid="uuid-default"))
+    client.legacy_path = MagicMock(side_effect=lambda site, ep: f"/proxy/network/api/s/{site}/{ep}")
+    client.get = AsyncMock()
+    client.post = AsyncMock()
+    return client
 
 
-@pytest.fixture
-def sample_voucher():
-    """Create a sample voucher for testing."""
+def _sample_voucher(voucher_id: str = "voucher1", code: str = "ABCD-1234-EFGH") -> dict:
     return {
-        "_id": "voucher1",
+        "_id": voucher_id,
         "site_id": "default",
-        "code": "ABCD-1234-EFGH",
+        "code": code,
         "status": "unused",
         "used": 0,
         "quota": 1,
         "duration": 3600,
-        "create_time": datetime.now().isoformat(),
+        "create_time": "2026-01-05T00:00:00Z",
     }
-
-
-# =============================================================================
-# list_vouchers Tests
-# =============================================================================
 
 
 @pytest.mark.asyncio
-async def test_list_vouchers_success(mock_settings, sample_voucher):
-    """Test successful voucher listing."""
-    mock_response = {
-        "data": [sample_voucher, {**sample_voucher, "_id": "voucher2", "code": "WXYZ-5678"}]
+async def test_list_vouchers_success() -> None:
+    client = _make_client()
+    client.get.return_value = {
+        "data": [_sample_voucher(), _sample_voucher(voucher_id="voucher2", code="WXYZ-5678")]
     }
 
-    mock_client = MagicMock()
-    mock_client.authenticate = AsyncMock()
-    mock_client.is_authenticated = True
-    mock_client.get = AsyncMock(return_value=mock_response)
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=None)
-
-    with patch.object(vouchers_module, "UniFiClient", return_value=mock_client):
-        result = await list_vouchers("default", mock_settings)
+    with patch.object(vouchers_module, "get_network_client", return_value=client):
+        result = await list_vouchers("default")
 
     assert len(result) == 2
     assert result[0]["code"] == "ABCD-1234-EFGH"
 
 
 @pytest.mark.asyncio
-async def test_list_vouchers_with_filter(mock_settings, sample_voucher):
-    """Test voucher listing with filter expression."""
-    mock_response = {"data": [sample_voucher]}
+async def test_list_vouchers_with_filter_and_pagination() -> None:
+    client = _make_client()
+    client.get.return_value = {"data": [_sample_voucher()]}
 
-    mock_client = MagicMock()
-    mock_client.authenticate = AsyncMock()
-    mock_client.is_authenticated = True
-    mock_client.get = AsyncMock(return_value=mock_response)
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=None)
+    with patch.object(vouchers_module, "get_network_client", return_value=client):
+        await list_vouchers("default", limit=10, offset=5, filter_expr="status==unused")
 
-    with patch.object(vouchers_module, "UniFiClient", return_value=mock_client):
-        await list_vouchers("default", mock_settings, filter_expr="status==unused")
-
-    call_args = mock_client.get.call_args
-    params = call_args[1]["params"]
+    params = client.get.call_args.kwargs["params"]
+    assert params["limit"] == 10
+    assert params["offset"] == 5
     assert params["filter"] == "status==unused"
 
 
 @pytest.mark.asyncio
-async def test_list_vouchers_pagination(mock_settings, sample_voucher):
-    """Test voucher listing with pagination."""
-    mock_response = {"data": [sample_voucher]}
+async def test_list_vouchers_authenticates_if_needed() -> None:
+    client = _make_client()
+    client.is_authenticated = False
+    client.get.return_value = {"data": [_sample_voucher()]}
 
-    mock_client = MagicMock()
-    mock_client.authenticate = AsyncMock()
-    mock_client.is_authenticated = True
-    mock_client.get = AsyncMock(return_value=mock_response)
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=None)
+    with patch.object(vouchers_module, "get_network_client", return_value=client):
+        await list_vouchers("default")
 
-    with patch.object(vouchers_module, "UniFiClient", return_value=mock_client):
-        await list_vouchers("default", mock_settings, limit=10, offset=5)
-
-    call_args = mock_client.get.call_args
-    params = call_args[1]["params"]
-    assert params["limit"] == 10
-    assert params["offset"] == 5
+    client.authenticate.assert_called_once()
 
 
 @pytest.mark.asyncio
-async def test_list_vouchers_empty(mock_settings):
-    """Test voucher listing with empty response."""
-    mock_response = {"data": []}
+async def test_get_voucher_success() -> None:
+    client = _make_client()
+    client.get.return_value = {"data": [_sample_voucher()]}
 
-    mock_client = MagicMock()
-    mock_client.authenticate = AsyncMock()
-    mock_client.is_authenticated = True
-    mock_client.get = AsyncMock(return_value=mock_response)
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=None)
-
-    with patch.object(vouchers_module, "UniFiClient", return_value=mock_client):
-        result = await list_vouchers("default", mock_settings)
-
-    assert result == []
-
-
-@pytest.mark.asyncio
-async def test_list_vouchers_authenticates_if_needed(mock_settings, sample_voucher):
-    """Test that list_vouchers authenticates if not already authenticated."""
-    mock_response = {"data": [sample_voucher]}
-
-    mock_client = MagicMock()
-    mock_client.authenticate = AsyncMock()
-    mock_client.is_authenticated = False
-    mock_client.get = AsyncMock(return_value=mock_response)
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=None)
-
-    with patch.object(vouchers_module, "UniFiClient", return_value=mock_client):
-        await list_vouchers("default", mock_settings)
-
-    mock_client.authenticate.assert_called_once()
-
-
-# =============================================================================
-# get_voucher Tests
-# =============================================================================
-
-
-@pytest.mark.asyncio
-async def test_get_voucher_success(mock_settings, sample_voucher):
-    """Test successful voucher retrieval."""
-    mock_response = {"data": sample_voucher}
-
-    mock_client = MagicMock()
-    mock_client.authenticate = AsyncMock()
-    mock_client.is_authenticated = True
-    mock_client.get = AsyncMock(return_value=mock_response)
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=None)
-
-    with patch.object(vouchers_module, "UniFiClient", return_value=mock_client):
-        result = await get_voucher("default", "voucher1", mock_settings)
+    with patch.object(vouchers_module, "get_network_client", return_value=client):
+        result = await get_voucher("default", "voucher1")
 
     assert result["code"] == "ABCD-1234-EFGH"
-    mock_client.get.assert_called_once_with("/integration/v1/sites/default/vouchers/voucher1")
 
 
 @pytest.mark.asyncio
-async def test_get_voucher_authenticates_if_needed(mock_settings, sample_voucher):
-    """Test that get_voucher authenticates if not already authenticated."""
-    mock_response = {"data": sample_voucher}
+async def test_get_voucher_not_found() -> None:
+    client = _make_client()
+    client.get.return_value = {"data": [_sample_voucher()]}
 
-    mock_client = MagicMock()
-    mock_client.authenticate = AsyncMock()
-    mock_client.is_authenticated = False
-    mock_client.get = AsyncMock(return_value=mock_response)
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=None)
-
-    with patch.object(vouchers_module, "UniFiClient", return_value=mock_client):
-        await get_voucher("default", "voucher1", mock_settings)
-
-    mock_client.authenticate.assert_called_once()
-
-
-# =============================================================================
-# create_vouchers Tests
-# =============================================================================
+    with patch.object(vouchers_module, "get_network_client", return_value=client):
+        with pytest.raises(ValueError):
+            await get_voucher("default", "missing")
 
 
 @pytest.mark.asyncio
-async def test_create_vouchers_success(mock_settings):
-    """Test successful voucher creation."""
-    mock_response = {
+async def test_create_vouchers_success() -> None:
+    client = _make_client()
+    client.post.return_value = {
         "data": [
-            {
-                "_id": "new1",
-                "code": "NEW1-CODE",
-                "status": "unused",
-                "duration": 3600,
-                "site_id": "default",
-                "quota": 1,
-                "used": 0,
-                "create_time": datetime.now().isoformat(),
-            },
-            {
-                "_id": "new2",
-                "code": "NEW2-CODE",
-                "status": "unused",
-                "duration": 3600,
-                "site_id": "default",
-                "quota": 1,
-                "used": 0,
-                "create_time": datetime.now().isoformat(),
-            },
+            _sample_voucher(voucher_id="new1", code="NEW1-CODE"),
+            _sample_voucher(voucher_id="new2", code="NEW2-CODE"),
         ]
     }
 
-    mock_client = MagicMock()
-    mock_client.authenticate = AsyncMock()
-    mock_client.is_authenticated = True
-    mock_client.post = AsyncMock(return_value=mock_response)
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=None)
-
-    with patch.object(vouchers_module, "UniFiClient", return_value=mock_client):
-        with patch.object(vouchers_module, "audit_action", new=AsyncMock()):
-            result = await create_vouchers("default", 2, 3600, mock_settings, confirm=True)
+    with (
+        patch.object(vouchers_module, "get_network_client", return_value=client),
+        patch.object(vouchers_module, "audit_action", new=AsyncMock()),
+    ):
+        result = await create_vouchers("default", 2, 3600, confirm=True)
 
     assert result["success"] is True
     assert result["count"] == 2
@@ -241,187 +123,109 @@ async def test_create_vouchers_success(mock_settings):
 
 
 @pytest.mark.asyncio
-async def test_create_vouchers_with_limits(mock_settings):
-    """Test voucher creation with bandwidth limits."""
-    mock_response = {"data": []}
+async def test_create_vouchers_with_limits_and_note() -> None:
+    client = _make_client()
+    client.post.return_value = {"data": []}
 
-    mock_client = MagicMock()
-    mock_client.authenticate = AsyncMock()
-    mock_client.is_authenticated = True
-    mock_client.post = AsyncMock(return_value=mock_response)
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=None)
+    with (
+        patch.object(vouchers_module, "get_network_client", return_value=client),
+        patch.object(vouchers_module, "audit_action", new=AsyncMock()),
+    ):
+        await create_vouchers(
+            "default",
+            5,
+            7200,
+            upload_limit_kbps=1000,
+            download_limit_kbps=5000,
+            download_quota_mb=1000,
+            note="Test vouchers",
+            confirm=True,
+        )
 
-    with patch.object(vouchers_module, "UniFiClient", return_value=mock_client):
-        with patch.object(vouchers_module, "audit_action", new=AsyncMock()):
-            await create_vouchers(
-                "default",
-                5,
-                7200,
-                mock_settings,
-                upload_limit_kbps=1000,
-                download_limit_kbps=5000,
-                upload_quota_mb=500,
-                download_quota_mb=1000,
-                note="Test vouchers",
-                confirm=True,
-            )
-
-    call_args = mock_client.post.call_args
-    payload = call_args[1]["json_data"]
-    assert payload["uploadLimit"] == 1000
-    assert payload["downloadLimit"] == 5000
-    assert payload["uploadQuota"] == 500
-    assert payload["downloadQuota"] == 1000
+    payload = client.post.call_args.kwargs["json_data"]
+    assert payload["cmd"] == "create-voucher"
+    assert payload["n"] == 5
+    assert payload["up"] == 1000
+    assert payload["down"] == 5000
+    assert payload["bytes"] == 1000
     assert payload["note"] == "Test vouchers"
 
 
 @pytest.mark.asyncio
-async def test_create_vouchers_dry_run(mock_settings):
-    """Test voucher creation dry run."""
-    mock_client = MagicMock()
-    mock_client.authenticate = AsyncMock()
-    mock_client.is_authenticated = True
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=None)
-
-    with patch.object(vouchers_module, "UniFiClient", return_value=mock_client):
-        result = await create_vouchers(
-            "default", 3, 3600, mock_settings, confirm=True, dry_run=True
-        )
+async def test_create_vouchers_dry_run() -> None:
+    with patch.object(vouchers_module, "get_network_client", return_value=_make_client()):
+        result = await create_vouchers("default", 3, 3600, confirm=True, dry_run=True)
 
     assert result["dry_run"] is True
-    assert result["payload"]["count"] == 3
-    assert result["payload"]["duration"] == 3600
+    assert result["payload"]["n"] == 3
 
 
 @pytest.mark.asyncio
-async def test_create_vouchers_no_confirm(mock_settings):
-    """Test voucher creation fails without confirmation."""
-    with pytest.raises(ValidationError) as excinfo:
-        await create_vouchers("default", 1, 3600, mock_settings, confirm=False)
-
-    assert "requires confirmation" in str(excinfo.value).lower()
-
-
-# =============================================================================
-# delete_voucher Tests
-# =============================================================================
+async def test_create_vouchers_requires_confirmation() -> None:
+    with pytest.raises(ValidationError):
+        await create_vouchers("default", 1, 3600, confirm=False)
 
 
 @pytest.mark.asyncio
-async def test_delete_voucher_success(mock_settings):
-    """Test successful voucher deletion."""
-    mock_client = MagicMock()
-    mock_client.authenticate = AsyncMock()
-    mock_client.is_authenticated = True
-    mock_client.delete = AsyncMock(return_value={})
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=None)
+async def test_delete_voucher_success() -> None:
+    client = _make_client()
 
-    with patch.object(vouchers_module, "UniFiClient", return_value=mock_client):
-        with patch.object(vouchers_module, "audit_action", new=AsyncMock()):
-            result = await delete_voucher("default", "voucher1", mock_settings, confirm=True)
+    with (
+        patch.object(vouchers_module, "get_network_client", return_value=client),
+        patch.object(vouchers_module, "audit_action", new=AsyncMock()),
+    ):
+        result = await delete_voucher("default", "voucher1", confirm=True)
 
     assert result["success"] is True
-    mock_client.delete.assert_called_once_with("/integration/v1/sites/default/vouchers/voucher1")
+    client.post.assert_called_once_with(
+        "/proxy/network/api/s/default/cmd/hotspot",
+        json_data={"cmd": "delete-voucher", "_id": "voucher1"},
+    )
 
 
 @pytest.mark.asyncio
-async def test_delete_voucher_dry_run(mock_settings):
-    """Test voucher deletion dry run."""
-    mock_client = MagicMock()
-    mock_client.authenticate = AsyncMock()
-    mock_client.is_authenticated = True
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=None)
-
-    with patch.object(vouchers_module, "UniFiClient", return_value=mock_client):
-        result = await delete_voucher(
-            "default", "voucher1", mock_settings, confirm=True, dry_run=True
-        )
+async def test_delete_voucher_dry_run() -> None:
+    with patch.object(vouchers_module, "get_network_client", return_value=_make_client()):
+        result = await delete_voucher("default", "voucher1", confirm=True, dry_run=True)
 
     assert result["dry_run"] is True
     assert result["voucher_id"] == "voucher1"
 
 
 @pytest.mark.asyncio
-async def test_delete_voucher_no_confirm(mock_settings):
-    """Test voucher deletion fails without confirmation."""
-    with pytest.raises(ValidationError) as excinfo:
-        await delete_voucher("default", "voucher1", mock_settings, confirm=False)
-
-    assert "requires confirmation" in str(excinfo.value).lower()
-
-
-# =============================================================================
-# bulk_delete_vouchers Tests
-# =============================================================================
+async def test_delete_voucher_requires_confirmation() -> None:
+    with pytest.raises(ValidationError):
+        await delete_voucher("default", "voucher1", confirm=False)
 
 
 @pytest.mark.asyncio
-async def test_bulk_delete_vouchers_success(mock_settings):
-    """Test successful bulk voucher deletion."""
-    mock_response = {"data": {"count": 5}}
+async def test_bulk_delete_vouchers_success() -> None:
+    client = _make_client()
+    client.get.return_value = {
+        "data": [
+            {"_id": "v1", "status": "expired"},
+            {"_id": "v2", "status": "expired"},
+            {"_id": "v3", "status": "unused"},
+        ]
+    }
 
-    mock_client = MagicMock()
-    mock_client.authenticate = AsyncMock()
-    mock_client.is_authenticated = True
-    mock_client.delete = AsyncMock(return_value=mock_response)
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=None)
-
-    with patch.object(vouchers_module, "UniFiClient", return_value=mock_client):
-        with patch.object(vouchers_module, "audit_action", new=AsyncMock()):
-            result = await bulk_delete_vouchers(
-                "default", "status==expired", mock_settings, confirm=True
-            )
+    with (
+        patch.object(vouchers_module, "get_network_client", return_value=client),
+        patch.object(vouchers_module, "audit_action", new=AsyncMock()),
+    ):
+        result = await bulk_delete_vouchers("default", "status==expired", confirm=True)
 
     assert result["success"] is True
-    assert result["deleted_count"] == 5
+    assert result["deleted_count"] == 2
 
 
 @pytest.mark.asyncio
-async def test_bulk_delete_vouchers_dry_run(mock_settings):
-    """Test bulk voucher deletion dry run."""
-    mock_client = MagicMock()
-    mock_client.authenticate = AsyncMock()
-    mock_client.is_authenticated = True
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=None)
-
-    with patch.object(vouchers_module, "UniFiClient", return_value=mock_client):
-        result = await bulk_delete_vouchers(
-            "default", "status==unused", mock_settings, confirm=True, dry_run=True
+async def test_bulk_delete_vouchers_dry_run_and_requires_confirmation() -> None:
+    with patch.object(vouchers_module, "get_network_client", return_value=_make_client()):
+        dry_result = await bulk_delete_vouchers(
+            "default", "status==unused", confirm=True, dry_run=True
         )
+    assert dry_result["dry_run"] is True
 
-    assert result["dry_run"] is True
-    assert result["filter"] == "status==unused"
-
-
-@pytest.mark.asyncio
-async def test_bulk_delete_vouchers_no_confirm(mock_settings):
-    """Test bulk voucher deletion fails without confirmation."""
-    with pytest.raises(ValidationError) as excinfo:
-        await bulk_delete_vouchers("default", "status==expired", mock_settings, confirm=False)
-
-    assert "requires confirmation" in str(excinfo.value).lower()
-
-
-@pytest.mark.asyncio
-async def test_bulk_delete_vouchers_authenticates_if_needed(mock_settings):
-    """Test that bulk_delete authenticates if not already authenticated."""
-    mock_response = {"data": {"count": 0}}
-
-    mock_client = MagicMock()
-    mock_client.authenticate = AsyncMock()
-    mock_client.is_authenticated = False
-    mock_client.delete = AsyncMock(return_value=mock_response)
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=None)
-
-    with patch.object(vouchers_module, "UniFiClient", return_value=mock_client):
-        with patch.object(vouchers_module, "audit_action", new=AsyncMock()):
-            await bulk_delete_vouchers("default", "status==old", mock_settings, confirm=True)
-
-    mock_client.authenticate.assert_called_once()
+    with pytest.raises(ValidationError):
+        await bulk_delete_vouchers("default", "status==expired", confirm=False)

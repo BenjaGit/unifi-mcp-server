@@ -2,15 +2,20 @@
 
 from typing import Any
 
-from ..api import UniFiClient
-from ..config import Settings
+from fastmcp.server.providers import LocalProvider
+
+from ..api.pool import get_network_client
 from ..models.vpn import VPNServer, VPNTunnel
 from ..utils import get_logger, validate_limit_offset, validate_site_id
 
+provider = LocalProvider()
 
+__all__ = ["provider", "list_vpn_tunnels", "list_vpn_servers"]
+
+
+@provider.tool()
 async def list_vpn_tunnels(
     site_id: str,
-    settings: Settings,
     limit: int | None = None,
     offset: int | None = None,
 ) -> list[dict[str, Any]]:
@@ -27,24 +32,28 @@ async def list_vpn_tunnels(
     """
     site_id = validate_site_id(site_id)
     limit, offset = validate_limit_offset(limit, offset)
-    logger = get_logger(__name__, settings.log_level)
+    logger = get_logger(__name__)
 
-    async with UniFiClient(settings) as client:
+    client = get_network_client()
+    if not client.is_authenticated:
         await client.authenticate()
 
-        response = await client.get(f"/integration/v1/sites/{site_id}/vpn/site-to-site-tunnels")
-        tunnels_data: list[dict[str, Any]] = response.get("data", [])
+    site = await client.resolve_site(site_id)
 
-        # Apply pagination
-        paginated = tunnels_data[offset : offset + limit]
+    response = await client.get(client.integration_path(site.uuid, "vpn/site-to-site-tunnels"))
+    tunnels_data: list[dict[str, Any]] = (
+        response if isinstance(response, list) else response.get("data", [])
+    )
 
-        logger.info(f"Retrieved {len(paginated)} VPN tunnels for site '{site_id}'")
-        return [VPNTunnel(**tunnel).model_dump() for tunnel in paginated]
+    paginated = tunnels_data[offset : offset + limit]
+
+    logger.info(f"Retrieved {len(paginated)} VPN tunnels for site '{site_id}'")
+    return [VPNTunnel(**tunnel).model_dump() for tunnel in paginated]
 
 
+@provider.tool()
 async def list_vpn_servers(
     site_id: str,
-    settings: Settings,
     limit: int | None = None,
     offset: int | None = None,
 ) -> list[dict[str, Any]]:
@@ -61,16 +70,20 @@ async def list_vpn_servers(
     """
     site_id = validate_site_id(site_id)
     limit, offset = validate_limit_offset(limit, offset)
-    logger = get_logger(__name__, settings.log_level)
+    logger = get_logger(__name__)
 
-    async with UniFiClient(settings) as client:
+    client = get_network_client()
+    if not client.is_authenticated:
         await client.authenticate()
 
-        response = await client.get(f"/integration/v1/sites/{site_id}/vpn/servers")
-        servers_data: list[dict[str, Any]] = response.get("data", [])
+    site = await client.resolve_site(site_id)
 
-        # Apply pagination
-        paginated = servers_data[offset : offset + limit]
+    response = await client.get(client.integration_path(site.uuid, "vpn/servers"))
+    servers_data: list[dict[str, Any]] = (
+        response if isinstance(response, list) else response.get("data", [])
+    )
 
-        logger.info(f"Retrieved {len(paginated)} VPN servers for site '{site_id}'")
-        return [VPNServer(**server).model_dump() for server in paginated]
+    paginated = servers_data[offset : offset + limit]
+
+    logger.info(f"Retrieved {len(paginated)} VPN servers for site '{site_id}'")
+    return [VPNServer(**server).model_dump() for server in paginated]

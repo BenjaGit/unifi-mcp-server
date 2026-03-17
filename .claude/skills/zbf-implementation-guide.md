@@ -53,7 +53,7 @@ Guide the complete implementation of Zone-Based Firewall (ZBF) support for UniFi
 - ✅ Pydantic data models (FirewallZone, ZonePolicy, etc.)
 - ✅ Unit tests (84.13% coverage)
 
-**Remaining Work (TODO.md Phase 1):**
+**Remaining Work (CHANGELOG.md Phase 1):**
 
 - ❌ Verify endpoints with real UniFi Network 9.0+ controller
 - ❌ Additional tools (delete_zone, unassign_network, get_statistics)
@@ -617,9 +617,9 @@ async def test_zbf_end_to_end():
 
 ## Phase 8: Documentation
 
-### Update API.md
+### Update docs/api/mcp-tools.md
 
-Add complete ZBF section to API.md:
+Add complete ZBF section to docs/api/mcp-tools.md:
 
 - All zone management tools
 - Zone matrix tools
@@ -650,14 +650,14 @@ New file: `docs/ZBF_GUIDE.md`
 - **Before implementation**: Use `tool-design-reviewer` for new ZBF tools
 - **During implementation**: Use `unifi-api-explorer` to test endpoints
 - **Testing**: Use `test-strategy` for comprehensive test coverage
-- **Documentation**: Use `api-doc-generator` to update API.md
+- **Documentation**: Use `api-doc-generator` to update docs/api/mcp-tools.md
 
 ## Reference Files
 
 Load these for context:
 
-- `DEVELOPMENT_PLAN.md` - Phase 1 requirements (P0 - Critical)
-- `TODO.md` - Phase 1 remaining tasks (~60% complete)
+- `CHANGELOG.md` - Phase 1 requirements (P0 - Critical)
+- `CHANGELOG.md` - Phase 1 remaining tasks (~60% complete)
 - `src/models/firewall_zone.py` - Zone data models
 - `src/tools/firewall_zones.py` - Zone management tools
 - `src/tools/zbf_matrix.py` - Zone matrix tools

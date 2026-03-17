@@ -23,7 +23,7 @@ def mock_settings():
     settings.log_level = "INFO"
     settings.api_type = APIType.CLOUD_EA
     settings.base_url = "https://api.ui.com"
-    settings.api_key = "test-api-key"
+    settings.network_api_key = "test-api-key"
     settings.request_timeout = 30.0
     settings.verify_ssl = True
     settings.rate_limit_requests = 100
@@ -42,7 +42,7 @@ def mock_settings_local():
     settings.log_level = "INFO"
     settings.api_type = APIType.LOCAL
     settings.base_url = "https://192.168.2.1"
-    settings.api_key = "test-api-key"
+    settings.network_api_key = "test-api-key"
     settings.request_timeout = 30.0
     settings.verify_ssl = False
     settings.rate_limit_requests = 100
@@ -95,7 +95,6 @@ class TestUniFiClientInit:
 
         assert client.settings == mock_settings
         assert client._authenticated is False
-        assert client._site_id_cache == {}
         await client.close()
 
     @pytest.mark.asyncio
@@ -111,67 +110,6 @@ class TestUniFiClientInit:
         assert client.is_authenticated is False
         client._authenticated = True
         assert client.is_authenticated is True
-
-        await client.close()
-
-
-class TestUniFiClientEndpointTranslation:
-    @pytest.mark.asyncio
-    async def test_translate_cloud_ea_unchanged(self, mock_settings):
-        client = UniFiClient(mock_settings)
-
-        result = client._translate_endpoint("/ea/sites")
-        assert result == "/ea/sites"
-
-        result = client._translate_endpoint("/ea/sites/default/devices")
-        assert result == "/ea/sites/default/devices"
-
-        await client.close()
-
-    @pytest.mark.asyncio
-    async def test_translate_cloud_v1_unchanged(self, mock_settings):
-        mock_settings.api_type = APIType.CLOUD_V1
-        client = UniFiClient(mock_settings)
-
-        result = client._translate_endpoint("/v1/hosts")
-        assert result == "/v1/hosts"
-
-        await client.close()
-
-    @pytest.mark.asyncio
-    async def test_translate_local_sites(self, mock_settings_local):
-        client = UniFiClient(mock_settings_local)
-
-        result = client._translate_endpoint("/ea/sites")
-        assert result == "/proxy/network/integration/v1/sites"
-
-        await client.close()
-
-    @pytest.mark.asyncio
-    async def test_translate_local_devices(self, mock_settings_local):
-        client = UniFiClient(mock_settings_local)
-
-        result = client._translate_endpoint("/ea/sites/default/devices")
-        assert result == "/proxy/network/api/s/default/stat/device"
-
-        await client.close()
-
-    @pytest.mark.asyncio
-    async def test_translate_local_with_uuid_mapping(self, mock_settings_local):
-        client = UniFiClient(mock_settings_local)
-        client._site_uuid_to_name = {"abc-123-uuid": "default"}
-
-        result = client._translate_endpoint("/ea/sites/abc-123-uuid/devices")
-        assert result == "/proxy/network/api/s/default/stat/device"
-
-        await client.close()
-
-    @pytest.mark.asyncio
-    async def test_translate_local_site_detail(self, mock_settings_local):
-        client = UniFiClient(mock_settings_local)
-
-        result = client._translate_endpoint("/ea/sites/default")
-        assert result == "/proxy/network/api/s/default/self"
 
         await client.close()
 
@@ -219,21 +157,6 @@ class TestUniFiClientAuthentication:
             with pytest.raises(AuthenticationError, match="Failed to authenticate"):
                 await client.authenticate()
 
-        await client.close()
-
-    @pytest.mark.asyncio
-    async def test_build_site_uuid_map(self, mock_settings_local):
-        client = UniFiClient(mock_settings_local)
-
-        sites = [
-            {"id": "uuid-1", "internalReference": "default"},
-            {"id": "uuid-2", "internalReference": "office"},
-        ]
-
-        client._build_site_uuid_map(sites)
-
-        assert client._site_uuid_to_name["uuid-1"] == "default"
-        assert client._site_uuid_to_name["uuid-2"] == "office"
         await client.close()
 
 
@@ -300,6 +223,53 @@ class TestUniFiClientHttpMethods:
             result = await client.delete("/ea/sites/default/networks/123")
 
         assert result == {}
+        await client.close()
+
+
+class TestAuthRetry:
+    @pytest.mark.asyncio
+    async def test_reauth_on_auth_error(self, mock_settings):
+        client = UniFiClient(mock_settings)
+
+        auth_failure = MagicMock()
+        auth_failure.status_code = 401
+        auth_failure.text = "unauthorized"
+        auth_failure.json = MagicMock(return_value={})
+
+        success_response = MagicMock()
+        success_response.status_code = 200
+        success_response.text = '{"data": []}'
+        success_response.json = MagicMock(return_value={"data": []})
+
+        with patch.object(client.client, "request", new_callable=AsyncMock) as mock_request:
+            mock_request.side_effect = [auth_failure, success_response]
+            client.authenticate = AsyncMock()
+
+            result = await client.get("/ea/sites/default/devices")
+
+        client.authenticate.assert_awaited_once()
+        assert mock_request.await_count == 2
+        assert result == []
+        await client.close()
+
+    @pytest.mark.asyncio
+    async def test_reauth_failure_propagates(self, mock_settings):
+        client = UniFiClient(mock_settings)
+
+        auth_failure = MagicMock()
+        auth_failure.status_code = 401
+        auth_failure.text = "unauthorized"
+        auth_failure.json = MagicMock(return_value={})
+
+        with patch.object(client.client, "request", new_callable=AsyncMock) as mock_request:
+            mock_request.side_effect = [auth_failure, auth_failure]
+            client.authenticate = AsyncMock()
+
+            with pytest.raises(AuthenticationError):
+                await client.get("/ea/sites/default/devices")
+
+        client.authenticate.assert_awaited_once()
+        assert mock_request.await_count == 2
         await client.close()
 
 
@@ -455,6 +425,37 @@ class TestUniFiClientErrorHandling:
 
 
 class TestUniFiClientResponseParsing:
+    @pytest.mark.anyio
+    async def test_blocks_absolute_external_url(self, mock_settings):
+        client = UniFiClient(mock_settings)
+
+        with patch.object(client.client, "request", new_callable=AsyncMock) as mock_request:
+            with pytest.raises(APIError, match="Blocked request to untrusted host"):
+                await client.get("https://example.com/ea/sites")
+
+            mock_request.assert_not_called()
+
+        await client.close()
+
+    @pytest.mark.anyio
+    async def test_allows_absolute_url_for_configured_host(self, mock_settings):
+        client = UniFiClient(mock_settings)
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.text = '{"data": []}'
+        mock_response.json = MagicMock(return_value={"data": []})
+
+        with patch.object(client.client, "request", new_callable=AsyncMock) as mock_request:
+            mock_request.return_value = mock_response
+            result = await client.get("https://api.ui.com/ea/sites")
+
+            assert result == []
+            call_args = mock_request.call_args
+            assert call_args[1]["url"] == "https://api.ui.com/ea/sites"
+
+        await client.close()
+
     @pytest.mark.asyncio
     async def test_parse_empty_response(self, mock_settings):
         client = UniFiClient(mock_settings)
@@ -505,129 +506,3 @@ class TestUniFiClientResponseParsing:
             assert call_args[1]["url"].startswith("https://")
 
         await client.close()
-
-
-class TestUniFiClientBackupMethods:
-    """Tests for backup-related client methods."""
-
-    @pytest.mark.asyncio
-    async def test_get_restore_status_returns_not_supported(self, mock_settings):
-        """get_restore_status returns a not_supported status (endpoint not in UniFi API)."""
-        client = UniFiClient(mock_settings)
-        result = await client.get_restore_status(operation_id="op-123")
-        assert result["status"] == "not_supported"
-        assert result["operation_id"] == "op-123"
-        assert "message" in result
-        await client.close()
-
-    @pytest.mark.asyncio
-    async def test_configure_backup_schedule_local(self, mock_settings_local):
-        """configure_backup_schedule calls PUT on the local endpoint."""
-        client = UniFiClient(mock_settings_local)
-        client._site_uuid_to_name = {"default": "default"}
-
-        with patch.object(client, "resolve_site_id", new=AsyncMock(return_value="default")):
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.text = '{"data": {"schedule_id": "sched-1"}}'
-            mock_response.json = MagicMock(return_value={"data": {"schedule_id": "sched-1"}})
-
-            with patch.object(client.client, "request", new_callable=AsyncMock) as mock_req:
-                mock_req.return_value = mock_response
-                await client.configure_backup_schedule(
-                    site_id="default",
-                    backup_type="network",
-                    frequency="daily",
-                    time_of_day="02:00",
-                    enabled=True,
-                    retention_days=30,
-                    max_backups=10,
-                )
-
-        assert mock_req.called
-        call_kwargs = mock_req.call_args
-        assert "/proxy/network/api/s/default/rest/backup/schedule" in call_kwargs[1]["url"]
-        await client.close()
-
-    @pytest.mark.asyncio
-    async def test_configure_backup_schedule_cloud(self, mock_settings):
-        """configure_backup_schedule calls PUT on the cloud endpoint."""
-        client = UniFiClient(mock_settings)
-
-        with patch.object(client, "resolve_site_id", new=AsyncMock(return_value="site-uuid")):
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.text = '{"data": {"schedule_id": "sched-2"}}'
-            mock_response.json = MagicMock(return_value={"data": {"schedule_id": "sched-2"}})
-
-            with patch.object(client.client, "request", new_callable=AsyncMock) as mock_req:
-                mock_req.return_value = mock_response
-                await client.configure_backup_schedule(
-                    site_id="site-uuid",
-                    backup_type="network",
-                    frequency="weekly",
-                    time_of_day="03:00",
-                    enabled=True,
-                    retention_days=14,
-                    max_backups=5,
-                    day_of_week="monday",
-                )
-
-        assert mock_req.called
-        call_kwargs = mock_req.call_args
-        assert "/ea/sites/site-uuid/backup/schedule" in call_kwargs[1]["url"]
-        await client.close()
-
-    @pytest.mark.asyncio
-    async def test_get_backup_schedule_local_returns_dict(self, mock_settings_local):
-        """get_backup_schedule returns a dict for a configured schedule."""
-        client = UniFiClient(mock_settings_local)
-        client._site_uuid_to_name = {"default": "default"}
-
-        with patch.object(client, "resolve_site_id", new=AsyncMock(return_value="default")):
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.text = '{"data": {"schedule_id": "sched-1", "enabled": true}}'
-            mock_response.json = MagicMock(
-                return_value={"data": {"schedule_id": "sched-1", "enabled": True}}
-            )
-
-            with patch.object(client.client, "request", new_callable=AsyncMock) as mock_req:
-                mock_req.return_value = mock_response
-                result = await client.get_backup_schedule(site_id="default")
-
-        assert isinstance(result, dict)
-        await client.close()
-
-    @pytest.mark.asyncio
-    async def test_get_backup_schedule_empty_list_returns_empty_dict(self, mock_settings):
-        """get_backup_schedule returns empty dict when API returns empty list."""
-        client = UniFiClient(mock_settings)
-
-        with patch.object(client, "resolve_site_id", new=AsyncMock(return_value="site-uuid")):
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.text = "[]"
-            mock_response.json = MagicMock(return_value=[])
-
-            with patch.object(client.client, "request", new_callable=AsyncMock) as mock_req:
-                mock_req.return_value = mock_response
-                result = await client.get_backup_schedule(site_id="site-uuid")
-
-        assert result == {}
-        await client.close()
-
-
-class TestUniFiClientHelpers:
-    def test_looks_like_uuid_valid(self):
-        assert UniFiClient._looks_like_uuid("550e8400-e29b-41d4-a716-446655440000") is True
-
-    def test_looks_like_uuid_invalid(self):
-        assert UniFiClient._looks_like_uuid("default") is False
-        assert UniFiClient._looks_like_uuid("not-a-uuid") is False
-
-    def test_looks_like_uuid_none(self):
-        assert UniFiClient._looks_like_uuid(None) is False
-
-    def test_looks_like_uuid_empty(self):
-        assert UniFiClient._looks_like_uuid("") is False

@@ -93,9 +93,11 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
 ```
 
 > **Tip:** To avoid `npx` fetching on every launch, install globally first:
+>
 > ```bash
 > npm install -g mcp-remote
 > ```
+>
 > Then use the full path as the command (e.g. `"command": "/usr/local/bin/mcp-remote"`).
 
 ## API Modes

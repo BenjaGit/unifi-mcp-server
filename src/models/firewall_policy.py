@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -54,6 +55,22 @@ class Schedule(BaseModel):
     time_range_start: str | None = Field(None, description="Start time HH:MM")
     time_range_end: str | None = Field(None, description="End time HH:MM")
     repeat_on_days: list[str] | None = Field(None, description="Days to repeat")
+
+    model_config = ConfigDict(extra="allow")
+
+
+class ConflictStrategy(str, Enum):
+    SKIP = "SKIP"
+    OVERWRITE = "OVERWRITE"
+    FAIL = "FAIL"
+
+
+class PolicyBackup(BaseModel):
+    version: str = Field(default="1.0", description="Backup format version")
+    exported_at: str = Field(..., description="ISO timestamp of export")
+    source_site: str = Field(..., description="Site the policies were exported from")
+    policy_count: int = Field(..., description="Number of policies in backup")
+    policies: list[dict[str, Any]] = Field(..., description="Raw policy data")
 
     model_config = ConfigDict(extra="allow")
 

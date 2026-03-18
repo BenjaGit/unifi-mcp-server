@@ -132,7 +132,6 @@ For local mode, set `UNIFI_LOCAL_HOST=<gateway-ip>` and use `UNIFI_LOCAL_API_KEY
 | Release process | [docs/operations/release-process.md](docs/operations/release-process.md) |
 | Disaster recovery | [docs/operations/disaster-recovery.md](docs/operations/disaster-recovery.md) |
 | Zone-Based Firewall status | [docs/features/zbf-status.md](docs/features/zbf-status.md) |
-| MCP Toolbox (analytics dashboard) | [docs/features/mcp-toolbox.md](docs/features/mcp-toolbox.md) |
 | Changelog | [CHANGELOG.md](CHANGELOG.md) |
 
 ## Contributing

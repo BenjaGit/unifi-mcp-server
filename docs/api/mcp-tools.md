@@ -287,8 +287,6 @@ MCP Toolbox provides:
 - Historical trend analysis
 - Request/response inspection
 
-See [docs/features/mcp-toolbox.md](../features/mcp-toolbox.md) for complete documentation.
-
 ---
 
 ## Authentication

@@ -102,12 +102,6 @@ context is full. Treat it as the source of truth if context is lost.
 At the start of each new session or after compaction, read
 `docs/refactor-state.md` before taking any action.
 
-### MCP schema reference
-
-The mcp-schema-extractor output should be written to `docs/mcp-schemas.json`
-and treated as immutable reference. Any agent can read it to verify tool
-schemas without re-scanning the codebase.
-
 ### Session boundaries
 
 When approaching context limits, stop refactoring. Write current state to

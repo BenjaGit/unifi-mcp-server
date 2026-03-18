@@ -24,7 +24,7 @@ This document adapts the canonical rules in `CLAUDE.md` for OpenCode agents powe
 - Tool input/output schemas are immutable contracts; preserve exactly unless instructed otherwise.
 - Handler registration order may matter; verify before reordering.
 - Every mutating tool requires `confirm=True` and supports `dry_run=True` (default false, no effect); raise `ConfirmationRequiredError` when missing confirm.
-- Use `docs/mcp-schemas.json` as schema reference; regenerate only when asked.
+- Verify tool schemas via the test suite; regenerate schema baseline only when asked.
 
 ## Refactoring Priorities
 
@@ -96,7 +96,7 @@ This document adapts the canonical rules in `CLAUDE.md` for OpenCode agents powe
 
 1. Tests: `.venv/bin/python -m pytest tests/unit/` (or narrower scope when justified).
 2. Quality: `black`, `isort`, `ruff`, `mypy` as listed above.
-3. Schema integrity: confirm no tool signature drift; re-compare against `docs/mcp-schemas.json` if editing MCP interfaces.
+3. Schema integrity: confirm no tool signature drift when editing MCP interfaces.
 4. Documentation: update tool references, release notes, or API docs when behavior changes.
 5. Install step: rerun `pipx install -e . --force` if package layout changed.
 
